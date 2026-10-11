@@ -1,0 +1,243 @@
+openapi: 3.0.3
+info:
+  title: SSSM Personnel API
+  version: 1.0.0
+  description: API de gestion des agents de sécurité et de leurs documents.
+servers:
+  - url: http://localhost:8080
+    description: Serveur local
+tags:
+  - name: Employees
+    description: Gestion des agents de sécurité
+  - name: Employee Documents
+    description: Gestion des documents des agents
+paths:
+  /api/employees:
+    get:
+      tags: [Employees]
+      summary: Lister les agents
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Liste paginée des agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Employee'
+    post:
+      tags: [Employees]
+      summary: Créer un agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeCreate'
+      responses:
+        '200':
+          description: Agent créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+  /api/employees/{employeeId}:
+    parameters:
+      - $ref: '#/components/parameters/EmployeeId'
+    get:
+      tags: [Employees]
+      summary: Récupérer un agent
+      responses:
+        '200':
+          description: Agent trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Employees]
+      summary: Modifier un agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeUpdate'
+      responses:
+        '200':
+          description: Agent modifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Employee'
+    delete:
+      tags: [Employees]
+      summary: Supprimer un agent
+      responses:
+        '200':
+          description: Agent supprimé
+  /api/employee-documents:
+    post:
+      tags: [Employee Documents]
+      summary: Ajouter un document à un agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeDocumentCreate'
+      responses:
+        '200':
+          description: Document créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDocument'
+  /api/employee-documents/employee/{employeeId}:
+    parameters:
+      - $ref: '#/components/parameters/EmployeeId'
+    get:
+      tags: [Employee Documents]
+      summary: Lister les documents d’un agent
+      responses:
+        '200':
+          description: Documents de l’agent
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmployeeDocument'
+  /api/employee-documents/{documentId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      tags: [Employee Documents]
+      summary: Récupérer un document
+      responses:
+        '200':
+          description: Document trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDocument'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Employee Documents]
+      summary: Modifier un document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmployeeDocumentUpdate'
+      responses:
+        '200':
+          description: Document modifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployeeDocument'
+    delete:
+      tags: [Employee Documents]
+      summary: Supprimer un document
+      responses:
+        '200':
+          description: Document supprimé
+components:
+  parameters:
+    EmployeeId:
+      name: employeeId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    Search:
+      name: search
+      in: query
+      schema: {type: string}
+      description: Recherche par prénom, nom ou matricule.
+    Page:
+      name: page
+      in: query
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      schema: {type: integer, minimum: 1, default: 10}
+  responses:
+    NotFound:
+      description: Ressource introuvable
+  schemas:
+    Employee:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeCreate'
+        - type: object
+          properties:
+            id: {type: string, format: uuid}
+            created_at: {type: string, format: date-time}
+            updated_at: {type: string, format: date-time}
+    EmployeeCreate:
+      type: object
+      required: [company_id, employee_number, first_name, last_name]
+      properties:
+        company_id: {type: string, format: uuid}
+        agency_id: {type: string, format: uuid, nullable: true}
+        user_id: {type: string, format: uuid, nullable: true}
+        employee_number: {type: string, maxLength: 80}
+        first_name: {type: string, maxLength: 100}
+        last_name: {type: string, maxLength: 100}
+        gender: {type: string, maxLength: 30}
+        date_of_birth: {type: string, format: date}
+        phone: {type: string, maxLength: 50}
+        email: {type: string, format: email, maxLength: 180}
+        address: {type: string}
+        national_id: {type: string, maxLength: 100}
+        hire_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        position: {type: string, maxLength: 100}
+        status: {type: string, enum: [ACTIVE, INACTIVE, SUSPENDED, LEFT], default: ACTIVE}
+        photo_url: {type: string, format: uri}
+        emergency_contact_name: {type: string, maxLength: 180}
+        emergency_contact_phone: {type: string, maxLength: 50}
+        notes: {type: string}
+    EmployeeUpdate:
+      $ref: '#/components/schemas/EmployeeCreate'
+    EmployeeDocument:
+      allOf:
+        - $ref: '#/components/schemas/EmployeeDocumentCreate'
+        - type: object
+          properties:
+            id: {type: string, format: uuid}
+            created_at: {type: string, format: date-time}
+    EmployeeDocumentCreate:
+      type: object
+      required: [employee_id, document_type]
+      properties:
+        employee_id: {type: string, format: uuid}
+        document_type: {type: string, maxLength: 100}
+        document_number: {type: string, maxLength: 150}
+        issue_date: {type: string, format: date}
+        expiry_date: {type: string, format: date}
+        file_url: {type: string, format: uri}
+        notes: {type: string}
+    EmployeeDocumentUpdate:
+      type: object
+      properties:
+        document_type: {type: string, maxLength: 100}
+        document_number: {type: string, maxLength: 150}
+        issue_date: {type: string, format: date}
+        expiry_date: {type: string, format: date}
+        file_url: {type: string, format: uri}
+        notes: {type: string}
