@@ -29,7 +29,7 @@ CREATE TABLE item (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id UUID NOT NULL REFERENCES company(id) ON DELETE CASCADE,
     category_id UUID REFERENCES item_category(id) ON DELETE SET NULL,
-    item_type_id UUID NOT NULL REFERENCES company(id) ON DELETE SET NULL,
+    item_type_id UUID NOT NULL REFERENCES item_type(id) ON DELETE SET NULL,
     qr_code VARCHAR(100) NOT NULL,
     description TEXT,
     status item_status NOT NULL DEFAULT 'AVAILABLE',

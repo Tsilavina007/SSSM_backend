@@ -7,6 +7,8 @@ Le schéma SQL est organisé par domaine fonctionnel dans le dossier `schema/`.
 ```text
 database/
 ├── sssm_schema2_v01.sql
+├── mock_data/
+│   └── 00_mock_data.sql
 ├── README.md
 └── schema/
     ├── 00_init.sql
@@ -31,11 +33,11 @@ database/
 
 ## Exécution complète
 
-Le fichier principal utilise les commandes `\i` de `psql` et doit être exécuté
-depuis le dossier `doc/database` :
+Les scripts SQL sont exécutés depuis la racine du projet `sssm_backend` :
 
 ```bash
-psql -d sssm_db -f sssm_schema2_v01.sql
+cd sssm_backend
+psql -d sssm_db -f doc/database/sssm_schema2_v01.sql
 ```
 
 Les fichiers sont exécutés dans l'ordre numérique afin de respecter les
@@ -48,8 +50,29 @@ Une section peut être exécutée séparément uniquement si ses dépendances on
 déjà été créées. Par exemple :
 
 ```bash
-psql -d sssm_db -f schema/03_authentication.sql
+psql -d sssm_db -f doc/database/schema/03_authentication.sql
 ```
 
 Pour une installation complète, utiliser le fichier principal plutôt qu'un
 fichier individuel.
+
+## Données de démonstration
+
+Après avoir créé le schéma, charger les données de démonstration avec :
+
+```bash
+cd sssm_backend
+psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql
+```
+
+Les identifiants sont générés automatiquement par PostgreSQL. Les références
+entre les tables sont conservées avec les variables `psql` alimentées par les
+clauses `RETURNING id`. Le script doit être exécuté après
+`sssm_schema2_v01.sql` et est destiné à une base de démonstration vide.
+
+Pour repartir d'une base de démonstration propre :
+
+```bash
+psql -d sssm_db -f doc/database/mock_data/reset_data.sql
+psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql
+```
