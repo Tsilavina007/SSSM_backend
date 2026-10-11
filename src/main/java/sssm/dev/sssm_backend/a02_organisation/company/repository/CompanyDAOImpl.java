@@ -87,8 +87,8 @@ public class CompanyDAOImpl implements CompanyDAO {
   @Override
   public Company createCompany(Company company) {
     String sql =
-        "INSERT INTO security.company (name, legal_name, registration_number, tax_number, email, phone, address, city, country, logo_url, currency_code, created_at, updated_at) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "INSERT INTO security.company (name, legal_name, registration_number, tax_number, email, phone, address, city, country, logo_url, currency_code) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
@@ -103,8 +103,6 @@ public class CompanyDAOImpl implements CompanyDAO {
       stmt.setString(9, company.getCountry());
       stmt.setString(10, company.getLogo_url());
       stmt.setString(11, company.getCurrency_code());
-      stmt.setDate(12, company.getCreated_at());
-      stmt.setDate(13, company.getUpdated_at());
 
       stmt.executeUpdate();
 

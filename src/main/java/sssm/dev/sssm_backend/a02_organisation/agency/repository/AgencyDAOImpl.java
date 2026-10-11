@@ -10,34 +10,50 @@ import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 
 public class AgencyDAOImpl implements AgencyDAO {
-  @Override
-  public List<Agency> getAllAgencies(int page, int pageSize) {
-    return query("SELECT * FROM security.agency LIMIT ? OFFSET ?", null, page, pageSize);
-  }
 
   @Override
   public List<Agency> searchAgenciesByName(String searchName, int page, int pageSize) {
-    return query(
-        "SELECT * FROM security.agency WHERE name ILIKE ? OR code ILIKE ? LIMIT ? OFFSET ?",
-        searchName,
-        page,
-        pageSize);
-  }
-
-  private List<Agency> query(String sql, String searchName, int page, int pageSize) {
+    String sql =
+        "SELECT * FROM security.agency WHERE name ILIKE ? OR code ILIKE ? LIMIT ? OFFSET ?";
     List<Agency> agencies = new ArrayList<>();
     int offset = (page - 1) * pageSize;
+
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql)) {
-      int index = 1;
-      if (searchName != null) {
-        stmt.setString(index++, "%" + searchName + "%");
-        stmt.setString(index++, "%" + searchName + "%");
-      }
-      stmt.setInt(index++, pageSize);
-      stmt.setInt(index, offset);
+      String searchPattern = "%" + searchName + "%";
+      stmt.setString(1, searchPattern);
+      stmt.setString(2, searchPattern);
+      stmt.setInt(3, pageSize);
+      stmt.setInt(4, offset);
+
       try (ResultSet rs = stmt.executeQuery()) {
-        while (rs.next()) agencies.add(mapRow(rs));
+        while (rs.next()) {
+          Agency agency = mapRowToAgency(rs);
+          agencies.add(agency);
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return agencies;
+  }
+
+  @Override
+  public List<Agency> getAllAgencies(int page, int pageSize) {
+    String sql = "SELECT * FROM security.agency LIMIT ? OFFSET ?";
+    List<Agency> agencies = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, pageSize);
+      stmt.setInt(2, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          Agency agency = mapRowToAgency(rs);
+          agencies.add(agency);
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
@@ -47,51 +63,53 @@ public class AgencyDAOImpl implements AgencyDAO {
 
   @Override
   public Optional<Agency> getAgencyById(String agencyId) {
+    String sql = "SELECT * FROM security.agency WHERE id = ?";
+    UUID id = UUID.fromString(agencyId);
+
     try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt =
-            conn.prepareStatement("SELECT * FROM security.agency WHERE id = ?")) {
-      stmt.setObject(1, UUID.fromString(agencyId));
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
       try (ResultSet rs = stmt.executeQuery()) {
-        return rs.next() ? Optional.of(mapRow(rs)) : Optional.empty();
+        if (rs.next()) {
+          return Optional.of(mapRowToAgency(rs));
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
-      return Optional.empty();
     }
+    return Optional.empty();
   }
 
   @Override
   public Agency createAgency(Agency agency) {
     String sql =
-        "INSERT INTO security.agency (company_id, name, code, address, city, phone, email, tax_number, registration_number, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        "INSERT INTO security.agency (company_id, name, code, address, city, phone, email, "
+            + "tax_number, registration_number, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      setValues(stmt, agency, false);
+      stmt.setObject(1, UUID.fromString(agency.getCompany_id()));
+      stmt.setString(2, agency.getName());
+      stmt.setString(3, agency.getCode());
+      stmt.setString(4, agency.getAddress());
+      stmt.setString(5, agency.getCity());
+      stmt.setString(6, agency.getPhone());
+      stmt.setString(7, agency.getEmail());
+      stmt.setString(8, agency.getTax_number());
+      stmt.setString(9, agency.getRegistration_number());
+      stmt.setObject(10, agency.getActive());
+
       stmt.executeUpdate();
+
       try (ResultSet rs = stmt.getGeneratedKeys()) {
-        if (rs.next()) agency.setId(rs.getString(1));
+        if (rs.next()) {
+          agency.setId(rs.getString(1));
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
     return agency;
-  }
-
-  private void setValues(PreparedStatement stmt, Agency a, boolean includeId) throws SQLException {
-    int i = 1;
-    if (includeId) stmt.setObject(i++, UUID.fromString(a.getId()));
-    stmt.setObject(i++, UUID.fromString(a.getCompany_id()));
-    stmt.setString(i++, a.getName());
-    stmt.setString(i++, a.getCode());
-    stmt.setString(i++, a.getAddress());
-    stmt.setString(i++, a.getCity());
-    stmt.setString(i++, a.getPhone());
-    stmt.setString(i++, a.getEmail());
-    stmt.setString(i++, a.getTax_number());
-    stmt.setString(i++, a.getRegistration_number());
-    stmt.setObject(i++, a.getActive());
-    stmt.setDate(i++, a.getCreated_at());
-    stmt.setDate(i, a.getUpdated_at());
   }
 
   @Override
@@ -148,31 +166,33 @@ public class AgencyDAOImpl implements AgencyDAO {
     sql.append(" WHERE id = ?");
     parameters.add(UUID.fromString(agency.getId()));
 
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
       for (int index = 0; index < parameters.size(); index++) {
-        statement.setObject(index + 1, parameters.get(index));
+        stmt.setObject(index + 1, parameters.get(index));
       }
-      statement.executeUpdate();
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
-
     return agency;
   }
 
   @Override
   public void deleteAgency(String agencyId) {
+    String sql = "DELETE FROM security.agency WHERE id = ?";
+    UUID id = UUID.fromString(agencyId);
+
     try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement("DELETE FROM security.agency WHERE id=?")) {
-      stmt.setObject(1, UUID.fromString(agencyId));
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
       e.printStackTrace();
     }
   }
 
-  private Agency mapRow(ResultSet rs) throws SQLException {
+  private Agency mapRowToAgency(ResultSet rs) throws SQLException {
     return new Agency(
         rs.getString("id"),
         rs.getString("company_id"),

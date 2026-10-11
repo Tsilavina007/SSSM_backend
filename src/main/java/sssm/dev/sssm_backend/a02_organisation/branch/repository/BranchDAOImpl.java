@@ -11,131 +11,184 @@ import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
 
 public class BranchDAOImpl implements BranchDAO {
+
+  @Override
+  public List<Branch> searchBranchesByName(String searchName, int page, int pageSize) {
+    String sql =
+        "SELECT * FROM security.branch WHERE name ILIKE ? OR code ILIKE ? LIMIT ? OFFSET ?";
+    List<Branch> branches = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      String searchPattern = "%" + searchName + "%";
+      stmt.setString(1, searchPattern);
+      stmt.setString(2, searchPattern);
+      stmt.setInt(3, pageSize);
+      stmt.setInt(4, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          Branch branch = mapRowToBranch(rs);
+          branches.add(branch);
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return branches;
+  }
+
   @Override
   public List<Branch> getAllBranches(int page, int pageSize) {
-    return query("SELECT * FROM security.branch LIMIT ? OFFSET ?", null, page, pageSize);
-  }
+    String sql = "SELECT * FROM security.branch LIMIT ? OFFSET ?";
+    List<Branch> branches = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
 
-  @Override
-  public List<Branch> searchBranchesByName(String name, int page, int pageSize) {
-    return query(
-        "SELECT * FROM security.branch WHERE name ILIKE ? OR code ILIKE ? LIMIT ? OFFSET ?",
-        name,
-        page,
-        pageSize);
-  }
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, pageSize);
+      stmt.setInt(2, offset);
 
-  private List<Branch> query(String sql, String name, int page, int pageSize) {
-    List<Branch> result = new ArrayList<>();
-    int i = 1;
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql)) {
-      if (name != null) {
-        s.setString(i++, "%" + name + "%");
-        s.setString(i++, "%" + name + "%");
-      }
-      s.setInt(i++, pageSize);
-      s.setInt(i, (page - 1) * pageSize);
-      try (ResultSet rs = s.executeQuery()) {
+      try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          result.add(mapRow(rs));
+          Branch branch = mapRowToBranch(rs);
+          branches.add(branch);
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return result;
+    return branches;
   }
 
   @Override
-  public Optional<Branch> getBranchById(String id) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement("SELECT * FROM security.branch WHERE id=?")) {
-      s.setObject(1, UUID.fromString(id));
-      try (ResultSet rs = s.executeQuery()) {
-        return rs.next() ? Optional.of(mapRow(rs)) : Optional.empty();
+  public Optional<Branch> getBranchById(String branchId) {
+    String sql = "SELECT * FROM security.branch WHERE id = ?";
+    UUID id = UUID.fromString(branchId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(mapRowToBranch(rs));
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
-      return Optional.empty();
     }
+    return Optional.empty();
   }
 
   @Override
-  public Branch createBranch(Branch b) {
+  public Branch createBranch(Branch branch) {
     String sql =
         "INSERT INTO security.branch (company_id, agence_id, name, code, address, city, phone, "
-            + "email, status, created_at, updated_at) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS site_status), ?, ?)";
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      setValues(s, b);
-      s.executeUpdate();
-      try (ResultSet rs = s.getGeneratedKeys()) {
+            + "email, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS site_status))";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+      stmt.setObject(1, UUID.fromString(branch.getCompany_id()));
+      stmt.setObject(2, UUID.fromString(branch.getAgence_id()));
+      stmt.setString(3, branch.getName());
+      stmt.setString(4, branch.getCode());
+      stmt.setString(5, branch.getAddress());
+      stmt.setString(6, branch.getCity());
+      stmt.setString(7, branch.getPhone());
+      stmt.setString(8, branch.getEmail());
+      stmt.setString(9, branch.getStatus() == null ? null : branch.getStatus().name());
+
+      stmt.executeUpdate();
+
+      try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          b.setId(rs.getString(1));
+          branch.setId(rs.getString(1));
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return b;
-  }
-
-  private void setValues(PreparedStatement s, Branch b) throws SQLException {
-    s.setObject(1, UUID.fromString(b.getCompany_id()));
-    s.setObject(2, UUID.fromString(b.getAgence_id()));
-    s.setString(3, b.getName());
-    s.setString(4, b.getCode());
-    s.setString(5, b.getAddress());
-    s.setString(6, b.getCity());
-    s.setString(7, b.getPhone());
-    s.setString(8, b.getEmail());
-    s.setString(9, b.getStatus() == null ? null : b.getStatus().name());
-    s.setDate(10, b.getCreated_at());
-    s.setDate(11, b.getUpdated_at());
+    return branch;
   }
 
   @Override
-  public Branch updateBranch(Branch b) {
-    String sql =
-        "UPDATE security.branch SET company_id = COALESCE(?, company_id), "
-            + "agence_id = COALESCE(?, agence_id), name = COALESCE(?, name), "
-            + "code = COALESCE(?, code), address = COALESCE(?, address), "
-            + "city = COALESCE(?, city), phone = COALESCE(?, phone), "
-            + "email = COALESCE(?, email), "
-            + "status = COALESCE(CAST(? AS site_status), status) WHERE id = ?";
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql)) {
-      s.setObject(1, b.getCompany_id() == null ? null : UUID.fromString(b.getCompany_id()));
-      s.setObject(2, b.getAgence_id() == null ? null : UUID.fromString(b.getAgence_id()));
-      s.setString(3, b.getName());
-      s.setString(4, b.getCode());
-      s.setString(5, b.getAddress());
-      s.setString(6, b.getCity());
-      s.setString(7, b.getPhone());
-      s.setString(8, b.getEmail());
-      s.setString(9, b.getStatus() == null ? null : b.getStatus().name());
-      s.setObject(10, UUID.fromString(b.getId()));
-      s.executeUpdate();
+  public Branch updateBranch(Branch branch) {
+    StringBuilder sql = new StringBuilder("UPDATE security.branch SET ");
+    List<Object> parameters = new ArrayList<>();
+
+    if (branch.getCompany_id() != null) {
+      sql.append("company_id = ?, ");
+      parameters.add(UUID.fromString(branch.getCompany_id()));
+    }
+    if (branch.getAgence_id() != null) {
+      sql.append("agence_id = ?, ");
+      parameters.add(UUID.fromString(branch.getAgence_id()));
+    }
+    if (branch.getName() != null) {
+      sql.append("name = ?, ");
+      parameters.add(branch.getName());
+    }
+    if (branch.getCode() != null) {
+      sql.append("code = ?, ");
+      parameters.add(branch.getCode());
+    }
+    if (branch.getAddress() != null) {
+      sql.append("address = ?, ");
+      parameters.add(branch.getAddress());
+    }
+    if (branch.getCity() != null) {
+      sql.append("city = ?, ");
+      parameters.add(branch.getCity());
+    }
+    if (branch.getPhone() != null) {
+      sql.append("phone = ?, ");
+      parameters.add(branch.getPhone());
+    }
+    if (branch.getEmail() != null) {
+      sql.append("email = ?, ");
+      parameters.add(branch.getEmail());
+    }
+    if (branch.getStatus() != null) {
+      sql.append("status = CAST(? AS site_status), ");
+      parameters.add(branch.getStatus().name());
+    }
+
+    if (parameters.isEmpty()) {
+      return branch;
+    }
+
+    sql.setLength(sql.length() - 2);
+    sql.append(" WHERE id = ?");
+    parameters.add(UUID.fromString(branch.getId()));
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
+      stmt.executeUpdate();
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return b;
+    return branch;
   }
 
   @Override
-  public void deleteBranch(String id) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement("DELETE FROM security.branch WHERE id=?")) {
-      s.setObject(1, UUID.fromString(id));
-      s.executeUpdate();
+  public void deleteBranch(String branchId) {
+    String sql = "DELETE FROM security.branch WHERE id = ?";
+    UUID id = UUID.fromString(branchId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+      stmt.executeUpdate();
     } catch (SQLException e) {
       e.printStackTrace();
     }
   }
 
-  private Branch mapRow(ResultSet rs) throws SQLException {
+  private Branch mapRowToBranch(ResultSet rs) throws SQLException {
     return new Branch(
         rs.getString("id"),
         rs.getString("company_id"),
