@@ -1,137 +1,198 @@
 package sssm.dev.sssm_backend.a03_authentication.user.repository;
 
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 
 public class AppUserDAOImpl implements AppUserDAO {
-  public List<AppUser> findAll(int page, int size) {
-    List<AppUser> result = new ArrayList<>();
+
+  @Override
+  public List<AppUser> findAll(int page, int pageSize) {
     String sql = "SELECT * FROM security.app_user LIMIT ? OFFSET ?";
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql)) {
-      s.setInt(1, size);
-      s.setInt(2, (page - 1) * size);
-      try (ResultSet r = s.executeQuery()) {
-        while (r.next()) result.add(map(r));
+    List<AppUser> users = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, pageSize);
+      stmt.setInt(2, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          AppUser user = mapRowToAppUser(rs);
+          users.add(user);
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return result;
+    return users;
   }
 
-  public Optional<AppUser> findById(String id) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement("SELECT * FROM security.app_user WHERE id=?")) {
-      s.setObject(1, UUID.fromString(id));
-      try (ResultSet r = s.executeQuery()) {
-        return r.next() ? Optional.of(map(r)) : Optional.empty();
+  @Override
+  public Optional<AppUser> findById(String userId) {
+    String sql = "SELECT * FROM security.app_user WHERE id = ?";
+    UUID id = UUID.fromString(userId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(mapRowToAppUser(rs));
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
-      return Optional.empty();
     }
+    return Optional.empty();
   }
 
-  public AppUser create(AppUser u) {
+  @Override
+  public AppUser create(AppUser user) {
     String sql =
-        "INSERT INTO security.app_user (company_id,username,email,password_hash,first_name,last_name,phone,status) VALUES (?,?,?,?,?,?,?,CAST(? AS user_status))";
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      s.setObject(1, uuid(u.getCompany_id()));
-      s.setString(2, u.getUsername());
-      s.setString(3, u.getEmail());
-      s.setString(4, u.getPassword_hash());
-      s.setString(5, u.getFirst_name());
-      s.setString(6, u.getLast_name());
-      s.setString(7, u.getPhone());
-      s.setString(8, u.getStatus() == null ? null : u.getStatus().name());
-      s.executeUpdate();
-      try (ResultSet r = s.getGeneratedKeys()) {
-        if (r.next()) u.setId(r.getString(1));
+        "INSERT INTO security.app_user (company_id, username, email, password_hash, first_name, "
+            + "last_name, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS user_status))";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+      stmt.setObject(1, UUID.fromString(user.getCompany_id()));
+      stmt.setString(2, user.getUsername());
+      stmt.setString(3, user.getEmail());
+      stmt.setString(4, user.getPassword_hash());
+      stmt.setString(5, user.getFirst_name());
+      stmt.setString(6, user.getLast_name());
+      stmt.setString(7, user.getPhone());
+      stmt.setString(8, user.getStatus() == null ? null : user.getStatus().name());
+
+      stmt.executeUpdate();
+
+      try (ResultSet rs = stmt.getGeneratedKeys()) {
+        if (rs.next()) {
+          user.setId(rs.getString(1));
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return u;
+    return user;
   }
 
-  public AppUser update(AppUser u) {
-    String sql =
-        "UPDATE security.app_user SET email = COALESCE(?, email),password_hash = COALESCE(?, password_hash),first_name = COALESCE(?, first_name),last_name = COALESCE(?, last_name),phone = COALESCE(?, phone),status = COALESCE(CAST(? AS user_status), status) WHERE id = ?";
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql)) {
-      s.setString(1, u.getEmail());
-      s.setString(2, u.getPassword_hash());
-      s.setString(3, u.getFirst_name());
-      s.setString(4, u.getLast_name());
-      s.setString(5, u.getPhone());
-      s.setString(6, u.getStatus() == null ? null : u.getStatus().name());
-      s.setObject(7, uuid(u.getId()));
-      s.executeUpdate();
+  @Override
+  public AppUser update(AppUser user) {
+    StringBuilder sql = new StringBuilder("UPDATE security.app_user SET ");
+    List<Object> parameters = new ArrayList<>();
+
+    if (user.getCompany_id() != null) {
+      sql.append("company_id = ?, ");
+      parameters.add(UUID.fromString(user.getCompany_id()));
+    }
+    if (user.getUsername() != null) {
+      sql.append("username = ?, ");
+      parameters.add(user.getUsername());
+    }
+    if (user.getEmail() != null) {
+      sql.append("email = ?, ");
+      parameters.add(user.getEmail());
+    }
+    if (user.getPassword_hash() != null) {
+      sql.append("password_hash = ?, ");
+      parameters.add(user.getPassword_hash());
+    }
+    if (user.getFirst_name() != null) {
+      sql.append("first_name = ?, ");
+      parameters.add(user.getFirst_name());
+    }
+    if (user.getLast_name() != null) {
+      sql.append("last_name = ?, ");
+      parameters.add(user.getLast_name());
+    }
+    if (user.getPhone() != null) {
+      sql.append("phone = ?, ");
+      parameters.add(user.getPhone());
+    }
+    if (user.getStatus() != null) {
+      sql.append("status = CAST(? AS user_status), ");
+      parameters.add(user.getStatus().name());
+    }
+
+    if (parameters.isEmpty()) {
+      return user;
+    }
+
+    sql.setLength(sql.length() - 2);
+    sql.append(" WHERE id = ?");
+    parameters.add(UUID.fromString(user.getId()));
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
+      stmt.executeUpdate();
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return u;
+    return user;
   }
 
-  public void delete(String id) {
-    execute("DELETE FROM security.app_user WHERE id=?", id);
+  @Override
+  public void delete(String userId) {
+    String sql = "DELETE FROM security.app_user WHERE id = ?";
+    UUID id = UUID.fromString(userId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
   }
 
+  @Override
   public void assignRole(String userId, String roleId) {
-    executePair(
-        "INSERT INTO security.user_role(user_id,role_id) VALUES(?,?) ON CONFLICT DO NOTHING",
-        userId,
-        roleId);
+    String sql =
+        "INSERT INTO security.user_role (user_id, role_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+    executePair(sql, userId, roleId);
   }
 
+  @Override
   public void removeRole(String userId, String roleId) {
-    executePair("DELETE FROM security.user_role WHERE user_id=? AND role_id=?", userId, roleId);
+    String sql = "DELETE FROM security.user_role WHERE user_id = ? AND role_id = ?";
+    executePair(sql, userId, roleId);
   }
 
-  private void execute(String sql, String id) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql)) {
-      s.setObject(1, uuid(id));
-      s.executeUpdate();
+  private void executePair(String sql, String firstId, String secondId) {
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(firstId));
+      stmt.setObject(2, UUID.fromString(secondId));
+      stmt.executeUpdate();
     } catch (SQLException e) {
       e.printStackTrace();
     }
   }
 
-  private void executePair(String sql, String a, String b) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement(sql)) {
-      s.setObject(1, uuid(a));
-      s.setObject(2, uuid(b));
-      s.executeUpdate();
-    } catch (SQLException e) {
-      e.printStackTrace();
-    }
-  }
-
-  private UUID uuid(String value) {
-    return value == null ? null : UUID.fromString(value);
-  }
-
-  private AppUser map(ResultSet r) throws SQLException {
+  private AppUser mapRowToAppUser(ResultSet rs) throws SQLException {
     return new AppUser(
-        r.getString("id"),
-        r.getString("company_id"),
-        r.getString("username"),
-        r.getString("email"),
-        r.getString("password_hash"),
-        r.getString("first_name"),
-        r.getString("last_name"),
-        r.getString("phone"),
-        UserStatus.valueOf(r.getString("status")),
-        r.getTimestamp("last_login_at"),
-        r.getTimestamp("created_at"),
-        r.getTimestamp("updated_at"));
+        rs.getString("id"),
+        rs.getString("company_id"),
+        rs.getString("username"),
+        rs.getString("email"),
+        rs.getString("password_hash"),
+        rs.getString("first_name"),
+        rs.getString("last_name"),
+        rs.getString("phone"),
+        UserStatus.valueOf(rs.getString("status")),
+        rs.getTimestamp("last_login_at"),
+        rs.getTimestamp("created_at"),
+        rs.getTimestamp("updated_at"));
   }
 }

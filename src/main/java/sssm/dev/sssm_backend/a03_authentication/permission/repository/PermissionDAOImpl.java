@@ -1,88 +1,138 @@
 package sssm.dev.sssm_backend.a03_authentication.permission.repository;
 
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a03_authentication.permission.entity.Permission;
 
 public class PermissionDAOImpl implements PermissionDAO {
-  public List<Permission> findAll(int page, int size) {
-    List<Permission> out = new ArrayList<>();
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s =
-            c.prepareStatement("SELECT * FROM security.permission LIMIT ? OFFSET ?")) {
-      s.setInt(1, size);
-      s.setInt(2, (page - 1) * size);
-      try (ResultSet r = s.executeQuery()) {
-        while (r.next()) out.add(map(r));
+
+  @Override
+  public List<Permission> findAll(int page, int pageSize) {
+    String sql = "SELECT * FROM security.permission LIMIT ? OFFSET ?";
+    List<Permission> permissions = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setInt(1, pageSize);
+      stmt.setInt(2, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          Permission permission = mapRowToPermission(rs);
+          permissions.add(permission);
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return out;
+    return permissions;
   }
 
-  public Optional<Permission> findById(String id) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement("SELECT * FROM security.permission WHERE id=?")) {
-      s.setObject(1, UUID.fromString(id));
-      try (ResultSet r = s.executeQuery()) {
-        return r.next() ? Optional.of(map(r)) : Optional.empty();
-      }
-    } catch (SQLException e) {
-      e.printStackTrace();
-      return Optional.empty();
-    }
-  }
+  @Override
+  public Optional<Permission> findById(String permissionId) {
+    String sql = "SELECT * FROM security.permission WHERE id = ?";
+    UUID id = UUID.fromString(permissionId);
 
-  public Permission create(Permission p) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s =
-            c.prepareStatement(
-                "INSERT INTO security.permission(code,name,description) VALUES(?,?,?)",
-                Statement.RETURN_GENERATED_KEYS)) {
-      s.setString(1, p.getCode());
-      s.setString(2, p.getName());
-      s.setString(3, p.getDescription());
-      s.executeUpdate();
-      try (ResultSet r = s.getGeneratedKeys()) {
-        if (r.next()) p.setId(r.getString(1));
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(mapRowToPermission(rs));
+        }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return p;
+    return Optional.empty();
   }
 
-  public Permission update(Permission p) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s =
-            c.prepareStatement(
-                "UPDATE security.permission SET code = COALESCE(?, code),name = COALESCE(?, name),description = COALESCE(?, description) WHERE id = ?")) {
-      s.setString(1, p.getCode());
-      s.setString(2, p.getName());
-      s.setString(3, p.getDescription());
-      s.setObject(4, UUID.fromString(p.getId()));
-      s.executeUpdate();
+  @Override
+  public Permission create(Permission permission) {
+    String sql =
+        "INSERT INTO security.permission (code, name, description) VALUES (?, ?, ?)";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+      stmt.setString(1, permission.getCode());
+      stmt.setString(2, permission.getName());
+      stmt.setString(3, permission.getDescription());
+      stmt.executeUpdate();
+
+      try (ResultSet rs = stmt.getGeneratedKeys()) {
+        if (rs.next()) {
+          permission.setId(rs.getString(1));
+        }
+      }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return p;
+    return permission;
   }
 
-  public void delete(String id) {
-    try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement s = c.prepareStatement("DELETE FROM security.permission WHERE id=?")) {
-      s.setObject(1, UUID.fromString(id));
-      s.executeUpdate();
+  @Override
+  public Permission update(Permission permission) {
+    StringBuilder sql = new StringBuilder("UPDATE security.permission SET ");
+    List<Object> parameters = new ArrayList<>();
+
+    if (permission.getCode() != null) {
+      sql.append("code = ?, ");
+      parameters.add(permission.getCode());
+    }
+    if (permission.getName() != null) {
+      sql.append("name = ?, ");
+      parameters.add(permission.getName());
+    }
+    if (permission.getDescription() != null) {
+      sql.append("description = ?, ");
+      parameters.add(permission.getDescription());
+    }
+
+    if (parameters.isEmpty()) {
+      return permission;
+    }
+
+    sql.setLength(sql.length() - 2);
+    sql.append(" WHERE id = ?");
+    parameters.add(UUID.fromString(permission.getId()));
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return permission;
+  }
+
+  @Override
+  public void delete(String permissionId) {
+    String sql = "DELETE FROM security.permission WHERE id = ?";
+    UUID id = UUID.fromString(permissionId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+      stmt.executeUpdate();
     } catch (SQLException e) {
       e.printStackTrace();
     }
   }
 
-  private Permission map(ResultSet r) throws SQLException {
+  private Permission mapRowToPermission(ResultSet rs) throws SQLException {
     return new Permission(
-        r.getString("id"), r.getString("code"), r.getString("name"), r.getString("description"));
+        rs.getString("id"),
+        rs.getString("code"),
+        rs.getString("name"),
+        rs.getString("description"));
   }
 }
