@@ -11,7 +11,6 @@ import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 
 public class CompanyDAOImpl implements CompanyDAO {
 
-    
     @Override
     public List<Company> searchCompaniesByName(String searchName, int page, int pageSize) {
         String sql = "SELECT c.* FROM security.company c WHERE name ILIKE '%" + searchName + "%' OR legal_name ILIKE '%"
@@ -161,7 +160,7 @@ public class CompanyDAOImpl implements CompanyDAO {
             sql.append("logo_url = ?, ");
             parameters.add(company.getLogo_url());
         }
-        if (company.getCurrency_code() != null) {   
+        if (company.getCurrency_code() != null) {
             sql.append("currency_code = ?, ");
             parameters.add(company.getCurrency_code());
         }
@@ -209,7 +208,7 @@ public class CompanyDAOImpl implements CompanyDAO {
             e.printStackTrace();
         }
     }
-    
+
     private Company mapRowToCompany(ResultSet rs) throws SQLException {
         return new Company(
                 rs.getString("id"),

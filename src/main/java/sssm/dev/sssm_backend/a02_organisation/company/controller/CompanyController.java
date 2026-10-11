@@ -18,7 +18,7 @@ public class CompanyController {
         this.companyService = new CompanyService();
     }
 
-    @GetMapping 
+    @GetMapping
     public List<Company> getCompanies(
             @RequestParam Optional<Integer> page,
             @RequestParam Optional<Integer> pageSize,
