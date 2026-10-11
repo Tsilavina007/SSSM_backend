@@ -1,91 +1,130 @@
 package sssm.dev.sssm_backend.a06_sites.post_requirement.repository;
 
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a06_sites.post_requirement.entity.PostRequirement;
 
 public class PostRequirementDAOImpl implements PostRequirementDAO {
+
+  @Override
   public List<PostRequirement> findByPostId(String postId) {
-    List<PostRequirement> result = new ArrayList<>();
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT * FROM security.post_requirement WHERE post_id = ? ORDER BY requirement")) {
-      statement.setObject(1, uuid(postId));
-      try (ResultSet rows = statement.executeQuery()) {
-        while (rows.next()) result.add(map(rows));
+    String sql =
+        "SELECT * FROM security.post_requirement WHERE post_id = ? ORDER BY requirement";
+    List<PostRequirement> requirements = new ArrayList<>();
+    UUID id = UUID.fromString(postId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          PostRequirement requirement = mapRowToPostRequirement(rs);
+          requirements.add(requirement);
+        }
       }
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
-    return result;
+    return requirements;
   }
 
-  public Optional<PostRequirement> findById(String id) {
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("SELECT * FROM security.post_requirement WHERE id = ?")) {
-      statement.setObject(1, uuid(id));
-      try (ResultSet rows = statement.executeQuery()) {
-        return rows.next() ? Optional.of(map(rows)) : Optional.empty();
+  @Override
+  public Optional<PostRequirement> findById(String requirementId) {
+    String sql = "SELECT * FROM security.post_requirement WHERE id = ?";
+    UUID id = UUID.fromString(requirementId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(mapRowToPostRequirement(rs));
+        }
       }
-    } catch (SQLException exception) {
-      exception.printStackTrace();
-      return Optional.empty();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
+    return Optional.empty();
   }
 
+  @Override
   public PostRequirement create(PostRequirement requirement) {
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "INSERT INTO security.post_requirement(post_id, requirement) VALUES (?, ?)",
-                Statement.RETURN_GENERATED_KEYS)) {
-      statement.setObject(1, uuid(requirement.getPost_id()));
-      statement.setString(2, requirement.getRequirement());
-      statement.executeUpdate();
-      try (ResultSet keys = statement.getGeneratedKeys()) {
-        if (keys.next()) requirement.setId(keys.getString(1));
+    String sql =
+        "INSERT INTO security.post_requirement (post_id, requirement) VALUES (?, ?)";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+      stmt.setObject(1, UUID.fromString(requirement.getPost_id()));
+      stmt.setString(2, requirement.getRequirement());
+      stmt.executeUpdate();
+
+      try (ResultSet rs = stmt.getGeneratedKeys()) {
+        if (rs.next()) {
+          requirement.setId(rs.getString(1));
+        }
       }
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
     return requirement;
   }
 
+  @Override
   public PostRequirement update(PostRequirement requirement) {
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "UPDATE security.post_requirement SET requirement = ? WHERE id = ?")) {
-      statement.setString(1, requirement.getRequirement());
-      statement.setObject(2, uuid(requirement.getId()));
-      statement.executeUpdate();
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    StringBuilder sql = new StringBuilder("UPDATE security.post_requirement SET ");
+    List<Object> parameters = new ArrayList<>();
+
+    if (requirement.getPost_id() != null) {
+      sql.append("post_id = ?, ");
+      parameters.add(UUID.fromString(requirement.getPost_id()));
+    }
+    if (requirement.getRequirement() != null) {
+      sql.append("requirement = ?, ");
+      parameters.add(requirement.getRequirement());
+    }
+
+    if (parameters.isEmpty()) {
+      return requirement;
+    }
+
+    sql.setLength(sql.length() - 2);
+    sql.append(" WHERE id = ?");
+    parameters.add(UUID.fromString(requirement.getId()));
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
     return requirement;
   }
 
-  public void delete(String id) {
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("DELETE FROM security.post_requirement WHERE id = ?")) {
-      statement.setObject(1, uuid(id));
-      statement.executeUpdate();
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+  @Override
+  public void delete(String requirementId) {
+    String sql = "DELETE FROM security.post_requirement WHERE id = ?";
+    UUID id = UUID.fromString(requirementId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
   }
 
-  private UUID uuid(String value) {
-    return value == null ? null : UUID.fromString(value);
-  }
-
-  private PostRequirement map(ResultSet rows) throws SQLException {
+  private PostRequirement mapRowToPostRequirement(ResultSet rs) throws SQLException {
     return new PostRequirement(
-        rows.getString("id"), rows.getString("post_id"), rows.getString("requirement"));
+        rs.getString("id"), rs.getString("post_id"), rs.getString("requirement"));
   }
 }

@@ -1,113 +1,175 @@
 package sssm.dev.sssm_backend.a07_contracts.contract_service.repository;
 
-import java.math.BigDecimal;
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a07_contracts.contract_service.entity.ContractServiceItem;
 
 public class ContractServiceDAOImpl implements ContractServiceDAO {
+
+  @Override
   public List<ContractServiceItem> findByContractId(String contractId) {
-    List<ContractServiceItem> result = new ArrayList<>();
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(
-                "SELECT * FROM security.contract_service WHERE contract_id = ? ORDER BY id")) {
-      statement.setObject(1, uuid(contractId));
-      try (ResultSet rows = statement.executeQuery()) {
-        while (rows.next()) result.add(map(rows));
+    String sql = "SELECT * FROM security.contract_service WHERE contract_id = ? ORDER BY id";
+    List<ContractServiceItem> items = new ArrayList<>();
+    UUID id = UUID.fromString(contractId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          ContractServiceItem item = mapRowToContractServiceItem(rs);
+          items.add(item);
+        }
       }
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
-    return result;
+    return items;
   }
 
-  public Optional<ContractServiceItem> findById(String id) {
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("SELECT * FROM security.contract_service WHERE id = ?")) {
-      statement.setObject(1, uuid(id));
-      try (ResultSet rows = statement.executeQuery()) {
-        return rows.next() ? Optional.of(map(rows)) : Optional.empty();
+  @Override
+  public Optional<ContractServiceItem> findById(String itemId) {
+    String sql = "SELECT * FROM security.contract_service WHERE id = ?";
+    UUID id = UUID.fromString(itemId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) {
+          return Optional.of(mapRowToContractServiceItem(rs));
+        }
       }
-    } catch (SQLException exception) {
-      exception.printStackTrace();
-      return Optional.empty();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
+    return Optional.empty();
   }
 
+  @Override
   public ContractServiceItem create(ContractServiceItem item) {
     String sql =
-        "INSERT INTO security.contract_service(contract_id, service_id, site_id, quantity, unit_price, vat_rate, start_date, end_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      values(statement, item);
-      statement.executeUpdate();
-      try (ResultSet keys = statement.getGeneratedKeys()) {
-        if (keys.next()) item.setId(keys.getString(1));
+        "INSERT INTO security.contract_service (contract_id, service_id, site_id, quantity, unit_price, "
+            + "vat_rate, start_date, end_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+      stmt.setObject(1, UUID.fromString(item.getContract_id()));
+      stmt.setObject(2, UUID.fromString(item.getService_id()));
+      stmt.setObject(3, UUID.fromString(item.getSite_id()));
+      stmt.setBigDecimal(4, item.getQuantity() == null ? java.math.BigDecimal.ONE : item.getQuantity());
+      stmt.setBigDecimal(5, item.getUnit_price() == null ? java.math.BigDecimal.ZERO : item.getUnit_price());
+      stmt.setBigDecimal(6, item.getVat_rate() == null ? java.math.BigDecimal.ZERO : item.getVat_rate());
+      stmt.setDate(7, item.getStart_date());
+      stmt.setDate(8, item.getEnd_date());
+      stmt.setString(9, item.getNotes());
+
+      stmt.executeUpdate();
+
+      try (ResultSet rs = stmt.getGeneratedKeys()) {
+        if (rs.next()) {
+          item.setId(rs.getString(1));
+        }
       }
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
     return item;
   }
 
+  @Override
   public ContractServiceItem update(ContractServiceItem item) {
-    String sql =
-        "UPDATE security.contract_service SET contract_id = ?, service_id = ?, site_id = ?, quantity = ?, unit_price = ?, vat_rate = ?, start_date = ?, end_date = ?, notes = ? WHERE id = ?";
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement = connection.prepareStatement(sql)) {
-      values(statement, item);
-      statement.setObject(10, uuid(item.getId()));
-      statement.executeUpdate();
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    StringBuilder sql = new StringBuilder("UPDATE security.contract_service SET ");
+    List<Object> parameters = new ArrayList<>();
+
+    if (item.getContract_id() != null) {
+      sql.append("contract_id = ?, ");
+      parameters.add(UUID.fromString(item.getContract_id()));
+    }
+    if (item.getService_id() != null) {
+      sql.append("service_id = ?, ");
+      parameters.add(UUID.fromString(item.getService_id()));
+    }
+    if (item.getSite_id() != null) {
+      sql.append("site_id = ?, ");
+      parameters.add(UUID.fromString(item.getSite_id()));
+    }
+    if (item.getQuantity() != null) {
+      sql.append("quantity = ?, ");
+      parameters.add(item.getQuantity());
+    }
+    if (item.getUnit_price() != null) {
+      sql.append("unit_price = ?, ");
+      parameters.add(item.getUnit_price());
+    }
+    if (item.getVat_rate() != null) {
+      sql.append("vat_rate = ?, ");
+      parameters.add(item.getVat_rate());
+    }
+    if (item.getStart_date() != null) {
+      sql.append("start_date = ?, ");
+      parameters.add(item.getStart_date());
+    }
+    if (item.getEnd_date() != null) {
+      sql.append("end_date = ?, ");
+      parameters.add(item.getEnd_date());
+    }
+    if (item.getNotes() != null) {
+      sql.append("notes = ?, ");
+      parameters.add(item.getNotes());
+    }
+
+    if (parameters.isEmpty()) {
+      return item;
+    }
+
+    sql.setLength(sql.length() - 2);
+    sql.append(" WHERE id = ?");
+    parameters.add(UUID.fromString(item.getId()));
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
     return item;
   }
 
-  private void values(PreparedStatement statement, ContractServiceItem item) throws SQLException {
-    statement.setObject(1, uuid(item.getContract_id()));
-    statement.setObject(2, uuid(item.getService_id()));
-    statement.setObject(3, uuid(item.getSite_id()));
-    statement.setBigDecimal(4, item.getQuantity() == null ? BigDecimal.ONE : item.getQuantity());
-    statement.setBigDecimal(
-        5, item.getUnit_price() == null ? BigDecimal.ZERO : item.getUnit_price());
-    statement.setBigDecimal(6, item.getVat_rate() == null ? BigDecimal.ZERO : item.getVat_rate());
-    statement.setDate(7, item.getStart_date());
-    statement.setDate(8, item.getEnd_date());
-    statement.setString(9, item.getNotes());
-  }
+  @Override
+  public void delete(String itemId) {
+    String sql = "DELETE FROM security.contract_service WHERE id = ?";
+    UUID id = UUID.fromString(itemId);
 
-  public void delete(String id) {
-    try (Connection connection = DatabaseConnection.getConnection();
-        PreparedStatement statement =
-            connection.prepareStatement("DELETE FROM security.contract_service WHERE id = ?")) {
-      statement.setObject(1, uuid(id));
-      statement.executeUpdate();
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, id);
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
     }
   }
 
-  private UUID uuid(String value) {
-    return value == null ? null : UUID.fromString(value);
-  }
-
-  private ContractServiceItem map(ResultSet rows) throws SQLException {
+  private ContractServiceItem mapRowToContractServiceItem(ResultSet rs) throws SQLException {
     return new ContractServiceItem(
-        rows.getString("id"),
-        rows.getString("contract_id"),
-        rows.getString("service_id"),
-        rows.getString("site_id"),
-        rows.getBigDecimal("quantity"),
-        rows.getBigDecimal("unit_price"),
-        rows.getBigDecimal("vat_rate"),
-        rows.getDate("start_date"),
-        rows.getDate("end_date"),
-        rows.getString("notes"));
+        rs.getString("id"),
+        rs.getString("contract_id"),
+        rs.getString("service_id"),
+        rs.getString("site_id"),
+        rs.getBigDecimal("quantity"),
+        rs.getBigDecimal("unit_price"),
+        rs.getBigDecimal("vat_rate"),
+        rs.getDate("start_date"),
+        rs.getDate("end_date"),
+        rs.getString("notes"));
   }
 }
