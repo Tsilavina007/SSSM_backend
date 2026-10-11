@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 import sssm.dev.sssm_backend.a06_sites.site.entity.Site;
@@ -101,7 +100,8 @@ public class SiteDAOImpl implements SiteDAO {
       stmt.setString(7, site.getCity());
       stmt.setBigDecimal(8, site.getLatitude());
       stmt.setBigDecimal(9, site.getLongitude());
-      stmt.setString(10, site.getStatus() == null ? SiteStatus.ACTIVE.name() : site.getStatus().name());
+      stmt.setString(
+          10, site.getStatus() == null ? SiteStatus.ACTIVE.name() : site.getStatus().name());
       stmt.setString(11, site.getAccess_instructions());
       stmt.setString(12, site.getRisk_level());
 

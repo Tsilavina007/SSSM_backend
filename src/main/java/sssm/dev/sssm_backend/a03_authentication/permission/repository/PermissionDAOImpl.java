@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a03_authentication.permission.entity.Permission;
 
@@ -56,8 +55,7 @@ public class PermissionDAOImpl implements PermissionDAO {
 
   @Override
   public Permission create(Permission permission) {
-    String sql =
-        "INSERT INTO security.permission (code, name, description) VALUES (?, ?, ?)";
+    String sql = "INSERT INTO security.permission (code, name, description) VALUES (?, ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setString(1, permission.getCode());

@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a07_contracts.contract_service.entity.ContractServiceItem;
 
@@ -63,9 +62,12 @@ public class ContractServiceDAOImpl implements ContractServiceDAO {
       stmt.setObject(1, UUID.fromString(item.getContract_id()));
       stmt.setObject(2, UUID.fromString(item.getService_id()));
       stmt.setObject(3, UUID.fromString(item.getSite_id()));
-      stmt.setBigDecimal(4, item.getQuantity() == null ? java.math.BigDecimal.ONE : item.getQuantity());
-      stmt.setBigDecimal(5, item.getUnit_price() == null ? java.math.BigDecimal.ZERO : item.getUnit_price());
-      stmt.setBigDecimal(6, item.getVat_rate() == null ? java.math.BigDecimal.ZERO : item.getVat_rate());
+      stmt.setBigDecimal(
+          4, item.getQuantity() == null ? java.math.BigDecimal.ONE : item.getQuantity());
+      stmt.setBigDecimal(
+          5, item.getUnit_price() == null ? java.math.BigDecimal.ZERO : item.getUnit_price());
+      stmt.setBigDecimal(
+          6, item.getVat_rate() == null ? java.math.BigDecimal.ZERO : item.getVat_rate());
       stmt.setDate(7, item.getStart_date());
       stmt.setDate(8, item.getEnd_date());
       stmt.setString(9, item.getNotes());

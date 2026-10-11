@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
 
@@ -24,16 +23,17 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new ItemAssignment(
-              rs.getString("id"),
-            rs.getString("item_id"),
-            rs.getString("employee_id"),
-            rs.getString("post_id"),
-            rs.getTimestamp("assigned_at"),
-            rs.getTimestamp("returned_at"),
-            rs.getString("condition_on_assignment"),
-            rs.getString("condition_on_return"),
-            rs.getString("notes")));
+          values.add(
+              new ItemAssignment(
+                  rs.getString("id"),
+                  rs.getString("item_id"),
+                  rs.getString("employee_id"),
+                  rs.getString("post_id"),
+                  rs.getTimestamp("assigned_at"),
+                  rs.getTimestamp("returned_at"),
+                  rs.getString("condition_on_assignment"),
+                  rs.getString("condition_on_return"),
+                  rs.getString("notes")));
         }
       }
     } catch (SQLException e) {
@@ -44,7 +44,8 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
   @Override
   public List<ItemAssignment> search(String value, int page, int pageSize) {
-    String sql = "SELECT * FROM security.item_assignment WHERE condition_on_assignment ILIKE ? OR condition_on_return ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item_assignment WHERE condition_on_assignment ILIKE ? OR condition_on_return ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemAssignment> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -59,16 +60,17 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new ItemAssignment(
-              rs.getString("id"),
-            rs.getString("item_id"),
-            rs.getString("employee_id"),
-            rs.getString("post_id"),
-            rs.getTimestamp("assigned_at"),
-            rs.getTimestamp("returned_at"),
-            rs.getString("condition_on_assignment"),
-            rs.getString("condition_on_return"),
-            rs.getString("notes")));
+          values.add(
+              new ItemAssignment(
+                  rs.getString("id"),
+                  rs.getString("item_id"),
+                  rs.getString("employee_id"),
+                  rs.getString("post_id"),
+                  rs.getTimestamp("assigned_at"),
+                  rs.getTimestamp("returned_at"),
+                  rs.getString("condition_on_assignment"),
+                  rs.getString("condition_on_return"),
+                  rs.getString("notes")));
         }
       }
     } catch (SQLException e) {
@@ -88,16 +90,17 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(new ItemAssignment(
-              rs.getString("id"),
-            rs.getString("item_id"),
-            rs.getString("employee_id"),
-            rs.getString("post_id"),
-            rs.getTimestamp("assigned_at"),
-            rs.getTimestamp("returned_at"),
-            rs.getString("condition_on_assignment"),
-            rs.getString("condition_on_return"),
-            rs.getString("notes")));
+          return Optional.of(
+              new ItemAssignment(
+                  rs.getString("id"),
+                  rs.getString("item_id"),
+                  rs.getString("employee_id"),
+                  rs.getString("post_id"),
+                  rs.getTimestamp("assigned_at"),
+                  rs.getTimestamp("returned_at"),
+                  rs.getString("condition_on_assignment"),
+                  rs.getString("condition_on_return"),
+                  rs.getString("notes")));
         }
       }
     } catch (SQLException e) {
@@ -108,12 +111,14 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
   @Override
   public ItemAssignment create(ItemAssignment value) {
-    String sql = "INSERT INTO security.item_assignment (item_id, employee_id, post_id, assigned_at, returned_at, condition_on_assignment, condition_on_return, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    String sql =
+        "INSERT INTO security.item_assignment (item_id, employee_id, post_id, assigned_at, returned_at, condition_on_assignment, condition_on_return, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, value.getItem_id() == null ? null : UUID.fromString(value.getItem_id()));
-      stmt.setObject(2, value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
+      stmt.setObject(
+          2, value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
       stmt.setObject(3, value.getPost_id() == null ? null : UUID.fromString(value.getPost_id()));
       stmt.setTimestamp(4, value.getAssigned_at());
       stmt.setTimestamp(5, value.getReturned_at());

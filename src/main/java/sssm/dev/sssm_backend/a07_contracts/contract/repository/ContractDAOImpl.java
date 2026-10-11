@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.ContractStatus;
 import sssm.dev.sssm_backend.a07_contracts.contract.entity.Contract;
@@ -114,11 +113,18 @@ public class ContractDAOImpl implements ContractDAO {
       stmt.setDate(5, contract.getStart_date());
       stmt.setDate(6, contract.getEnd_date());
       stmt.setString(
-          7, contract.getStatus() == null ? ContractStatus.DRAFT.name() : contract.getStatus().name());
-      stmt.setString(8, contract.getBilling_frequency() == null ? "MONTHLY" : contract.getBilling_frequency());
+          7,
+          contract.getStatus() == null ? ContractStatus.DRAFT.name() : contract.getStatus().name());
+      stmt.setString(
+          8, contract.getBilling_frequency() == null ? "MONTHLY" : contract.getBilling_frequency());
       stmt.setString(9, contract.getCurrency_code() == null ? "MGA" : contract.getCurrency_code());
-      stmt.setObject(10, contract.getPayment_terms_days() == null ? 30 : contract.getPayment_terms_days());
-      stmt.setBigDecimal(11, contract.getTotal_amount() == null ? java.math.BigDecimal.ZERO : contract.getTotal_amount());
+      stmt.setObject(
+          10, contract.getPayment_terms_days() == null ? 30 : contract.getPayment_terms_days());
+      stmt.setBigDecimal(
+          11,
+          contract.getTotal_amount() == null
+              ? java.math.BigDecimal.ZERO
+              : contract.getTotal_amount());
       stmt.setString(12, contract.getNotes());
 
       stmt.executeUpdate();

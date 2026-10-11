@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a02_organisation.agency.repository;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 
 public interface AgencyDAO {

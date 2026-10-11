@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a06_sites.security_post.dto;
 
 import java.sql.Time;
 import lombok.Data;
-
 import sssm.dev.sssm_backend.a01_common.enums.PostStatus;
 
 @Data

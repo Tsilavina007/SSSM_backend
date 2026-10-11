@@ -1,4 +1,40 @@
-﻿package sssm.dev.sssm_backend.a11_inventory.stock_movement.controller;
-import java.util.*; import org.springframework.web.bind.annotation.*; import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement; import sssm.dev.sssm_backend.a11_inventory.stock_movement.service.StockMovementService;
-@RestController @RequestMapping("/api/stock-movements") public class StockMovementController { private final StockMovementService service=new StockMovementService(); @GetMapping public List<StockMovement> findAll(@RequestParam Optional<String> search,@RequestParam Optional<Integer> page,@RequestParam Optional<Integer> pageSize){return service.findAll(search,page,pageSize);} @GetMapping("/{id}") public Optional<StockMovement> findById(@PathVariable String id){return service.findById(id);} @PostMapping public StockMovement create(@RequestBody StockMovement v){return service.create(v);} @PatchMapping("/{id}") public StockMovement update(@PathVariable String id,@RequestBody StockMovement v){return service.update(id,v);} @DeleteMapping("/{id}") public void delete(@PathVariable String id){service.delete(id);} }
+package sssm.dev.sssm_backend.a11_inventory.stock_movement.controller;
 
+import java.util.*;
+import org.springframework.web.bind.annotation.*;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.service.StockMovementService;
+
+@RestController
+@RequestMapping("/api/stock-movements")
+public class StockMovementController {
+  private final StockMovementService service = new StockMovementService();
+
+  @GetMapping
+  public List<StockMovement> findAll(
+      @RequestParam Optional<String> search,
+      @RequestParam Optional<Integer> page,
+      @RequestParam Optional<Integer> pageSize) {
+    return service.findAll(search, page, pageSize);
+  }
+
+  @GetMapping("/{id}")
+  public Optional<StockMovement> findById(@PathVariable String id) {
+    return service.findById(id);
+  }
+
+  @PostMapping
+  public StockMovement create(@RequestBody StockMovement v) {
+    return service.create(v);
+  }
+
+  @PatchMapping("/{id}")
+  public StockMovement update(@PathVariable String id, @RequestBody StockMovement v) {
+    return service.update(id, v);
+  }
+
+  @DeleteMapping("/{id}")
+  public void delete(@PathVariable String id) {
+    service.delete(id);
+  }
+}

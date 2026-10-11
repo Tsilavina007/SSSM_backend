@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
@@ -25,16 +24,17 @@ public class ItemDAOImpl implements ItemDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new Item(
-              rs.getString("id"),
-            rs.getString("company_id"),
-            rs.getString("category_id"),
-            rs.getString("item_type_id"),
-            rs.getString("qr_code"),
-            rs.getString("description"),
-            ItemStatus.valueOf(rs.getString("status")),
-            rs.getTimestamp("created_at"),
-            rs.getTimestamp("updated_at")));
+          values.add(
+              new Item(
+                  rs.getString("id"),
+                  rs.getString("company_id"),
+                  rs.getString("category_id"),
+                  rs.getString("item_type_id"),
+                  rs.getString("qr_code"),
+                  rs.getString("description"),
+                  ItemStatus.valueOf(rs.getString("status")),
+                  rs.getTimestamp("created_at"),
+                  rs.getTimestamp("updated_at")));
         }
       }
     } catch (SQLException e) {
@@ -45,7 +45,8 @@ public class ItemDAOImpl implements ItemDAO {
 
   @Override
   public List<Item> search(String value, int page, int pageSize) {
-    String sql = "SELECT * FROM security.item WHERE qr_code ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item WHERE qr_code ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<Item> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -59,16 +60,17 @@ public class ItemDAOImpl implements ItemDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new Item(
-            rs.getString("id"),
-            rs.getString("company_id"),
-            rs.getString("category_id"),
-            rs.getString("item_type_id"),
-            rs.getString("qr_code"),
-            rs.getString("description"),
-            ItemStatus.valueOf(rs.getString("status")),
-            rs.getTimestamp("created_at"),
-            rs.getTimestamp("updated_at")));
+          values.add(
+              new Item(
+                  rs.getString("id"),
+                  rs.getString("company_id"),
+                  rs.getString("category_id"),
+                  rs.getString("item_type_id"),
+                  rs.getString("qr_code"),
+                  rs.getString("description"),
+                  ItemStatus.valueOf(rs.getString("status")),
+                  rs.getTimestamp("created_at"),
+                  rs.getTimestamp("updated_at")));
         }
       }
     } catch (SQLException e) {
@@ -88,16 +90,17 @@ public class ItemDAOImpl implements ItemDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(new Item(
-              rs.getString("id"),
-            rs.getString("company_id"),
-            rs.getString("category_id"),
-            rs.getString("item_type_id"),
-            rs.getString("qr_code"),
-            rs.getString("description"),
-            ItemStatus.valueOf(rs.getString("status")),
-            rs.getTimestamp("created_at"),
-            rs.getTimestamp("updated_at")));
+          return Optional.of(
+              new Item(
+                  rs.getString("id"),
+                  rs.getString("company_id"),
+                  rs.getString("category_id"),
+                  rs.getString("item_type_id"),
+                  rs.getString("qr_code"),
+                  rs.getString("description"),
+                  ItemStatus.valueOf(rs.getString("status")),
+                  rs.getTimestamp("created_at"),
+                  rs.getTimestamp("updated_at")));
         }
       }
     } catch (SQLException e) {
@@ -108,16 +111,21 @@ public class ItemDAOImpl implements ItemDAO {
 
   @Override
   public Item create(Item value) {
-    String sql = "INSERT INTO security.item (company_id, category_id, item_type_id, qr_code, description, status) VALUES (?, ?, ?, ?, ?, CAST(? AS item_status))";
+    String sql =
+        "INSERT INTO security.item (company_id, category_id, item_type_id, qr_code, description, status) VALUES (?, ?, ?, ?, ?, CAST(? AS item_status))";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, value.getCompany_id() == null ? null : UUID.fromString(value.getCompany_id()));
-      stmt.setObject(2, value.getCategory_id() == null ? null : UUID.fromString(value.getCategory_id()));
-      stmt.setObject(3, value.getItem_type_id() == null ? null : UUID.fromString(value.getItem_type_id()));
+      stmt.setObject(
+          1, value.getCompany_id() == null ? null : UUID.fromString(value.getCompany_id()));
+      stmt.setObject(
+          2, value.getCategory_id() == null ? null : UUID.fromString(value.getCategory_id()));
+      stmt.setObject(
+          3, value.getItem_type_id() == null ? null : UUID.fromString(value.getItem_type_id()));
       stmt.setString(4, value.getQr_code());
       stmt.setString(5, value.getDescription());
-      stmt.setString(6, value.getStatus() == null ? ItemStatus.AVAILABLE.name() : value.getStatus().name());
+      stmt.setString(
+          6, value.getStatus() == null ? ItemStatus.AVAILABLE.name() : value.getStatus().name());
       stmt.executeUpdate();
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {

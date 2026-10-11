@@ -1,7 +1,7 @@
-﻿package sssm.dev.sssm_backend.a11_inventory.item_type.dto;
+package sssm.dev.sssm_backend.a11_inventory.item_type.dto;
 
-import lombok.Data;
 import java.math.BigDecimal;
+import lombok.Data;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 
 @Data
@@ -16,5 +16,3 @@ public class ItemTypeUpdateRequest {
   private BigDecimal minimum_stock;
   private ItemStatus status;
 }
-
-

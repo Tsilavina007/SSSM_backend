@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a04_personnel.employee_document.repository;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a04_personnel.employee_document.entity.EmployeeDocument;
 
 public interface EmployeeDocumentDAO {

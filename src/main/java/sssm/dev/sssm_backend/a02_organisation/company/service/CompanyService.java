@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a02_organisation.company.service;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAO;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;

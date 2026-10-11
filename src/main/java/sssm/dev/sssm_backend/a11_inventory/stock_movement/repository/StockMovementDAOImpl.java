@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
@@ -25,15 +24,16 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new StockMovement(
-              rs.getString("id"),
-            rs.getString("warehouse_id"),
-            rs.getString("item_id"),
-            rs.getString("employee_id"),
-            MovementType.valueOf(rs.getString("movement_type")),
-            rs.getString("reference"),
-            rs.getTimestamp("movement_date"),
-            rs.getString("notes")));
+          values.add(
+              new StockMovement(
+                  rs.getString("id"),
+                  rs.getString("warehouse_id"),
+                  rs.getString("item_id"),
+                  rs.getString("employee_id"),
+                  MovementType.valueOf(rs.getString("movement_type")),
+                  rs.getString("reference"),
+                  rs.getTimestamp("movement_date"),
+                  rs.getString("notes")));
         }
       }
     } catch (SQLException e) {
@@ -44,7 +44,8 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
   @Override
   public List<StockMovement> search(String value, int page, int pageSize) {
-    String sql = "SELECT * FROM security.stock_movement WHERE reference ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.stock_movement WHERE reference ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<StockMovement> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -58,15 +59,16 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new StockMovement(
-              rs.getString("id"),
-            rs.getString("warehouse_id"),
-            rs.getString("item_id"),
-            rs.getString("employee_id"),
-            MovementType.valueOf(rs.getString("movement_type")),
-            rs.getString("reference"),
-            rs.getTimestamp("movement_date"),
-            rs.getString("notes")));
+          values.add(
+              new StockMovement(
+                  rs.getString("id"),
+                  rs.getString("warehouse_id"),
+                  rs.getString("item_id"),
+                  rs.getString("employee_id"),
+                  MovementType.valueOf(rs.getString("movement_type")),
+                  rs.getString("reference"),
+                  rs.getTimestamp("movement_date"),
+                  rs.getString("notes")));
         }
       }
     } catch (SQLException e) {
@@ -86,15 +88,16 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(new StockMovement(
-              rs.getString("id"),
-            rs.getString("warehouse_id"),
-            rs.getString("item_id"),
-            rs.getString("employee_id"),
-            MovementType.valueOf(rs.getString("movement_type")),
-            rs.getString("reference"),
-            rs.getTimestamp("movement_date"),
-            rs.getString("notes")));
+          return Optional.of(
+              new StockMovement(
+                  rs.getString("id"),
+                  rs.getString("warehouse_id"),
+                  rs.getString("item_id"),
+                  rs.getString("employee_id"),
+                  MovementType.valueOf(rs.getString("movement_type")),
+                  rs.getString("reference"),
+                  rs.getTimestamp("movement_date"),
+                  rs.getString("notes")));
         }
       }
     } catch (SQLException e) {
@@ -105,14 +108,21 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
   @Override
   public StockMovement create(StockMovement value) {
-    String sql = "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS movement_type), ?, ?, ?)";
+    String sql =
+        "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS movement_type), ?, ?, ?)";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, value.getWarehouse_id() == null ? null : UUID.fromString(value.getWarehouse_id()));
+      stmt.setObject(
+          1, value.getWarehouse_id() == null ? null : UUID.fromString(value.getWarehouse_id()));
       stmt.setObject(2, value.getItem_id() == null ? null : UUID.fromString(value.getItem_id()));
-      stmt.setObject(3, value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
-      stmt.setString(4, value.getMovement_type() == null ? MovementType.IN.name() : value.getMovement_type().name());
+      stmt.setObject(
+          3, value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
+      stmt.setString(
+          4,
+          value.getMovement_type() == null
+              ? MovementType.IN.name()
+              : value.getMovement_type().name());
       stmt.setString(5, value.getReference());
       stmt.setTimestamp(6, value.getMovement_date());
       stmt.setString(7, value.getNotes());

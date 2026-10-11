@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a07_contracts.contract_service.service;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a07_contracts.contract_service.entity.ContractServiceItem;
 import sssm.dev.sssm_backend.a07_contracts.contract_service.repository.ContractServiceDAO;
 import sssm.dev.sssm_backend.a07_contracts.contract_service.repository.ContractServiceDAOImpl;

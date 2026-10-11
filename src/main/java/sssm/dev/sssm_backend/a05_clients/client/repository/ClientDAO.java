@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a05_clients.client.repository;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a05_clients.client.entity.Client;
 
 public interface ClientDAO {

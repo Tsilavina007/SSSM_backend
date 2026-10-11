@@ -1,4 +1,4 @@
-﻿package sssm.dev.sssm_backend.a11_inventory.warehouse.dto;
+package sssm.dev.sssm_backend.a11_inventory.warehouse.dto;
 
 import lombok.Data;
 
@@ -10,4 +10,3 @@ public class WarehouseUpdateRequest {
   private String address;
   private Boolean active;
 }
-

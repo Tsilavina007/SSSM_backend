@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a04_personnel.employee.dto;
 
 import java.sql.Date;
 import lombok.Data;
-
 import sssm.dev.sssm_backend.a01_common.enums.EmployeeStatus;
 
 @Data

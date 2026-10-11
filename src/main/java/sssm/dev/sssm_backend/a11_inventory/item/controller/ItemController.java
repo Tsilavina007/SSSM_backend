@@ -1,4 +1,40 @@
-﻿package sssm.dev.sssm_backend.a11_inventory.item.controller;
-import java.util.*; import org.springframework.web.bind.annotation.*; import sssm.dev.sssm_backend.a11_inventory.item.entity.Item; import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
-@RestController @RequestMapping("/api/items") public class ItemController { private final ItemService service=new ItemService(); @GetMapping public List<Item> findAll(@RequestParam Optional<String> search,@RequestParam Optional<Integer> page,@RequestParam Optional<Integer> pageSize){return service.findAll(search,page,pageSize);} @GetMapping("/{id}") public Optional<Item> findById(@PathVariable String id){return service.findById(id);} @PostMapping public Item create(@RequestBody Item v){return service.create(v);} @PatchMapping("/{id}") public Item update(@PathVariable String id,@RequestBody Item v){return service.update(id,v);} @DeleteMapping("/{id}") public void delete(@PathVariable String id){service.delete(id);} }
+package sssm.dev.sssm_backend.a11_inventory.item.controller;
 
+import java.util.*;
+import org.springframework.web.bind.annotation.*;
+import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
+import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
+
+@RestController
+@RequestMapping("/api/items")
+public class ItemController {
+  private final ItemService service = new ItemService();
+
+  @GetMapping
+  public List<Item> findAll(
+      @RequestParam Optional<String> search,
+      @RequestParam Optional<Integer> page,
+      @RequestParam Optional<Integer> pageSize) {
+    return service.findAll(search, page, pageSize);
+  }
+
+  @GetMapping("/{id}")
+  public Optional<Item> findById(@PathVariable String id) {
+    return service.findById(id);
+  }
+
+  @PostMapping
+  public Item create(@RequestBody Item v) {
+    return service.create(v);
+  }
+
+  @PatchMapping("/{id}")
+  public Item update(@PathVariable String id, @RequestBody Item v) {
+    return service.update(id, v);
+  }
+
+  @DeleteMapping("/{id}")
+  public void delete(@PathVariable String id) {
+    service.delete(id);
+  }
+}

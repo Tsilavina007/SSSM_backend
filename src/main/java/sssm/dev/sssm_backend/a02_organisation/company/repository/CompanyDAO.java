@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a02_organisation.company.repository;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 
 public interface CompanyDAO {

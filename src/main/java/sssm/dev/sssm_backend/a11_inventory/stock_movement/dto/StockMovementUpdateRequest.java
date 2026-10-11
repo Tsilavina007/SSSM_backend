@@ -1,7 +1,7 @@
-﻿package sssm.dev.sssm_backend.a11_inventory.stock_movement.dto;
+package sssm.dev.sssm_backend.a11_inventory.stock_movement.dto;
 
-import lombok.Data;
 import java.sql.Timestamp;
+import lombok.Data;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
 
 @Data
@@ -14,4 +14,3 @@ public class StockMovementUpdateRequest {
   private Timestamp movement_date;
   private String notes;
 }
-

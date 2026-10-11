@@ -1,7 +1,6 @@
 package sssm.dev.sssm_backend.a03_authentication.user.service;
 
 import java.util.*;
-
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.repository.*;
 

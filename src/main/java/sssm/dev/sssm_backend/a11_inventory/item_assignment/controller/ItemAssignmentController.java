@@ -1,4 +1,40 @@
-﻿package sssm.dev.sssm_backend.a11_inventory.item_assignment.controller;
-import java.util.*; import org.springframework.web.bind.annotation.*; import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment; import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
-@RestController @RequestMapping("/api/item-assignments") public class ItemAssignmentController { private final ItemAssignmentService service=new ItemAssignmentService(); @GetMapping public List<ItemAssignment> findAll(@RequestParam Optional<String> search,@RequestParam Optional<Integer> page,@RequestParam Optional<Integer> pageSize){return service.findAll(search,page,pageSize);} @GetMapping("/{id}") public Optional<ItemAssignment> findById(@PathVariable String id){return service.findById(id);} @PostMapping public ItemAssignment create(@RequestBody ItemAssignment v){return service.create(v);} @PatchMapping("/{id}") public ItemAssignment update(@PathVariable String id,@RequestBody ItemAssignment v){return service.update(id,v);} @DeleteMapping("/{id}") public void delete(@PathVariable String id){service.delete(id);} }
+package sssm.dev.sssm_backend.a11_inventory.item_assignment.controller;
 
+import java.util.*;
+import org.springframework.web.bind.annotation.*;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
+
+@RestController
+@RequestMapping("/api/item-assignments")
+public class ItemAssignmentController {
+  private final ItemAssignmentService service = new ItemAssignmentService();
+
+  @GetMapping
+  public List<ItemAssignment> findAll(
+      @RequestParam Optional<String> search,
+      @RequestParam Optional<Integer> page,
+      @RequestParam Optional<Integer> pageSize) {
+    return service.findAll(search, page, pageSize);
+  }
+
+  @GetMapping("/{id}")
+  public Optional<ItemAssignment> findById(@PathVariable String id) {
+    return service.findById(id);
+  }
+
+  @PostMapping
+  public ItemAssignment create(@RequestBody ItemAssignment v) {
+    return service.create(v);
+  }
+
+  @PatchMapping("/{id}")
+  public ItemAssignment update(@PathVariable String id, @RequestBody ItemAssignment v) {
+    return service.update(id, v);
+  }
+
+  @DeleteMapping("/{id}")
+  public void delete(@PathVariable String id) {
+    service.delete(id);
+  }
+}

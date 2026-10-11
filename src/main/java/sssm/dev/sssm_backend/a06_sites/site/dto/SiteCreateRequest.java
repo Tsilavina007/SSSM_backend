@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a06_sites.site.dto;
 
 import java.math.BigDecimal;
 import lombok.Data;
-
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 
 @Data

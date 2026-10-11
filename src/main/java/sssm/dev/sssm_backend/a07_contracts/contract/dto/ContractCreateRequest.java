@@ -3,7 +3,6 @@ package sssm.dev.sssm_backend.a07_contracts.contract.dto;
 import java.math.BigDecimal;
 import java.sql.Date;
 import lombok.Data;
-
 import sssm.dev.sssm_backend.a01_common.enums.ContractStatus;
 
 @Data

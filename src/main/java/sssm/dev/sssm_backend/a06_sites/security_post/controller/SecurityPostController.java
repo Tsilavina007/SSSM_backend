@@ -3,7 +3,6 @@ package sssm.dev.sssm_backend.a06_sites.security_post.controller;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.web.bind.annotation.*;
-
 import sssm.dev.sssm_backend.a06_sites.security_post.entity.SecurityPost;
 import sssm.dev.sssm_backend.a06_sites.security_post.service.SecurityPostService;
 

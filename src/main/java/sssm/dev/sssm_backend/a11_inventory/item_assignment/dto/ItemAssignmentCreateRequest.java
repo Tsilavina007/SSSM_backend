@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a11_inventory.item_assignment.dto;
 
-import lombok.Data;
 import java.sql.Timestamp;
+import lombok.Data;
 
 @Data
 public class ItemAssignmentCreateRequest {

@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a06_sites.post_requirement.entity.PostRequirement;
 
@@ -13,8 +12,7 @@ public class PostRequirementDAOImpl implements PostRequirementDAO {
 
   @Override
   public List<PostRequirement> findByPostId(String postId) {
-    String sql =
-        "SELECT * FROM security.post_requirement WHERE post_id = ? ORDER BY requirement";
+    String sql = "SELECT * FROM security.post_requirement WHERE post_id = ? ORDER BY requirement";
     List<PostRequirement> requirements = new ArrayList<>();
     UUID id = UUID.fromString(postId);
 
@@ -56,8 +54,7 @@ public class PostRequirementDAOImpl implements PostRequirementDAO {
 
   @Override
   public PostRequirement create(PostRequirement requirement) {
-    String sql =
-        "INSERT INTO security.post_requirement (post_id, requirement) VALUES (?, ?)";
+    String sql = "INSERT INTO security.post_requirement (post_id, requirement) VALUES (?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, UUID.fromString(requirement.getPost_id()));

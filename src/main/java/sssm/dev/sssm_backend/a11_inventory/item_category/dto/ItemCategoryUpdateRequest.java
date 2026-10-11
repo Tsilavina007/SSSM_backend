@@ -1,4 +1,4 @@
-﻿package sssm.dev.sssm_backend.a11_inventory.item_category.dto;
+package sssm.dev.sssm_backend.a11_inventory.item_category.dto;
 
 import lombok.Data;
 
@@ -8,4 +8,3 @@ public class ItemCategoryUpdateRequest {
   private String name;
   private String description;
 }
-

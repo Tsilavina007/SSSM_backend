@@ -3,7 +3,6 @@ package sssm.dev.sssm_backend.a06_sites.site.controller;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.web.bind.annotation.*;
-
 import sssm.dev.sssm_backend.a06_sites.site.entity.Site;
 import sssm.dev.sssm_backend.a06_sites.site.service.SiteService;
 

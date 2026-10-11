@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
 
@@ -137,8 +136,7 @@ public class RoleDAOImpl implements RoleDAO {
 
   @Override
   public void removePermission(String roleId, String permissionId) {
-    String sql =
-        "DELETE FROM security.role_permission WHERE role_id = ? AND permission_id = ?";
+    String sql = "DELETE FROM security.role_permission WHERE role_id = ? AND permission_id = ?";
     executePair(sql, roleId, permissionId);
   }
 

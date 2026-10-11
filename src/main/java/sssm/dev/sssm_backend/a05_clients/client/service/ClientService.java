@@ -1,7 +1,6 @@
 package sssm.dev.sssm_backend.a05_clients.client.service;
 
 import java.util.*;
-
 import sssm.dev.sssm_backend.a05_clients.client.entity.Client;
 import sssm.dev.sssm_backend.a05_clients.client.repository.*;
 

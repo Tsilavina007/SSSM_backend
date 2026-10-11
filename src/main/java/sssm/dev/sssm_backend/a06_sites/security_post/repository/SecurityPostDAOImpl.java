@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.PostStatus;
 import sssm.dev.sssm_backend.a06_sites.security_post.entity.SecurityPost;
@@ -68,7 +67,8 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
       stmt.setObject(5, post.getRequired_agents() == null ? 1 : post.getRequired_agents());
       stmt.setTime(6, post.getStart_time());
       stmt.setTime(7, post.getEnd_time());
-      stmt.setString(8, post.getStatus() == null ? PostStatus.ACTIVE.name() : post.getStatus().name());
+      stmt.setString(
+          8, post.getStatus() == null ? PostStatus.ACTIVE.name() : post.getStatus().name());
 
       stmt.executeUpdate();
 

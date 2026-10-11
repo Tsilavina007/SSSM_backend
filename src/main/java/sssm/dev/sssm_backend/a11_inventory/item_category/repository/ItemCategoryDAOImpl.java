@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 
@@ -24,11 +23,12 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new ItemCategory(
-              rs.getString("id"),
-            rs.getString("company_id"),
-            rs.getString("name"),
-            rs.getString("description")));
+          values.add(
+              new ItemCategory(
+                  rs.getString("id"),
+                  rs.getString("company_id"),
+                  rs.getString("name"),
+                  rs.getString("description")));
         }
       }
     } catch (SQLException e) {
@@ -39,7 +39,8 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
   @Override
   public List<ItemCategory> search(String value, int page, int pageSize) {
-    String sql = "SELECT * FROM security.item_category WHERE name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item_category WHERE name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemCategory> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -53,11 +54,12 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(new ItemCategory(
-              rs.getString("id"),
-            rs.getString("company_id"),
-            rs.getString("name"),
-            rs.getString("description")));
+          values.add(
+              new ItemCategory(
+                  rs.getString("id"),
+                  rs.getString("company_id"),
+                  rs.getString("name"),
+                  rs.getString("description")));
         }
       }
     } catch (SQLException e) {
@@ -77,11 +79,12 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(new ItemCategory(
-              rs.getString("id"),
-            rs.getString("company_id"),
-            rs.getString("name"),
-            rs.getString("description")));
+          return Optional.of(
+              new ItemCategory(
+                  rs.getString("id"),
+                  rs.getString("company_id"),
+                  rs.getString("name"),
+                  rs.getString("description")));
         }
       }
     } catch (SQLException e) {
@@ -92,11 +95,13 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
   @Override
   public ItemCategory create(ItemCategory value) {
-    String sql = "INSERT INTO security.item_category (company_id, name, description) VALUES (?, ?, ?)";
+    String sql =
+        "INSERT INTO security.item_category (company_id, name, description) VALUES (?, ?, ?)";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, value.getCompany_id() == null ? null : UUID.fromString(value.getCompany_id()));
+      stmt.setObject(
+          1, value.getCompany_id() == null ? null : UUID.fromString(value.getCompany_id()));
       stmt.setString(2, value.getName());
       stmt.setString(3, value.getDescription());
       stmt.executeUpdate();
