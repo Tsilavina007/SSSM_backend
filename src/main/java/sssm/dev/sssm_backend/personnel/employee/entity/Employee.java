@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import sssm.dev.sssm_backend.common.enums.EmployeeStatus;
 
 @Data
 @NoArgsConstructor
@@ -26,7 +27,7 @@ public class Employee {
     private Date hire_date;
     private Date end_date;
     private String position;
-    private String status;
+    private EmployeeStatus status;
     private String photo_url;
     private String emergency_contact_name;
     private String emergency_contact_phone;

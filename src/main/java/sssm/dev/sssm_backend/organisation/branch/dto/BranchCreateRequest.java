@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.organisation.branch.dto;
 
 import lombok.Data;
+import sssm.dev.sssm_backend.common.enums.SiteStatus;
 
 @Data
 public class BranchCreateRequest {
@@ -12,5 +13,5 @@ public class BranchCreateRequest {
     private String city;
     private String phone;
     private String email;
-    private String status;
+    private SiteStatus status;
 }

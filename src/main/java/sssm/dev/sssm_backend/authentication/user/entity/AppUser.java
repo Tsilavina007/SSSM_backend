@@ -4,6 +4,7 @@ import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import sssm.dev.sssm_backend.common.enums.UserStatus;
 
 @Data
 @NoArgsConstructor
@@ -17,7 +18,7 @@ public class AppUser {
     private String first_name;
     private String last_name;
     private String phone;
-    private String status;
+    private UserStatus status;
     private Timestamp last_login_at;
     private Timestamp created_at;
     private Timestamp updated_at;

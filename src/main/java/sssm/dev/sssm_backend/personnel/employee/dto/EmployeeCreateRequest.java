@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.personnel.employee.dto;
 
 import java.sql.Date;
 import lombok.Data;
+import sssm.dev.sssm_backend.common.enums.EmployeeStatus;
 
 @Data
 public class EmployeeCreateRequest {
@@ -20,7 +21,7 @@ public class EmployeeCreateRequest {
     private Date hire_date;
     private Date end_date;
     private String position;
-    private String status;
+    private EmployeeStatus status;
     private String photo_url;
     private String emergency_contact_name;
     private String emergency_contact_phone;

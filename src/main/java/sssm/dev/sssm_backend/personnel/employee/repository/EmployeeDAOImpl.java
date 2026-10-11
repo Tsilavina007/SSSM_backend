@@ -4,6 +4,7 @@ import java.sql.*;
 import java.util.*;
 import sssm.dev.sssm_backend.infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.personnel.employee.entity.Employee;
+import sssm.dev.sssm_backend.common.enums.EmployeeStatus;
 
 public class EmployeeDAOImpl implements EmployeeDAO {
     public List<Employee> findAll(int page, int size) {
@@ -51,7 +52,7 @@ public class EmployeeDAOImpl implements EmployeeDAO {
         s.setString(4,e.getEmployee_number()); s.setString(5,e.getFirst_name()); s.setString(6,e.getLast_name());
         s.setString(7,e.getGender()); s.setDate(8,e.getDate_of_birth()); s.setString(9,e.getPhone()); s.setString(10,e.getEmail());
         s.setString(11,e.getAddress()); s.setString(12,e.getNational_id()); s.setDate(13,e.getHire_date()); s.setDate(14,e.getEnd_date());
-        s.setString(15,e.getPosition()); s.setString(16,e.getStatus()); s.setString(17,e.getPhoto_url());
+        s.setString(15,e.getPosition()); s.setString(16,e.getStatus() == null ? null : e.getStatus().name()); s.setString(17,e.getPhoto_url());
         s.setString(18,e.getEmergency_contact_name()); s.setString(19,e.getEmergency_contact_phone()); s.setString(20,e.getNotes());
     }
     public void delete(String id) {
@@ -64,7 +65,7 @@ public class EmployeeDAOImpl implements EmployeeDAO {
         return new Employee(r.getString("id"),r.getString("company_id"),r.getString("agency_id"),r.getString("user_id"),
             r.getString("employee_number"),r.getString("first_name"),r.getString("last_name"),r.getString("gender"),
             r.getDate("date_of_birth"),r.getString("phone"),r.getString("email"),r.getString("address"),r.getString("national_id"),
-            r.getDate("hire_date"),r.getDate("end_date"),r.getString("position"),r.getString("status"),r.getString("photo_url"),
+            r.getDate("hire_date"),r.getDate("end_date"),r.getString("position"),EmployeeStatus.valueOf(r.getString("status")),r.getString("photo_url"),
             r.getString("emergency_contact_name"),r.getString("emergency_contact_phone"),r.getString("notes"),
             r.getTimestamp("created_at"),r.getTimestamp("updated_at"));
     }

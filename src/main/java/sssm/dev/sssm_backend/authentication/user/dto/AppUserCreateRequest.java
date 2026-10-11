@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.authentication.user.dto;
 
 import lombok.Data;
+import sssm.dev.sssm_backend.common.enums.UserStatus;
 
 @Data
 public class AppUserCreateRequest {
@@ -11,5 +12,5 @@ public class AppUserCreateRequest {
     private String first_name;
     private String last_name;
     private String phone;
-    private String status;
+    private UserStatus status;
 }

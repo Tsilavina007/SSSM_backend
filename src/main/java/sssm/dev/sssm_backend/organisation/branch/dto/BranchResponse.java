@@ -4,6 +4,7 @@ import java.sql.Date;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import sssm.dev.sssm_backend.common.enums.SiteStatus;
 
 @Data
 @AllArgsConstructor
@@ -17,7 +18,7 @@ public class BranchResponse {
     private String city;
     private String phone;
     private String email;
-    private String status;
+    private SiteStatus status;
     private Date created_at;
     private Date updated_at;
 }
