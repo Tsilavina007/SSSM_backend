@@ -2,9 +2,7 @@ package sssm.dev.sssm_backend.a02_organisation.company.entity;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.sql.Date;
-
 import lombok.AllArgsConstructor;
 
 // Company Entity

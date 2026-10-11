@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a03_authentication.user.dto;
 import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 
 @Data

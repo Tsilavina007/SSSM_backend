@@ -1,10 +1,10 @@
 package sssm.dev.sssm_backend.a02_organisation.branch.entity;
 
 import java.sql.Date;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 
 @Data

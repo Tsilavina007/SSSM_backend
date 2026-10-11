@@ -37,17 +37,65 @@ foreach ($file in @(Get-ChildItem -Path $sourceRoot -Filter "*.java" -Recurse -F
     $seenImports = [System.Collections.Generic.HashSet[string]]::new()
     $cleanLines = [System.Collections.Generic.List[string]]::new()
     $blankLinePending = $false
+    $importLines = @($lines | Where-Object { $_ -match "^\s*import\s+" })
+    $body = ($lines | Where-Object { $_ -notmatch "^\s*import\s+" }) -join "`n"
+    $packageLines = @($lines | Where-Object { $_ -match "^\s*package\s+" })
+    $keptImports = [System.Collections.Generic.List[string]]::new()
+    $externalImports = [System.Collections.Generic.List[string]]::new()
+    $localImports = [System.Collections.Generic.List[string]]::new()
 
-    foreach ($line in $lines) {
-        $cleanLine = $line -replace "[ \t]+$", ""
-
-        if ($cleanLine -match "^\s*import\s+(.+);\s*$") {
-            $normalizedImport = "import $($Matches[1].Trim());"
-            if (-not $seenImports.Add($normalizedImport)) {
+    foreach ($importLine in $importLines) {
+        if ($importLine -match "^\s*import\s+(?!static\s+)([^;]+)\s*;\s*$" -and $Matches[1] -notmatch "\.\*$") {
+            $importName = ($Matches[1] -split "\.")[-1]
+            $escapedName = [regex]::Escape($importName)
+            if ($body -notmatch "(?m)(?<![\w\$])$escapedName(?![\w\$])") {
                 continue
             }
-            $cleanLine = $normalizedImport
+        } elseif ($importLine -match "^\s*import\s+static\s+([^;]+)\s*;\s*$" -and $Matches[1] -notmatch "\.\*$") {
+            $importName = ($Matches[1] -split "\.")[-1]
+            $escapedName = [regex]::Escape($importName)
+            if ($body -notmatch "(?m)(?<![\w\$])$escapedName(?![\w\$])") {
+                continue
+            }
         }
+        $normalizedImport = $importLine.Trim()
+        if ($seenImports.Add($normalizedImport)) {
+            $keptImports.Add($normalizedImport)
+            if ($normalizedImport -match "^import\s+(?:static\s+)?sssm\.dev\.sssm_backend\.") {
+                $localImports.Add($normalizedImport)
+            } else {
+                $externalImports.Add($normalizedImport)
+            }
+        }
+    }
+
+    foreach ($packageLine in $packageLines) {
+        $cleanLines.Add($packageLine.Trim())
+    }
+    if ($packageLines.Count -gt 0 -and ($externalImports.Count -gt 0 -or $localImports.Count -gt 0)) {
+        $cleanLines.Add("")
+    }
+    foreach ($importLine in $externalImports) {
+        $cleanLines.Add($importLine)
+    }
+    if ($externalImports.Count -gt 0 -and $localImports.Count -gt 0) {
+        $cleanLines.Add("")
+    }
+    foreach ($importLine in $localImports) {
+        $cleanLines.Add($importLine)
+    }
+    if ($keptImports.Count -gt 0) {
+        $cleanLines.Add("")
+        $blankLinePending = $true
+    } elseif ($packageLines.Count -gt 0) {
+        $blankLinePending = $true
+    }
+
+    foreach ($line in $lines) {
+        if ($line -match "^\s*(package|import)\s+") {
+            continue
+        }
+        $cleanLine = $line -replace "[ \t]+$", ""
 
         if ([string]::IsNullOrWhiteSpace($cleanLine)) {
             if ($blankLinePending) {

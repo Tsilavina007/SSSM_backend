@@ -22,21 +22,76 @@ while IFS= read -r -d '' java_file; do
     temp_file="$(mktemp)"
     awk '
         /^[[:space:]]*import[[:space:]]+/ {
-            sub(/^[[:space:]]+/, "")
-            sub(/[[:space:]]+$/, "")
-            if (seen[$0]++) next
+            import_lines[++import_count] = $0
+            next
+        }
+        /^[[:space:]]*package[[:space:]]+/ {
+            package_lines[++package_count] = $0
+            next
         }
         {
-            sub(/[[:space:]]+$/, "")
-            if ($0 ~ /^[[:space:]]*$/) {
-                if (blank) next
-                blank = 1
-            } else {
-                blank = 0
-            }
-            lines[++count] = $0
+            body[++body_count] = $0
         }
         END {
+            for (i = 1; i <= package_count; i++) {
+                line = package_lines[i]
+                sub(/^[[:space:]]*/, "", line)
+                sub(/[[:space:]]+$/, "", line)
+                print line
+            }
+            if (package_count > 0 && import_count > 0) print ""
+            for (i = 1; i <= import_count; i++) {
+                line = import_lines[i]
+                normalized = line
+                sub(/^[[:space:]]*/, "", normalized)
+                sub(/[[:space:]]+$/, "", normalized)
+                if (seen[normalized]++) continue
+                import_name = normalized
+                sub(/^import[[:space:]]+static[[:space:]]+/, "", import_name)
+                sub(/^import[[:space:]]+/, "", import_name)
+                sub(/;$/, "", import_name)
+                if (import_name ~ /\.\*$/) {
+                    if (normalized ~ /^import[[:space:]]+(static[[:space:]]+)?sssm\.dev\.sssm_backend\./) {
+                        local_imports[++local_count] = normalized
+                    } else {
+                        external_imports[++external_count] = normalized
+                    }
+                    continue
+                }
+                split(import_name, parts, ".")
+                simple_name = parts[length(parts)]
+                used = 0
+                pattern = "(^|[^[:alnum:]_$])" simple_name "([^[:alnum:]_$]|$)"
+                for (j = 1; j <= body_count; j++) {
+                    if (body[j] ~ pattern) {
+                        used = 1
+                        break
+                    }
+                }
+                if (used) {
+                    if (normalized ~ /^import[[:space:]]+(static[[:space:]]+)?sssm\.dev\.sssm_backend\./) {
+                        local_imports[++local_count] = normalized
+                    } else {
+                        external_imports[++external_count] = normalized
+                    }
+                }
+            }
+            for (i = 1; i <= external_count; i++) print external_imports[i]
+            if (external_count > 0 && local_count > 0) print ""
+            for (i = 1; i <= local_count; i++) print local_imports[i]
+            if (import_count > 0) print ""
+            if (package_count > 0 || import_count > 0) blank = 1
+            for (i = 1; i <= body_count; i++) {
+                line = body[i]
+                sub(/[[:space:]]+$/, "", line)
+                if (line ~ /^[[:space:]]*$/) {
+                    if (blank) continue
+                    blank = 1
+                } else {
+                    blank = 0
+                }
+                lines[++count] = line
+            }
             while (count > 0 && lines[count] ~ /^[[:space:]]*$/) count--
             for (i = 1; i <= count; i++) print lines[i]
         }

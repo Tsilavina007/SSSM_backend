@@ -1,7 +1,6 @@
 package sssm.dev.sssm_backend.a02_organisation.company.dto;
 
 import java.sql.Date;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

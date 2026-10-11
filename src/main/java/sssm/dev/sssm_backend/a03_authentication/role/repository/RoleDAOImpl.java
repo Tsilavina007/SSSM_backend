@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.a03_authentication.role.repository;
 
 import java.sql.*;
 import java.util.*;
+
 import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 

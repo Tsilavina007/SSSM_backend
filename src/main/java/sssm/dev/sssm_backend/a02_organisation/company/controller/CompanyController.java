@@ -1,12 +1,11 @@
 package sssm.dev.sssm_backend.a02_organisation.company.controller;
 
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
+import java.util.Optional;
 
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
-
-import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/company")

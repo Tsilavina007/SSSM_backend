@@ -58,6 +58,7 @@ problèmes de style simples avant de relancer automatiquement le checker :
 
 - espaces en fin de ligne ;
 - imports Java strictement dupliqués ;
+- imports Java explicites non utilisés ;
 - plusieurs lignes vides consécutives ;
 - lignes vides à la fin des fichiers.
 

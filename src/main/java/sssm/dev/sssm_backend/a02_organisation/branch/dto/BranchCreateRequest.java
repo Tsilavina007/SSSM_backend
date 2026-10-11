@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.a02_organisation.branch.dto;
 
 import lombok.Data;
+
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 
 @Data
