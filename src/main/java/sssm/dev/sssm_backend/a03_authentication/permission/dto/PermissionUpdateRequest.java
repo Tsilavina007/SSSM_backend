@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class PermissionUpdateRequest {
-    private String code;
-    private String name;
-    private String description;
+  private String code;
+  private String name;
+  private String description;
 }

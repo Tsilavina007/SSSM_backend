@@ -8,21 +8,32 @@ import sssm.dev.sssm_backend.a02_organisation.agency.repository.AgencyDAO;
 import sssm.dev.sssm_backend.a02_organisation.agency.repository.AgencyDAOImpl;
 
 public class AgencyService {
-    private final AgencyDAO agencyDAO = new AgencyDAOImpl();
+  private final AgencyDAO agencyDAO = new AgencyDAOImpl();
 
-    public List<Agency> getAgencies(Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
-        int p = page.orElse(1), size = pageSize.orElse(10);
-        return search.isPresent() ? agencyDAO.searchAgenciesByName(search.get(), p, size)
-                : agencyDAO.getAllAgencies(p, size);
-    }
-    public Optional<Agency> getAgencyById(String id) { return agencyDAO.getAgencyById(id); }
-    public Agency createAgency(Agency agency) { return agencyDAO.createAgency(agency); }
-    public Agency updateAgency(String id, Agency agency) {
-        if (agencyDAO.getAgencyById(id).isEmpty()) throw new IllegalArgumentException("Agency not found with ID: " + id);
-        agency.setId(id);
-        return agencyDAO.updateAgency(agency);
-    }
-    public void deleteAgency(String id) {
-        if (agencyDAO.getAgencyById(id).isPresent()) agencyDAO.deleteAgency(id);
-    }
+  public List<Agency> getAgencies(
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
+    int p = page.orElse(1), size = pageSize.orElse(10);
+    return search.isPresent()
+        ? agencyDAO.searchAgenciesByName(search.get(), p, size)
+        : agencyDAO.getAllAgencies(p, size);
+  }
+
+  public Optional<Agency> getAgencyById(String id) {
+    return agencyDAO.getAgencyById(id);
+  }
+
+  public Agency createAgency(Agency agency) {
+    return agencyDAO.createAgency(agency);
+  }
+
+  public Agency updateAgency(String id, Agency agency) {
+    if (agencyDAO.getAgencyById(id).isEmpty())
+      throw new IllegalArgumentException("Agency not found with ID: " + id);
+    agency.setId(id);
+    return agencyDAO.updateAgency(agency);
+  }
+
+  public void deleteAgency(String id) {
+    if (agencyDAO.getAgencyById(id).isPresent()) agencyDAO.deleteAgency(id);
+  }
 }

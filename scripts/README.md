@@ -54,8 +54,10 @@ chmod +x scripts/check-before-push.sh scripts/clean-before-push.sh
 ## Nettoyage automatique
 
 Les scripts `clean-before-push.ps1` et `clean-before-push.sh` corrigent les
-problèmes de style simples avant de relancer automatiquement le checker :
+les problèmes de formatage et de style avant de relancer automatiquement le
+checker :
 
+- indentation et sauts de ligne Java avec `google-java-format` ;
 - espaces en fin de ligne ;
 - imports Java strictement dupliqués ;
 - imports Java explicites non utilisés ;

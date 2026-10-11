@@ -4,5 +4,5 @@ import lombok.Data;
 
 @Data
 public class PostRequirementUpdateRequest {
-    private String requirement;
+  private String requirement;
 }

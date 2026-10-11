@@ -6,15 +6,15 @@ import java.util.Optional;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 
 public interface CompanyDAO {
-    List<Company> getAllCompanies(int page, int pageSize);
+  List<Company> getAllCompanies(int page, int pageSize);
 
-    List<Company> searchCompaniesByName(String searchName, int page, int pageSize);
+  List<Company> searchCompaniesByName(String searchName, int page, int pageSize);
 
-    Optional<Company> getCompanyById(String companyId);
+  Optional<Company> getCompanyById(String companyId);
 
-    Company createCompany(Company company);
+  Company createCompany(Company company);
 
-    Company updateCompany(Company company);
+  Company updateCompany(Company company);
 
-    void deleteCompany(String companyId);
+  void deleteCompany(String companyId);
 }

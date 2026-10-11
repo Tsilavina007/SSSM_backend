@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PostRequirement {
-    private String id;
-    private String post_id;
-    private String requirement;
+  private String id;
+  private String post_id;
+  private String requirement;
 }

@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class PostRequirementCreateRequest {
-    private String post_id;
-    private String requirement;
+  private String post_id;
+  private String requirement;
 }

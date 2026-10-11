@@ -10,13 +10,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EmployeeDocument {
-    private String id;
-    private String employee_id;
-    private String document_type;
-    private String document_number;
-    private Date issue_date;
-    private Date expiry_date;
-    private String file_url;
-    private String notes;
-    private Timestamp created_at;
+  private String id;
+  private String employee_id;
+  private String document_type;
+  private String document_number;
+  private Date issue_date;
+  private Date expiry_date;
+  private String file_url;
+  private String notes;
+  private Timestamp created_at;
 }

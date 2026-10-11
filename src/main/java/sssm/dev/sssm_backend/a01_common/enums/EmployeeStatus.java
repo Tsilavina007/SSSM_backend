@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a01_common.enums;
 public enum EmployeeStatus {
-    ACTIVE,
-    INACTIVE,
-    SUSPENDED,
-    LEFT
+  ACTIVE,
+  INACTIVE,
+  SUSPENDED,
+  LEFT
 }

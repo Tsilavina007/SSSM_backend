@@ -4,15 +4,15 @@ import lombok.Data;
 
 @Data
 public class CompanyCreateRequest {
-    private String name;
-    private String legal_name;
-    private String registration_number;
-    private String tax_number;
-    private String email;
-    private String phone;
-    private String address;
-    private String city;
-    private String country;
-    private String logo_url;
-    private String currency_code;
+  private String name;
+  private String legal_name;
+  private String registration_number;
+  private String tax_number;
+  private String email;
+  private String phone;
+  private String address;
+  private String city;
+  private String country;
+  private String logo_url;
+  private String currency_code;
 }

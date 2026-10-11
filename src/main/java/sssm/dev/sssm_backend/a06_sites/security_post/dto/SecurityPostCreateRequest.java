@@ -7,12 +7,12 @@ import sssm.dev.sssm_backend.a01_common.enums.PostStatus;
 
 @Data
 public class SecurityPostCreateRequest {
-    private String site_id;
-    private String name;
-    private String code;
-    private String description;
-    private Integer required_agents;
-    private Time start_time;
-    private Time end_time;
-    private PostStatus status;
+  private String site_id;
+  private String name;
+  private String code;
+  private String description;
+  private Integer required_agents;
+  private Time start_time;
+  private Time end_time;
+  private PostStatus status;
 }

@@ -1,0 +1,254 @@
+openapi: 3.0.3
+info:
+  title: SSSM Contracts API
+  version: 1.0.0
+  description: API de gestion des services, contrats et prestations contractuelles.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Services
+  - name: Contracts
+  - name: Contract Services
+paths:
+  /api/services:
+    get:
+      tags: [Services]
+      summary: Lister les services
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste des services
+          content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Service'}}}}
+    post:
+      tags: [Services]
+      summary: Créer un service
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ServiceCreate'}}}
+      responses:
+        '200': {description: Service créé, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+  /api/services/company/{companyId}:
+    parameters: [{$ref: '#/components/parameters/CompanyId'}]
+    get:
+      tags: [Services]
+      summary: Lister les services d'une société
+      responses:
+        '200': {description: Services de la société, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Service'}}}}}
+  /api/services/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      tags: [Services]
+      summary: Récupérer un service
+      responses:
+        '200': {description: Service trouvé, content: {application/json: {schema: {$ref: '#/components/schemas/Service'}}}}
+    patch:
+      tags: [Services]
+      summary: Modifier un service
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ServiceUpdate'}}}
+      responses:
+        '200': {description: Service modifié}
+    delete:
+      tags: [Services]
+      summary: Supprimer un service
+      responses:
+        '200': {description: Service supprimé}
+  /api/contracts:
+    get:
+      tags: [Contracts]
+      summary: Lister les contrats
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200': {description: Liste des contrats, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Contract'}}}}}
+    post:
+      tags: [Contracts]
+      summary: Créer un contrat
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ContractCreate'}}}
+      responses:
+        '200': {description: Contrat créé, content: {application/json: {schema: {$ref: '#/components/schemas/Contract'}}}}
+  /api/contracts/company/{companyId}:
+    parameters: [{$ref: '#/components/parameters/CompanyId'}]
+    get:
+      tags: [Contracts]
+      summary: Lister les contrats d'une société
+      responses:
+        '200': {description: Contrats de la société, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Contract'}}}}}
+  /api/contracts/client/{clientId}:
+    parameters: [{$ref: '#/components/parameters/ClientId'}]
+    get:
+      tags: [Contracts]
+      summary: Lister les contrats d'un client
+      responses:
+        '200': {description: Contrats du client, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Contract'}}}}}
+  /api/contracts/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      tags: [Contracts]
+      summary: Récupérer un contrat
+      responses:
+        '200': {description: Contrat trouvé, content: {application/json: {schema: {$ref: '#/components/schemas/Contract'}}}}
+    patch:
+      tags: [Contracts]
+      summary: Modifier un contrat
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ContractUpdate'}}}
+      responses:
+        '200': {description: Contrat modifié}
+    delete:
+      tags: [Contracts]
+      summary: Supprimer un contrat
+      responses:
+        '200': {description: Contrat supprimé}
+  /api/contract-services/contract/{contractId}:
+    parameters: [{$ref: '#/components/parameters/ContractId'}]
+    get:
+      tags: [Contract Services]
+      summary: Lister les prestations d'un contrat
+      responses:
+        '200': {description: Prestations du contrat, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ContractService'}}}}}
+  /api/contract-services:
+    post:
+      tags: [Contract Services]
+      summary: Ajouter une prestation à un contrat
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ContractServiceCreate'}}}
+      responses:
+        '200': {description: Prestation créée, content: {application/json: {schema: {$ref: '#/components/schemas/ContractService'}}}}
+  /api/contract-services/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      tags: [Contract Services]
+      summary: Récupérer une prestation
+      responses:
+        '200': {description: Prestation trouvée, content: {application/json: {schema: {$ref: '#/components/schemas/ContractService'}}}}
+    patch:
+      tags: [Contract Services]
+      summary: Modifier une prestation
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ContractServiceUpdate'}}}
+      responses:
+        '200': {description: Prestation modifiée}
+    delete:
+      tags: [Contract Services]
+      summary: Supprimer une prestation
+      responses:
+        '200': {description: Prestation supprimée}
+components:
+  parameters:
+    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    CompanyId: {name: companyId, in: path, required: true, schema: {type: string, format: uuid}}
+    ClientId: {name: clientId, in: path, required: true, schema: {type: string, format: uuid}}
+    ContractId: {name: contractId, in: path, required: true, schema: {type: string, format: uuid}}
+    Page: {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+    PageSize: {name: pageSize, in: query, schema: {type: integer, minimum: 1, default: 10}}
+  schemas:
+    Service:
+      allOf:
+        - {$ref: '#/components/schemas/ServiceCreate'}
+        - type: object
+          properties: {id: {type: string, format: uuid}}
+    ServiceCreate:
+      type: object
+      required: [company_id, code, name]
+      properties:
+        company_id: {type: string, format: uuid}
+        code: {type: string, maxLength: 80}
+        name: {type: string, maxLength: 180}
+        description: {type: string}
+        unit: {type: string, maxLength: 50, default: month}
+        unit_price: {type: number, format: double, minimum: 0, default: 0}
+        vat_rate: {type: number, format: double, minimum: 0, maximum: 100, default: 0}
+        active: {type: boolean, default: true}
+    ServiceUpdate:
+      type: object
+      description: Tous les champs sont facultatifs pour une modification partielle.
+      properties:
+        company_id: {type: string, format: uuid}
+        code: {type: string, maxLength: 80}
+        name: {type: string, maxLength: 180}
+        description: {type: string}
+        unit: {type: string, maxLength: 50}
+        unit_price: {type: number, format: double, minimum: 0}
+        vat_rate: {type: number, format: double, minimum: 0, maximum: 100}
+        active: {type: boolean}
+    Contract:
+      allOf:
+        - {$ref: '#/components/schemas/ContractCreate'}
+        - type: object
+          properties:
+            id: {type: string, format: uuid}
+            created_at: {type: string, format: date-time}
+            updated_at: {type: string, format: date-time}
+    ContractCreate:
+      type: object
+      required: [company_id, client_id, contract_number, title, start_date]
+      properties:
+        company_id: {type: string, format: uuid}
+        client_id: {type: string, format: uuid}
+        contract_number: {type: string, maxLength: 100}
+        title: {type: string, maxLength: 255}
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        status: {type: string, enum: [DRAFT, PENDING, ACTIVE, SUSPENDED, EXPIRED, TERMINATED, CANCELLED], default: DRAFT}
+        billing_frequency: {type: string, maxLength: 30, default: MONTHLY}
+        currency_code: {type: string, minLength: 3, maxLength: 3, default: MGA}
+        payment_terms_days: {type: integer, minimum: 0, default: 30}
+        total_amount: {type: number, format: double, minimum: 0, default: 0}
+        notes: {type: string}
+    ContractUpdate:
+      type: object
+      description: Tous les champs sont facultatifs pour une modification partielle.
+      properties:
+        company_id: {type: string, format: uuid}
+        client_id: {type: string, format: uuid}
+        contract_number: {type: string, maxLength: 100}
+        title: {type: string, maxLength: 255}
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        status: {type: string, enum: [DRAFT, PENDING, ACTIVE, SUSPENDED, EXPIRED, TERMINATED, CANCELLED]}
+        billing_frequency: {type: string, maxLength: 30}
+        currency_code: {type: string, minLength: 3, maxLength: 3}
+        payment_terms_days: {type: integer, minimum: 0}
+        total_amount: {type: number, format: double, minimum: 0}
+        notes: {type: string}
+    ContractService:
+      allOf:
+        - {$ref: '#/components/schemas/ContractServiceCreate'}
+        - type: object
+          properties: {id: {type: string, format: uuid}}
+    ContractServiceCreate:
+      type: object
+      required: [contract_id, service_id]
+      properties:
+        contract_id: {type: string, format: uuid}
+        service_id: {type: string, format: uuid}
+        site_id: {type: string, format: uuid, nullable: true}
+        quantity: {type: number, format: double, exclusiveMinimum: true, default: 1}
+        unit_price: {type: number, format: double, minimum: 0, default: 0}
+        vat_rate: {type: number, format: double, minimum: 0, maximum: 100, default: 0}
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        notes: {type: string}
+    ContractServiceUpdate:
+      type: object
+      description: Tous les champs sont facultatifs pour une modification partielle.
+      properties:
+        contract_id: {type: string, format: uuid}
+        service_id: {type: string, format: uuid}
+        site_id: {type: string, format: uuid, nullable: true}
+        quantity: {type: number, format: double, exclusiveMinimum: true}
+        unit_price: {type: number, format: double, minimum: 0}
+        vat_rate: {type: number, format: double, minimum: 0, maximum: 100}
+        start_date: {type: string, format: date}
+        end_date: {type: string, format: date}
+        notes: {type: string}

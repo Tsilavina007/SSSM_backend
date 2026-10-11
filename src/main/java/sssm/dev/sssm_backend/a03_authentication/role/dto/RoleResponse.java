@@ -6,8 +6,8 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class RoleResponse {
-    private String id;
-    private String company_id;
-    private String name;
-    private String description;
+  private String id;
+  private String company_id;
+  private String name;
+  private String description;
 }

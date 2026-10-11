@@ -29,6 +29,12 @@ function Write-CleanMessage {
 
 Write-CleanMessage -Level "INFO" -Message "Nettoyage des fichiers Java..."
 
+Write-CleanMessage -Level "INFO" -Message "Formatage Java avec google-java-format..."
+& (Join-Path $projectRoot "mvnw.cmd") -q com.coveo:fmt-maven-plugin:2.9.1:format
+if ($LASTEXITCODE -ne 0) {
+    Write-CleanMessage -Level "WARN" -Message "Le formatage Java a échoué ; nettoyage lexical poursuivi."
+}
+
 foreach ($file in @(Get-ChildItem -Path $sourceRoot -Filter "*.java" -Recurse -File)) {
     $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
     $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191

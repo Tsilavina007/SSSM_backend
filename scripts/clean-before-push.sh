@@ -18,6 +18,11 @@ fi
 printf '[INFO] Nettoyage des fichiers Java...\n'
 changed_count=0
 
+printf '[INFO] Formatage Java avec google-java-format...\n'
+if ! "${PROJECT_ROOT}/mvnw" -q com.coveo:fmt-maven-plugin:2.9.1:format; then
+    printf '[WARN] Le formatage Java a échoué ; nettoyage lexical poursuivi.\n'
+fi
+
 while IFS= read -r -d '' java_file; do
     temp_file="$(mktemp)"
     awk '
