@@ -1,209 +1,1014 @@
-﻿openapi: 3.0.3
+﻿openapi: 3.1.0
 info:
-  title: Inventory API
+  title: SSSM Inventory API
   version: 1.0.0
-  description: Inventory categories, item types, items, warehouses, stock movements and assignments.
+  description: >
+    Spécification REST du module inventaire, matériel, QR Code, stock,
+    mouvements, affectations et inventaires physiques. Les valeurs exactes de
+    item_status et movement_type doivent correspondre aux ENUM PostgreSQL
+    déjà présents dans la base.
 servers:
-  - url: /
+  - url: http://localhost:8080/api
+tags:
+  - name: Categories
+  - name: Item types
+  - name: Items
+  - name: Warehouses and stock
+  - name: Branch stock
+  - name: QR scans and operations
+  - name: Assignments
+  - name: Movements
+  - name: Inventory counts
+  - name: Alerts and reports
+security:
+  - bearerAuth: []
 paths:
-  /api/item-categories:
+  /inventory/categories:
     get:
-      summary: List ItemCategory resources
+      tags: [Categories]
+      summary: Lister les catégories
       parameters:
         - $ref: '#/components/parameters/Search'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
+        - name: includeArchived
+          in: query
+          schema: { type: boolean, default: false }
       responses:
-        '200': { description: Resource list }
+        '200':
+          description: Catégories paginées
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedCategories' }
     post:
-      summary: Create a ItemCategory
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ItemCategory' } } } }
+      tags: [Categories]
+      summary: Créer une catégorie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
       responses:
-        '200': { description: Created resource }
-  /api/item-categories/{id}:
+        '201':
+          description: Catégorie créée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+  /inventory/categories/{categoryId}:
     parameters:
-      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/CategoryId'
     get:
-      summary: Get a ItemCategory
+      tags: [Categories]
+      summary: Consulter une catégorie
       responses:
-        '200': { description: Resource }
-    patch:
-      summary: Partially update a ItemCategory
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ItemCategory' } } } }
+        '200':
+          description: Catégorie
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Categories]
+      summary: Modifier une catégorie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
       responses:
-        '200': { description: Updated resource }
+        '200':
+          description: Catégorie modifiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
     delete:
-      summary: Delete a ItemCategory
+      tags: [Categories]
+      summary: Archiver une catégorie
+      description: Suppression logique recommandée si la catégorie est utilisée.
       responses:
-        '200': { description: Deleted }
-  /api/item-types:
+        '204': { description: Catégorie archivée }
+  /inventory/categories/{categoryId}/types:
     get:
-      summary: List ItemType resources
+      tags: [Categories]
+      summary: Lister les types d'une catégorie
       parameters:
+        - $ref: '#/components/parameters/CategoryId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Types de matériel
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedItemTypes' }
+  /inventory/types:
+    get:
+      tags: [Item types]
+      summary: Lister les types de matériel
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - name: categoryId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string }
+          description: Valeur valide de l'ENUM item_status.
+        - name: lowStock
+          in: query
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Types paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedItemTypes' }
+    post:
+      tags: [Item types]
+      summary: Créer un type de matériel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemTypeInput' }
+      responses:
+        '201':
+          description: Type créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemType' }
+  /inventory/types/{typeId}:
+    parameters:
+      - $ref: '#/components/parameters/TypeId'
+    get:
+      tags: [Item types]
+      summary: Consulter un type
+      responses:
+        '200':
+          description: Type
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemType' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Item types]
+      summary: Modifier un type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemTypeInput' }
+      responses:
+        '200':
+          description: Type modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemType' }
+    delete:
+      tags: [Item types]
+      summary: Archiver un type
+      responses:
+        '204': { description: Type archivé }
+  /inventory/types/{typeId}/items:
+    get:
+      tags: [Item types]
+      summary: Lister les équipements d'un type
+      parameters:
+        - $ref: '#/components/parameters/TypeId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Équipements paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedItems' }
+  /inventory/types/{typeId}/stock:
+    get:
+      tags: [Warehouses and stock]
+      summary: Résumé du stock d'un type
+      parameters:
+        - $ref: '#/components/parameters/TypeId'
+      responses:
+        '200':
+          description: Résumé calculé depuis les équipements et localisations
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockSummary' }
+  /inventory/types/low-stock:
+    get:
+      tags: [Alerts and reports]
+      summary: Types sous leur seuil minimum global
+      responses:
+        '200':
+          description: Types sous le seuil
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LowStockAlert' }
+  /inventory/items:
+    get:
+      tags: [Items]
+      summary: Rechercher et lister les équipements
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - name: itemTypeId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: categoryId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: warehouseId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: employeeId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: unassigned
+          in: query
+          schema: { type: boolean }
+        - name: includeArchived
+          in: query
+          schema: { type: boolean, default: false }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Équipements paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedItems' }
+    post:
+      tags: [Items]
+      summary: Créer un équipement individuel
+      description: Le QR Code doit être unique au sein de l'entreprise.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemInput' }
+      responses:
+        '201':
+          description: Équipement créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory/items/bulk:
+    post:
+      tags: [Items]
+      summary: Créer plusieurs équipements
+      description: Chaque QR Code doit être unique. Préciser si le lot est atomique.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  items: { $ref: '#/components/schemas/ItemInput' }
+      responses:
+        '201':
+          description: Équipements créés
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Item' }
+  /inventory/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/ItemId'
+    get:
+      tags: [Items]
+      summary: Consulter un équipement
+      responses:
+        '200':
+          description: Équipement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Items]
+      summary: Modifier les informations d'un équipement
+      description: Ne modifie pas directement le statut ou la localisation via cette route; utiliser les opérations métier.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemUpdate' }
+      responses:
+        '200':
+          description: Équipement modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+    delete:
+      tags: [Items]
+      summary: Archiver un équipement
+      description: L'équipement avec un historique ne doit pas être supprimé physiquement.
+      responses:
+        '204': { description: Équipement archivé }
+  /inventory/items/{itemId}/qr-code:
+    get:
+      tags: [Items]
+      summary: Obtenir les données du QR Code
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Données pour afficher ou imprimer le QR Code
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  itemId: { type: string, format: uuid }
+                  qrCode: { type: string }
+                  payload: { type: string, description: Valeur à encoder dans le QR Code }
+  /inventory/items/{itemId}/current-location:
+    get:
+      tags: [Items]
+      summary: Obtenir la localisation actuelle
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Localisation et affectation actuelle
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  itemId: { type: string, format: uuid }
+                  warehouseId: { type: [string, 'null'], format: uuid }
+                  branchId: { type: [string, 'null'], format: uuid }
+                  employeeId: { type: [string, 'null'], format: uuid }
+                  postId: { type: [string, 'null'], format: uuid }
+                  locationType:
+                    type: string
+                    enum: [WAREHOUSE, ASSIGNED, IN_TRANSIT, UNKNOWN]
+  /inventory/items/{itemId}/history:
+    get:
+      tags: [Movements]
+      summary: Historique complet d'un équipement
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '200':
+          description: Mouvements et affectations historiques
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  movements:
+                    type: array
+                    items: { $ref: '#/components/schemas/Movement' }
+                  assignments:
+                    type: array
+                    items: { $ref: '#/components/schemas/Assignment' }
+  /inventory/warehouses:
+    get:
+      tags: [Warehouses and stock]
+      summary: Lister les entrepôts
+      parameters:
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: active
+          in: query
+          schema: { type: boolean }
         - $ref: '#/components/parameters/Search'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
       responses:
-        '200': { description: Resource list }
+        '200':
+          description: Entrepôts paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedWarehouses' }
     post:
-      summary: Create a ItemType
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ItemType' } } } }
+      tags: [Warehouses and stock]
+      summary: Créer un entrepôt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarehouseInput' }
       responses:
-        '200': { description: Created resource }
-  /api/item-types/{id}:
+        '201':
+          description: Entrepôt créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Warehouse' }
+  /inventory/warehouses/{warehouseId}:
     parameters:
-      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/WarehouseId'
     get:
-      summary: Get a ItemType
+      tags: [Warehouses and stock]
+      summary: Consulter un entrepôt
       responses:
-        '200': { description: Resource }
-    patch:
-      summary: Partially update a ItemType
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ItemType' } } } }
+        '200':
+          description: Entrepôt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Warehouse' }
+    put:
+      tags: [Warehouses and stock]
+      summary: Modifier un entrepôt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarehouseInput' }
       responses:
-        '200': { description: Updated resource }
+        '200':
+          description: Entrepôt modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Warehouse' }
     delete:
-      summary: Delete a ItemType
+      tags: [Warehouses and stock]
+      summary: Archiver un entrepôt
       responses:
-        '200': { description: Deleted }
-  /api/items:
+        '204': { description: Entrepôt archivé }
+  /inventory/warehouses/{warehouseId}/stock:
     get:
-      summary: List Item resources
+      tags: [Warehouses and stock]
+      summary: Lister les équipements actuellement dans l'entrepôt
       parameters:
-        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: itemTypeId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
       responses:
-        '200': { description: Resource list }
-    post:
-      summary: Create a Item
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Item' } } } }
-      responses:
-        '200': { description: Created resource }
-  /api/items/{id}:
-    parameters:
-      - $ref: '#/components/parameters/Id'
+        '200':
+          description: Stock paginé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedItems' }
+  /inventory/warehouses/{warehouseId}/stock/summary:
     get:
-      summary: Get a Item
-      responses:
-        '200': { description: Resource }
-    patch:
-      summary: Partially update a Item
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Item' } } } }
-      responses:
-        '200': { description: Updated resource }
-    delete:
-      summary: Delete a Item
-      responses:
-        '200': { description: Deleted }
-  /api/warehouses:
-    get:
-      summary: List Warehouse resources
+      tags: [Warehouses and stock]
+      summary: Résumé du stock par type
       parameters:
-        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/WarehouseId'
+      responses:
+        '200':
+          description: Résumé
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StockSummary' }
+  /inventory/warehouses/{warehouseId}/movements:
+    get:
+      tags: [Movements]
+      summary: Mouvements d'un entrepôt
+      parameters:
+        - $ref: '#/components/parameters/WarehouseId'
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
       responses:
-        '200': { description: Resource list }
-    post:
-      summary: Create a Warehouse
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Warehouse' } } } }
-      responses:
-        '200': { description: Created resource }
-  /api/warehouses/{id}:
-    parameters:
-      - $ref: '#/components/parameters/Id'
+        '200':
+          description: Mouvements paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedMovements' }
+  /inventory/branches/{branchId}/stock:
     get:
-      summary: Get a Warehouse
-      responses:
-        '200': { description: Resource }
-    patch:
-      summary: Partially update a Warehouse
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Warehouse' } } } }
-      responses:
-        '200': { description: Updated resource }
-    delete:
-      summary: Delete a Warehouse
-      responses:
-        '200': { description: Deleted }
-  /api/stock-movements:
-    get:
-      summary: List StockMovement resources
+      tags: [Branch stock]
+      summary: Stock d'une agence
       parameters:
-        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/BranchId'
+        - name: itemTypeId
+          in: query
+          schema: { type: string, format: uuid }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
       responses:
-        '200': { description: Resource list }
-    post:
-      summary: Create a StockMovement
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StockMovement' } } } }
-      responses:
-        '200': { description: Created resource }
-  /api/stock-movements/{id}:
-    parameters:
-      - $ref: '#/components/parameters/Id'
+        '200':
+          description: Équipements présents dans les entrepôts de l'agence
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedItems' }
+  /inventory/branches/{branchId}/stock/summary:
     get:
-      summary: Get a StockMovement
-      responses:
-        '200': { description: Resource }
-    patch:
-      summary: Partially update a StockMovement
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/StockMovement' } } } }
-      responses:
-        '200': { description: Updated resource }
-    delete:
-      summary: Delete a StockMovement
-      responses:
-        '200': { description: Deleted }
-  /api/item-assignments:
-    get:
-      summary: List ItemAssignment resources
+      tags: [Branch stock]
+      summary: Résumé du stock par type dans une agence
       parameters:
-        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/BranchId'
+      responses:
+        '200':
+          description: Résumé
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StockSummary' }
+  /inventory/scans/resolve:
+    post:
+      tags: [QR scans and operations]
+      summary: Identifier un équipement à partir de son QR Code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qrCode]
+              properties:
+                qrCode: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: Équipement identifié et état métier actuel
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item: { $ref: '#/components/schemas/Item' }
+                  location: { $ref: '#/components/schemas/CurrentLocation' }
+                  activeAssignment:
+                    oneOf:
+                      - { $ref: '#/components/schemas/Assignment' }
+                      - { type: 'null' }
+                  allowedActions:
+                    type: array
+                    items:
+                      type: string
+                      enum: [RECEIPT, ISSUE, TRANSFER, ASSIGN, RETURN, INVENTORY_COUNT]
+        '404': { $ref: '#/components/responses/NotFound' }
+  /inventory/operations/receipt:
+    post:
+      tags: [QR scans and operations]
+      summary: Enregistrer une réception par QR Code
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReceiptRequest' }
+      responses:
+        '201':
+          description: Réception enregistrée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationResult' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory/operations/issue:
+    post:
+      tags: [QR scans and operations]
+      summary: Enregistrer une sortie de stock
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IssueRequest' }
+      responses:
+        '201':
+          description: Sortie enregistrée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationResult' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory/operations/transfer:
+    post:
+      tags: [QR scans and operations]
+      summary: Transférer des équipements entre entrepôts
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TransferRequest' }
+      responses:
+        '201':
+          description: Transfert enregistré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationResult' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory/assignments:
+    get:
+      tags: [Assignments]
+      summary: Lister les affectations
+      parameters:
+        - name: employeeId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: postId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - name: itemId
+          in: query
+          schema: { type: string, format: uuid }
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
       responses:
-        '200': { description: Resource list }
+        '200':
+          description: Affectations paginées
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedAssignments' }
     post:
-      summary: Create a ItemAssignment
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ItemAssignment' } } } }
+      tags: [Assignments]
+      summary: Affecter un équipement à un employé et à un poste
+      description: >
+        Opération atomique : crée inventory_operation de type ASSIGNMENT,
+        item_assignment, le mouvement de sortie et met à jour la localisation
+        de l'équipement. Le client ne crée pas lui-même le mouvement.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignmentRequest' }
       responses:
-        '200': { description: Created resource }
-  /api/item-assignments/{id}:
+        '201':
+          description: Affectation et mouvement créés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssignmentResult' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory/assignments/{assignmentId}:
     parameters:
-      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/AssignmentId'
     get:
-      summary: Get a ItemAssignment
+      tags: [Assignments]
+      summary: Consulter une affectation
       responses:
-        '200': { description: Resource }
+        '200':
+          description: Affectation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Assignment' }
     patch:
-      summary: Partially update a ItemAssignment
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ItemAssignment' } } } }
+      tags: [Assignments]
+      summary: Modifier les notes ou l'échéance de retour
+      description: Ne permet pas de modifier directement l'équipement, l'employé ou le mouvement historique.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expectedReturnAt: { type: [string, 'null'], format: date-time }
+                notes: { type: [string, 'null'] }
       responses:
-        '200': { description: Updated resource }
-    delete:
-      summary: Delete a ItemAssignment
+        '200':
+          description: Affectation mise à jour
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Assignment' }
+  /inventory/assignments/{assignmentId}/return:
+    post:
+      tags: [Assignments]
+      summary: Retourner un équipement affecté
+      description: >
+        Opération atomique : clôture l'affectation, crée l'opération RETURN
+        et le mouvement correspondant. warehouseId est requis si le matériel
+        retourne effectivement dans un entrepôt.
+      parameters:
+        - $ref: '#/components/parameters/AssignmentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReturnRequest' }
       responses:
-        '200': { description: Deleted }
+        '200':
+          description: Retour enregistré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationResult' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory/employees/{employeeId}/assignments:
+    get:
+      tags: [Assignments]
+      summary: Lister les affectations d'un employé
+      parameters:
+        - $ref: '#/components/parameters/EmployeeId'
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Affectations de l'employé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedAssignments' }
+  /inventory/security-posts/{postId}/assignments:
+    get:
+      tags: [Assignments]
+      summary: Lister les équipements affectés à un poste de sécurité
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - name: active
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Affectations du poste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Assignment' }
+  /inventory/movements:
+    get:
+      tags: [Movements]
+      summary: Rechercher les mouvements
+      parameters:
+        - name: itemId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: employeeId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: warehouseId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: operationId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: movementType
+          in: query
+          schema: { type: string, description: Valeur de l'ENUM movement_type }
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Mouvements paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedMovements' }
+  /inventory/movements/{movementId}:
+    get:
+      tags: [Movements]
+      summary: Consulter un mouvement
+      parameters:
+        - $ref: '#/components/parameters/MovementId'
+      responses:
+        '200':
+          description: Mouvement
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Movement' }
+  /inventory/inventory-counts:
+    get:
+      tags: [Inventory counts]
+      summary: Lister les sessions d'inventaire
+      parameters:
+        - name: warehouseId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string, enum: [IN_PROGRESS, COMPLETED, CANCELLED] }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Sessions paginées
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedInventoryCounts' }
+    post:
+      tags: [Inventory counts]
+      summary: Démarrer une session d'inventaire physique
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InventoryCountInput' }
+      responses:
+        '201':
+          description: Session créée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryCount' }
+  /inventory/inventory-counts/{countId}/scans:
+    post:
+      tags: [Inventory counts]
+      summary: Ajouter un QR Code à une session d'inventaire
+      parameters:
+        - $ref: '#/components/parameters/CountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qrCode]
+              properties:
+                qrCode: { type: string }
+                actualWarehouseId: { type: string, format: uuid }
+                notes: { type: string }
+      responses:
+        '201':
+          description: Scan ajouté et écart évalué
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryCountScan' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /inventory/inventory-counts/{countId}/results:
+    get:
+      tags: [Inventory counts]
+      summary: Résultats et écarts d'une session
+      parameters:
+        - $ref: '#/components/parameters/CountId'
+      responses:
+        '200':
+          description: Résultats de rapprochement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scanned: { type: integer }
+                  missing: { type: integer }
+                  unexpected: { type: integer }
+                  wrongLocation: { type: integer }
+                  scans:
+                    type: array
+                    items: { $ref: '#/components/schemas/InventoryCountScan' }
+  /inventory/inventory-counts/{countId}/close:
+    post:
+      tags: [Inventory counts]
+      summary: Clôturer une session et calculer les écarts
+      parameters:
+        - $ref: '#/components/parameters/CountId'
+      responses:
+        '200':
+          description: Session clôturée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryCount' }
+  /inventory/dashboard/summary:
+    get:
+      tags: [Alerts and reports]
+      summary: Résumé du tableau de bord inventaire
+      responses:
+        '200':
+          description: Indicateurs globaux
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalItems: { type: integer }
+                  availableItems: { type: integer }
+                  assignedItems: { type: integer }
+                  archivedItems: { type: integer }
+                  lowStockTypes: { type: integer }
+                  activeAssignments: { type: integer }
+                  movementsToday: { type: integer }
+  /inventory/alerts/low-stock:
+    get:
+      tags: [Alerts and reports]
+      summary: Alertes de stock minimum
+      parameters:
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: warehouseId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Alertes de stock
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LowStockAlert' }
+  /inventory/reports/movements:
+    get:
+      tags: [Alerts and reports]
+      summary: Rapport des mouvements sur une période
+      parameters:
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: warehouseId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Rapport agrégé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incoming: { type: integer }
+                  outgoing: { type: integer }
+                  transfers: { type: integer }
+                  returns: { type: integer }
+                  total: { type: integer }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
-    Resource:
-      name: resource
+    CategoryId:
+      name: categoryId
       in: path
       required: true
-      schema:
-        type: string
-        enum: [item_category, item_type, item, warehouse, stock_movement, item_assignment]
-    Id:
-      name: id
+      schema: { type: string, format: uuid }
+    TypeId:
+      name: typeId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WarehouseId:
+      name: warehouseId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    BranchId:
+      name: branchId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AssignmentId:
+      name: assignmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    EmployeeId:
+      name: employeeId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MovementId:
+      name: movementId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CountId:
+      name: countId
       in: path
       required: true
       schema: { type: string, format: uuid }
     Search:
       name: search
       in: query
-      schema: { type: string }
+      schema: { type: string, maxLength: 150 }
     Page:
       name: page
       in: query
@@ -211,81 +1016,354 @@ components:
     PageSize:
       name: pageSize
       in: query
-      schema: { type: integer, minimum: 1, default: 10 }
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    StartDate:
+      name: startDate
+      in: query
+      schema: { type: string, format: date-time }
+    EndDate:
+      name: endDate
+      in: query
+      schema: { type: string, format: date-time }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Clé stable réutilisée pour toute répétition de la même opération.
+      schema: { type: string, minLength: 8, maxLength: 150 }
+  responses:
+    NotFound:
+      description: Ressource introuvable ou inaccessible dans le périmètre de l'entreprise
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflit métier, doublon ou état incompatible
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
   schemas:
-    ItemStatus:
-      type: string
-      enum: [AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED]
-    MovementType:
-      type: string
-      enum: [IN, OUT, TRANSFER, RETURN, ADJUSTMENT]
-    ItemCategory:
+    Error:
       type: object
-      required: [company_id, name]
+      required: [code, message]
       properties:
-        id: { type: string, format: uuid, readOnly: true }
-        company_id: { type: string, format: uuid }
+        code: { type: string, examples: [ITEM_NOT_AVAILABLE] }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+        requestId: { type: string }
+    PageMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
         name: { type: string, maxLength: 150 }
-        description: { type: string }
-    ItemType:
+        description: { type: [string, 'null'] }
+    Category:
+      allOf:
+        - $ref: '#/components/schemas/CategoryInput'
+        - type: object
+          required: [id, companyId, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            companyId: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            archivedAt: { type: [string, 'null'], format: date-time }
+    ItemTypeInput:
       type: object
-      required: [company_id, code, name]
+      required: [code, name, unit]
       properties:
-        id: { type: string, format: uuid, readOnly: true }
-        company_id: { type: string, format: uuid }
-        category_id: { type: string, format: uuid, nullable: true }
+        categoryId: { type: [string, 'null'], format: uuid }
         code: { type: string, maxLength: 100 }
         name: { type: string, maxLength: 180 }
-        description: { type: string }
-        unit: { type: string, default: piece }
-        quantity_total: { type: number, format: double, minimum: 0 }
-        minimum_stock: { type: number, format: double, minimum: 0 }
-        status: { $ref: '#/components/schemas/ItemStatus' }
+        description: { type: [string, 'null'] }
+        unit: { type: string, maxLength: 50, default: piece }
+        minimumStock: { type: number, minimum: 0, default: 0 }
+        status: { type: string, description: Valeur valide de item_status }
+    ItemType:
+      allOf:
+        - $ref: '#/components/schemas/ItemTypeInput'
+        - type: object
+          required: [id, companyId, quantityTotal, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            companyId: { type: string, format: uuid }
+            quantityTotal: { type: number, minimum: 0 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            archivedAt: { type: [string, 'null'], format: date-time }
+    ItemInput:
+      type: object
+      required: [itemTypeId, qrCode]
+      properties:
+        categoryId: { type: [string, 'null'], format: uuid }
+        itemTypeId: { type: string, format: uuid }
+        qrCode: { type: string, maxLength: 100 }
+        description: { type: [string, 'null'] }
+        status: { type: string, description: Valeur valide de item_status }
+        initialWarehouseId:
+          type: [string, 'null']
+          format: uuid
+          description: Pour une création dans le stock, privilégier une opération RECEIPT plutôt qu'une modification directe de localisation.
+    ItemUpdate:
+      type: object
+      properties:
+        categoryId: { type: [string, 'null'], format: uuid }
+        itemTypeId: { type: string, format: uuid }
+        description: { type: [string, 'null'] }
     Item:
+      allOf:
+        - $ref: '#/components/schemas/ItemInput'
+        - type: object
+          required: [id, companyId, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            companyId: { type: string, format: uuid }
+            currentWarehouseId: { type: [string, 'null'], format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            archivedAt: { type: [string, 'null'], format: date-time }
+            lastInventoryAt: { type: [string, 'null'], format: date-time }
+    WarehouseInput:
       type: object
-      required: [company_id, item_type_id, qr_code]
+      required: [name]
       properties:
-        id: { type: string, format: uuid, readOnly: true }
-        company_id: { type: string, format: uuid }
-        category_id: { type: string, format: uuid, nullable: true }
-        item_type_id: { type: string, format: uuid }
-        qr_code: { type: string, maxLength: 100 }
-        description: { type: string }
-        status: { $ref: '#/components/schemas/ItemStatus' }
-    Warehouse:
-      type: object
-      required: [company_id, name]
-      properties:
-        id: { type: string, format: uuid, readOnly: true }
-        company_id: { type: string, format: uuid }
-        branch_id: { type: string, format: uuid, nullable: true }
+        branchId: { type: [string, 'null'], format: uuid }
         name: { type: string, maxLength: 150 }
-        address: { type: string }
+        address: { type: [string, 'null'] }
         active: { type: boolean, default: true }
-    StockMovement:
+    Warehouse:
+      allOf:
+        - $ref: '#/components/schemas/WarehouseInput'
+        - type: object
+          required: [id, companyId, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            companyId: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+            archivedAt: { type: [string, 'null'], format: date-time }
+    CurrentLocation:
       type: object
-      required: [warehouse_id, item_id, movement_type]
       properties:
-        id: { type: string, format: uuid, readOnly: true }
-        warehouse_id: { type: string, format: uuid }
-        item_id: { type: string, format: uuid }
-        employee_id: { type: string, format: uuid, nullable: true }
-        movement_type: { $ref: '#/components/schemas/MovementType' }
+        itemId: { type: string, format: uuid }
+        warehouseId: { type: [string, 'null'], format: uuid }
+        branchId: { type: [string, 'null'], format: uuid }
+        employeeId: { type: [string, 'null'], format: uuid }
+        postId: { type: [string, 'null'], format: uuid }
+        locationType: { type: string, enum: [WAREHOUSE, ASSIGNED, IN_TRANSIT, UNKNOWN] }
+    StockSummary:
+      type: object
+      properties:
+        itemTypeId: { type: string, format: uuid }
+        itemTypeName: { type: string }
+        unit: { type: string }
+        totalItems: { type: number }
+        availableItems: { type: number }
+        assignedItems: { type: number }
+        unavailableItems: { type: number }
+        minimumStock: { type: number }
+        belowMinimum: { type: boolean }
+    LowStockAlert:
+      allOf:
+        - $ref: '#/components/schemas/StockSummary'
+        - type: object
+          properties:
+            warehouseId: { type: [string, 'null'], format: uuid }
+            branchId: { type: [string, 'null'], format: uuid }
+            deficit: { type: number, minimum: 0 }
+    ReceiptRequest:
+      type: object
+      required: [warehouseId, itemIds]
+      properties:
+        warehouseId: { type: string, format: uuid }
+        itemIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, format: uuid }
         reference: { type: string, maxLength: 150 }
-        movement_date: { type: string, format: date-time }
         notes: { type: string }
-    ItemAssignment:
+    IssueRequest:
       type: object
-      required: [item_id, employee_id, post_id]
+      required: [warehouseId, itemIds]
       properties:
-        id: { type: string, format: uuid, readOnly: true }
-        item_id: { type: string, format: uuid }
-        employee_id: { type: string, format: uuid }
-        post_id: { type: string, format: uuid }
-        assigned_at: { type: string, format: date-time }
-        returned_at: { type: string, format: date-time, nullable: true }
-        condition_on_assignment: { type: string }
-        condition_on_return: { type: string }
+        warehouseId: { type: string, format: uuid }
+        itemIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        reference: { type: string, maxLength: 150 }
         notes: { type: string }
-
-
+    TransferRequest:
+      type: object
+      required: [sourceWarehouseId, destinationWarehouseId, itemIds]
+      properties:
+        sourceWarehouseId: { type: string, format: uuid }
+        destinationWarehouseId: { type: string, format: uuid }
+        itemIds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, format: uuid }
+        reference: { type: string, maxLength: 150 }
+        notes: { type: string }
+    AssignmentRequest:
+      type: object
+      required: [itemId, employeeId, postId]
+      properties:
+        itemId: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        postId: { type: string, format: uuid }
+        expectedReturnAt: { type: [string, 'null'], format: date-time }
+        conditionOnAssignment: { type: string }
+        notes: { type: string }
+    ReturnRequest:
+      type: object
+      required: [conditionOnReturn]
+      properties:
+        warehouseId:
+          type: [string, 'null']
+          format: uuid
+          description: Entrepôt de retour si l'équipement revient en stock.
+        conditionOnReturn: { type: string }
+        notes: { type: string }
+    OperationResult:
+      type: object
+      properties:
+        operationId: { type: string, format: uuid }
+        operationType: { type: string }
+        status: { type: string, enum: [COMPLETED] }
+        reference: { type: [string, 'null'] }
+        processedItems:
+          type: array
+          items:
+            type: object
+            properties:
+              itemId: { type: string, format: uuid }
+              movementIds:
+                type: array
+                items: { type: string, format: uuid }
+        completedAt: { type: string, format: date-time }
+    Assignment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        employeeId: { type: string, format: uuid }
+        postId: { type: string, format: uuid }
+        assignedAt: { type: string, format: date-time }
+        returnedAt: { type: [string, 'null'], format: date-time }
+        conditionOnAssignment: { type: [string, 'null'] }
+        conditionOnReturn: { type: [string, 'null'] }
+        expectedReturnAt: { type: [string, 'null'], format: date-time }
+        notes: { type: [string, 'null'] }
+    AssignmentResult:
+      type: object
+      properties:
+        assignment: { $ref: '#/components/schemas/Assignment' }
+        operation: { $ref: '#/components/schemas/OperationResult' }
+        movement: { $ref: '#/components/schemas/Movement' }
+    Movement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        employeeId: { type: [string, 'null'], format: uuid }
+        movementType: { type: string, description: Valeur exacte de l'ENUM movement_type }
+        reference: { type: [string, 'null'] }
+        movementDate: { type: string, format: date-time }
+        sourceWarehouseId: { type: [string, 'null'], format: uuid }
+        destinationWarehouseId: { type: [string, 'null'], format: uuid }
+        operationId: { type: [string, 'null'], format: uuid }
+        quantity: { type: number, exclusiveMinimum: 0 }
+        performedBy: { type: [string, 'null'], format: uuid }
+        notes: { type: [string, 'null'] }
+    InventoryCountInput:
+      type: object
+      required: [warehouseId, reference]
+      properties:
+        warehouseId: { type: string, format: uuid }
+        reference: { type: string, maxLength: 150 }
+        notes: { type: string }
+    InventoryCount:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        companyId: { type: string, format: uuid }
+        warehouseId: { type: string, format: uuid }
+        reference: { type: string }
+        status: { type: string, enum: [IN_PROGRESS, COMPLETED, CANCELLED] }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+        notes: { type: [string, 'null'] }
+    InventoryCountScan:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        inventoryCountId: { type: string, format: uuid }
+        itemId: { type: string, format: uuid }
+        scannedAt: { type: string, format: date-time }
+        expectedWarehouseId: { type: [string, 'null'], format: uuid }
+        actualWarehouseId: { type: [string, 'null'], format: uuid }
+        discrepancyType:
+          type: [string, 'null']
+          enum: [NONE, MISSING, UNEXPECTED, WRONG_LOCATION, DAMAGED, null]
+        notes: { type: [string, 'null'] }
+    PagedCategories:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Category' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    PagedItemTypes:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/ItemType' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    PagedItems:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Item' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    PagedWarehouses:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Warehouse' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    PagedAssignments:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Assignment' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    PagedMovements:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Movement' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    PagedInventoryCounts:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/InventoryCount' }
+        meta: { $ref: '#/components/schemas/PageMeta' }

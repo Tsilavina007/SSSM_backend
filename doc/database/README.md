@@ -37,7 +37,7 @@ Les scripts SQL sont exécutés depuis la racine du projet `sssm_backend` :
 
 ```bash
 cd sssm_backend
-psql -d sssm_db -f doc/database/sssm_schema2_v01.sql
+psql -d sssm_db -f doc/database/sssm_schema2_v01.sql -U your_user
 ```
 
 Les fichiers sont exécutés dans l'ordre numérique afin de respecter les
@@ -62,7 +62,7 @@ Après avoir créé le schéma, charger les données de démonstration avec :
 
 ```bash
 cd sssm_backend
-psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql
+psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql -U your_user
 ```
 
 Les identifiants sont générés automatiquement par PostgreSQL. Les références
@@ -73,6 +73,6 @@ clauses `RETURNING id`. Le script doit être exécuté après
 Pour repartir d'une base de démonstration propre :
 
 ```bash
-psql -d sssm_db -f doc/database/mock_data/reset_data.sql
-psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql
+psql -d sssm_db -f doc/database/mock_data/reset_data.sql -U your_user
+psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql -U your_user
 ```

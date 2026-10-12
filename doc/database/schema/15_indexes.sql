@@ -168,36 +168,55 @@ CREATE INDEX idx_incident_action_employee ON incident_action(employee_id);
 CREATE INDEX idx_item_category_company ON item_category(company_id);
 
 -- Item Type
-CREATE INDEX idx_item_type_company ON item_type(company_id);
+CREATE INDEX idx_item_type_company_status ON item_type(company_id, status) WHERE archived_at IS NULL;
 CREATE INDEX idx_item_type_category ON item_type(category_id);
-CREATE INDEX idx_item_type_code ON item_type(code);
-CREATE INDEX idx_item_type_status ON item_type(status);
 
 -- Item
-CREATE INDEX idx_item_company ON item(company_id);
-CREATE INDEX idx_item_category ON item(category_id);
+CREATE INDEX idx_item_company_status ON item(company_id, status) WHERE archived_at IS NULL;
 CREATE INDEX idx_item_type ON item(item_type_id);
+CREATE INDEX idx_item_category ON item(category_id);
+CREATE INDEX idx_item_current_warehouse ON item(current_warehouse_id);
 CREATE INDEX idx_item_qr_code ON item(qr_code);
-CREATE INDEX idx_item_status ON item(status);
 
 -- Warehouse
 CREATE INDEX idx_warehouse_company ON warehouse(company_id);
 CREATE INDEX idx_warehouse_branch ON warehouse(branch_id);
-CREATE INDEX idx_warehouse_active ON warehouse(active);
+CREATE INDEX idx_warehouse_company_active ON warehouse(company_id, active) WHERE archived_at IS NULL;
+
+-- Inventory Operation
+CREATE UNIQUE INDEX uq_inventory_operation_idempotency ON inventory_operation(company_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+CREATE INDEX idx_inventory_operation_company_date ON inventory_operation(company_id, created_at DESC);
+CREATE INDEX idx_inventory_operation_status ON inventory_operation(company_id, status);
+CREATE INDEX idx_inventory_operation_reference ON inventory_operation(company_id, reference);
 
 -- Stock Movement
-CREATE INDEX idx_stock_warehouse ON stock_movement(warehouse_id);
-CREATE INDEX idx_stock_item ON stock_movement(item_id);
-CREATE INDEX idx_stock_employee ON stock_movement(employee_id);
-CREATE INDEX idx_stock_movement_type ON stock_movement(movement_type);
-CREATE INDEX idx_stock_movement_date ON stock_movement(movement_date DESC);
-CREATE INDEX idx_stock_reference ON stock_movement(reference);
+CREATE INDEX idx_stock_movement_item_date ON stock_movement(item_id, movement_date DESC);
+CREATE INDEX idx_stock_movement_warehouse_date ON stock_movement(warehouse_id, movement_date DESC);
+CREATE INDEX idx_stock_movement_employee_date ON stock_movement(employee_id, movement_date DESC);
+CREATE INDEX idx_stock_movement_operation ON stock_movement(operation_id);
+CREATE INDEX idx_stock_movement_reference ON stock_movement(reference);
+
+-- Inventory Operation Item
+CREATE INDEX idx_operation_item_item ON inventory_operation_item(item_id);
+CREATE INDEX idx_operation_item_operation ON inventory_operation_item(operation_id);
 
 -- Item Assignment
-CREATE INDEX idx_item_assignment_item ON item_assignment(item_id);
-CREATE INDEX idx_item_assignment_employee ON item_assignment(employee_id);
-CREATE INDEX idx_item_assignment_post ON item_assignment(post_id);
-CREATE INDEX idx_item_assignment_assigned_at ON item_assignment(assigned_at DESC);
+CREATE UNIQUE INDEX uq_item_assignment_active ON item_assignment(item_id) WHERE returned_at IS NULL;
+CREATE INDEX idx_item_assignment_employee_active ON item_assignment(employee_id, assigned_at DESC) WHERE returned_at IS NULL;
+CREATE INDEX idx_item_assignment_post_active ON item_assignment(post_id) WHERE returned_at IS NULL;
+CREATE INDEX idx_item_assignment_item_history ON item_assignment(item_id, assigned_at DESC);
+
+-- Warehouse Stock Config
+CREATE INDEX idx_warehouse_stock_config_type ON warehouse_stock_config(item_type_id);
+
+-- Inventory Count
+CREATE INDEX idx_inventory_count_warehouse_status ON inventory_count(warehouse_id, status);
+CREATE INDEX idx_inventory_count_company_date ON inventory_count(company_id, started_at DESC);
+
+-- Inventory Count Scan
+CREATE INDEX idx_inventory_count_scan_count_item ON inventory_count_scan(inventory_count_id, item_id);
+CREATE INDEX idx_inventory_count_scan_item ON inventory_count_scan(item_id);
+CREATE INDEX idx_inventory_count_scan_inventory_count ON inventory_count_scan(inventory_count_id);
 
 -- Tax Rate
 CREATE INDEX idx_tax_rate_company ON tax_rate(company_id);

@@ -1464,7 +1464,8 @@ INSERT INTO item (company_id, category_id, item_type_id, qr_code, description, s
     (:'company_id', :'cat_light_id',     :'it_torch_id',  'QR-ITEM-004', 'Lampe torche poste principal',         'ASSIGNED'),
     (:'company_id', :'cat_light_id',     :'it_torch_id',  'QR-ITEM-005', 'Lampe torche accueil banque',          'ASSIGNED'),
     (:'company_id', :'cat_protect_id',   :'it_vest_id',   'QR-ITEM-006', 'Gilet de protection en réserve',       'AVAILABLE'),
-    (:'company_id', :'cat_comm_id',      :'it_phone_id',  'QR-ITEM-007', 'Téléphone du superviseur',             'ASSIGNED');
+    (:'company_id', :'cat_comm_id',      :'it_phone_id',  'QR-ITEM-007', 'Téléphone du superviseur',             'ASSIGNED'),
+    (:'company_id', :'cat_protect_id',   :'it_vest_id',   'QR-ITEM-008', 'Gilet de protection à Antsirabe',      'AVAILABLE');
 
 SELECT
     (SELECT id FROM item WHERE qr_code = 'QR-ITEM-002') AS item2_id,
@@ -1472,7 +1473,8 @@ SELECT
     (SELECT id FROM item WHERE qr_code = 'QR-ITEM-004') AS item4_id,
     (SELECT id FROM item WHERE qr_code = 'QR-ITEM-005') AS item5_id,
     (SELECT id FROM item WHERE qr_code = 'QR-ITEM-006') AS item6_id,
-    (SELECT id FROM item WHERE qr_code = 'QR-ITEM-007') AS item7_id
+    (SELECT id FROM item WHERE qr_code = 'QR-ITEM-007') AS item7_id,
+    (SELECT id FROM item WHERE qr_code = 'QR-ITEM-008') AS item8_id
 \gset
 
 INSERT INTO warehouse (company_id, branch_id, name, address, active) VALUES
@@ -1484,14 +1486,127 @@ SELECT
     (SELECT id FROM warehouse WHERE name = 'Entrepôt Antsirabe') AS warehouse_ant_id
 \gset
 
-INSERT INTO stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES
-    (:'warehouse_id',     :'item2_id', :'employee_secondary_id', 'OUT', 'MVT-002', '2024-06-15 05:35:00+03', 'Sortie radio pour le portail'),
-    (:'warehouse_id',     :'item4_id', :'emp8_id',               'OUT', 'MVT-003', '2024-06-15 05:40:00+03', 'Sortie lampe torche'),
-    (:'warehouse_id',     :'item5_id', :'emp4_id',               'OUT', 'MVT-004', '2024-06-15 05:50:00+03', 'Sortie lampe torche banque'),
-    (:'warehouse_id',     :'item7_id', :'emp3_id',               'OUT', 'MVT-005', '2024-06-15 06:00:00+03', 'Sortie téléphone superviseur'),
-    (:'warehouse_id',     :'item3_id', :'employee_primary_id',   'IN',  'MVT-006', '2024-06-10 09:00:00+03', 'Réception de la commande de radios'),
-    (:'warehouse_toa_id', :'item6_id', :'emp6_id',               'IN',  'MVT-007', '2024-06-12 10:30:00+03', 'Réception de gilets à Toamasina'),
-    (:'warehouse_ant_id', :'item6_id', :'emp9_id',               'IN',  'MVT-008', '2024-06-12 11:00:00+03', 'Réception de gilets à Antsirabe');
+UPDATE item
+SET current_warehouse_id = CASE qr_code
+    WHEN 'QR-ITEM-001' THEN :'warehouse_id'
+    WHEN 'QR-ITEM-002' THEN :'warehouse_id'
+    WHEN 'QR-ITEM-003' THEN :'warehouse_id'
+    WHEN 'QR-ITEM-004' THEN :'warehouse_id'
+    WHEN 'QR-ITEM-005' THEN :'warehouse_id'
+    WHEN 'QR-ITEM-006' THEN :'warehouse_toa_id'
+    WHEN 'QR-ITEM-007' THEN :'warehouse_id'
+    WHEN 'QR-ITEM-008' THEN :'warehouse_ant_id'
+END::uuid
+WHERE company_id = :'company_id';
+
+INSERT INTO inventory_operation (
+    company_id,
+    operation_type,
+    status,
+    reference,
+    idempotency_key,
+    destination_warehouse_id,
+    performed_by,
+    notes,
+    created_at,
+    completed_at
+) VALUES (
+    :'company_id',
+    'RECEIPT',
+    'COMPLETED',
+    'OP-RECEPTION-001',
+    'demo-reception-001',
+    :'warehouse_id',
+    :'employee_primary_id',
+    'Réception de la commande de radios',
+    '2024-06-10 09:00:00+03',
+    '2024-06-10 09:05:00+03'
+) RETURNING id \gset inventory_operation_receipt_
+
+INSERT INTO stock_movement (
+    warehouse_id,
+    item_id,
+    employee_id,
+    movement_type,
+    reference,
+    movement_date,
+    notes,
+    operation_id
+) VALUES
+    (:'warehouse_id',     :'item2_id', :'employee_secondary_id', 'OUT', 'MVT-002', '2024-06-15 05:35:00+03', 'Sortie radio pour le portail', NULL),
+    (:'warehouse_id',     :'item4_id', :'emp8_id',               'OUT', 'MVT-003', '2024-06-15 05:40:00+03', 'Sortie lampe torche', NULL),
+    (:'warehouse_id',     :'item5_id', :'emp4_id',               'OUT', 'MVT-004', '2024-06-15 05:50:00+03', 'Sortie lampe torche banque', NULL),
+    (:'warehouse_id',     :'item7_id', :'emp3_id',               'OUT', 'MVT-005', '2024-06-15 06:00:00+03', 'Sortie téléphone superviseur', NULL),
+    (:'warehouse_id',     :'item3_id', :'employee_primary_id',   'IN',  'MVT-006', '2024-06-10 09:00:00+03', 'Réception de la commande de radios', :'inventory_operation_receipt_id'),
+    (:'warehouse_toa_id', :'item6_id', :'emp6_id',               'IN',  'MVT-007', '2024-06-12 10:30:00+03', 'Réception de gilets à Toamasina', NULL),
+    (:'warehouse_ant_id', :'item8_id', :'emp9_id',               'IN',  'MVT-008', '2024-06-12 11:00:00+03', 'Réception de gilets à Antsirabe', NULL);
+
+INSERT INTO inventory_operation_item (
+    operation_id,
+    item_id,
+    movement_id,
+    quantity,
+    condition_before,
+    condition_after,
+    scanned_at,
+    notes
+) VALUES (
+    :'inventory_operation_receipt_id',
+    :'item3_id',
+    (SELECT id FROM stock_movement WHERE reference = 'MVT-006' LIMIT 1),
+    1,
+    NULL,
+    'Neuf',
+    '2024-06-10 09:02:00+03',
+    'Équipement ajouté au stock'
+);
+
+INSERT INTO warehouse_stock_config (warehouse_id, item_type_id, minimum_stock) VALUES
+    (:'warehouse_id',     :'item_type_id', 2),
+    (:'warehouse_id',     :'it_torch_id',  5),
+    (:'warehouse_id',     :'it_vest_id',   3),
+    (:'warehouse_id',     :'it_phone_id',  2),
+    (:'warehouse_toa_id', :'it_vest_id',   2),
+    (:'warehouse_ant_id', :'it_vest_id',   2);
+
+INSERT INTO inventory_count (
+    company_id,
+    warehouse_id,
+    reference,
+    status,
+    started_by,
+    completed_by,
+    started_at,
+    completed_at,
+    notes
+) VALUES (
+    :'company_id',
+    :'warehouse_id',
+    'INV-2024-06-001',
+    'COMPLETED',
+    :'employee_primary_id',
+    :'employee_primary_id',
+    '2024-06-30 08:00:00+03',
+    '2024-06-30 10:30:00+03',
+    'Comptage mensuel de l''entrepôt principal'
+) RETURNING id \gset inventory_count_
+
+INSERT INTO inventory_count_scan (
+    inventory_count_id,
+    item_id,
+    scanned_by,
+    scanned_at,
+    expected_warehouse_id,
+    actual_warehouse_id,
+    discrepancy_type,
+    notes
+) VALUES
+    (:'inventory_count_id', :'item_id',  :'employee_primary_id', '2024-06-30 08:15:00+03', :'warehouse_id', :'warehouse_id', 'NONE', NULL),
+    (:'inventory_count_id', :'item2_id', :'employee_primary_id', '2024-06-30 08:20:00+03', :'warehouse_id', :'warehouse_id', 'NONE', NULL),
+    (:'inventory_count_id', :'item3_id', :'employee_primary_id', '2024-06-30 08:25:00+03', :'warehouse_id', :'warehouse_id', 'NONE', NULL),
+    (:'inventory_count_id', :'item4_id', :'employee_primary_id', '2024-06-30 08:30:00+03', :'warehouse_id', :'warehouse_id', 'NONE', NULL),
+    (:'inventory_count_id', :'item5_id', :'employee_primary_id', '2024-06-30 08:35:00+03', :'warehouse_id', :'warehouse_id', 'NONE', NULL),
+    (:'inventory_count_id', :'item7_id', :'employee_primary_id', '2024-06-30 08:40:00+03', :'warehouse_id', :'warehouse_id', 'NONE', NULL);
 
 INSERT INTO item_assignment (item_id, employee_id, post_id, assigned_at, condition_on_assignment, notes) VALUES
     (:'item2_id', :'employee_secondary_id',
