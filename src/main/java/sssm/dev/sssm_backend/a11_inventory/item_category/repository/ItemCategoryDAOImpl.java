@@ -12,7 +12,6 @@ import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
-import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 
 public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 

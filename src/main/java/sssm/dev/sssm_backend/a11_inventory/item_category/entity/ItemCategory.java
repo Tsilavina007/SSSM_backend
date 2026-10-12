@@ -1,7 +1,5 @@
 package sssm.dev.sssm_backend.a11_inventory.item_category.entity;
 
-import java.util.Optional;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
