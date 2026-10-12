@@ -55,13 +55,59 @@ public class AppUserDAOImpl implements AppUserDAO {
   }
 
   @Override
+  public Optional<AppUser> findByUsernameOrEmail(String login) {
+    String sql = "SELECT * FROM security.app_user WHERE username = ? OR lower(email) = lower(?)";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, login);
+      stmt.setString(2, login);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) return Optional.of(mapRowToAppUser(rs));
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return Optional.empty();
+  }
+
+  @Override
+  public List<String> findRoleNames(String userId) {
+    String sql =
+        "SELECT r.name FROM security.role r JOIN security.user_role ur ON ur.role_id = r.id "
+            + "WHERE ur.user_id = ?";
+    List<String> roles = new ArrayList<>();
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(userId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) roles.add(rs.getString(1));
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return roles;
+  }
+
+  @Override
+  public void updateLastLogin(String userId) {
+    String sql = "UPDATE security.app_user SET last_login_at = now() WHERE id = ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(userId));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+  }
+
+  @Override
   public AppUser create(AppUser user) {
     String sql =
         "INSERT INTO security.app_user (company_id, username, email, password_hash, first_name, "
             + "last_name, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS user_status))";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, UUID.fromString(user.getCompany_id()));
+      stmt.setObject(1, user.getCompany_id() == null ? null : UUID.fromString(user.getCompany_id()));
       stmt.setString(2, user.getUsername());
       stmt.setString(3, user.getEmail());
       stmt.setString(4, user.getPassword_hash());

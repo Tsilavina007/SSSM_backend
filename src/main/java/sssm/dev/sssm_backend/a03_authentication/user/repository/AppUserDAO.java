@@ -9,6 +9,12 @@ public interface AppUserDAO {
 
   Optional<AppUser> findById(String id);
 
+  Optional<AppUser> findByUsernameOrEmail(String login);
+
+  List<String> findRoleNames(String userId);
+
+  void updateLastLogin(String userId);
+
   AppUser create(AppUser user);
 
   AppUser update(AppUser user);

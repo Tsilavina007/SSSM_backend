@@ -54,6 +54,21 @@ public class RoleDAOImpl implements RoleDAO {
   }
 
   @Override
+  public Optional<Role> findGlobalByName(String name) {
+    String sql = "SELECT * FROM security.role WHERE company_id IS NULL AND lower(name) = lower(?)";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, name);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) return Optional.of(mapRowToRole(rs));
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return Optional.empty();
+  }
+
+  @Override
   public Role create(Role role) {
     String sql = "INSERT INTO security.role (company_id, name, description) VALUES (?, ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();

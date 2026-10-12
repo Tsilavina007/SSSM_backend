@@ -9,6 +9,8 @@ public interface RoleDAO {
 
   Optional<Role> findById(String id);
 
+  Optional<Role> findGlobalByName(String name);
+
   Role create(Role role);
 
   Role update(Role role);
