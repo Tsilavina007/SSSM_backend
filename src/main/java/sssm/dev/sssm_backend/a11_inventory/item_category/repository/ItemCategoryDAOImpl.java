@@ -11,7 +11,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
+import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
 
 public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
@@ -100,7 +102,8 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public ItemCategoryResponse createItemCategory(ItemCategoryResponse value) {
+  public ItemCategoryResponse createItemCategory(ItemCategoryCreateRequest value) {
+    ItemCategoryResponse response = new ItemCategoryResponse();
     String sql =
         "INSERT INTO security.item_category (company_id, name, description) VALUES (?, ?, ?)";
 
@@ -114,17 +117,20 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          value.setId(rs.getString(1));
+          response.setId(rs.getString(1));
+          response.setCompany_id(value.getCompany_id());
+          response.setName(value.getName());
+          response.setDescription(value.getDescription());
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return response;
   }
 
   @Override
-  public ItemCategoryResponse updateItemCategory(ItemCategoryResponse value) {
+  public ItemCategoryResponse updateItemCategory(String id, ItemCategoryUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_category SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -142,12 +148,12 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
     }
 
     if (parameters.isEmpty()) {
-      return value;
+      return new ItemCategoryResponse();
     }
 
     sql.setLength(sql.length() - 2);
     sql.append(" WHERE id = ?");
-    parameters.add(UUID.fromString(value.getId()));
+    parameters.add(UUID.fromString(id));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -158,7 +164,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return new ItemCategoryResponse(id, value.getCompany_id(), value.getName(), value.getDescription());
   }
 
   @Override
