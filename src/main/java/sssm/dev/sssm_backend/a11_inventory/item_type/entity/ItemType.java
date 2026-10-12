@@ -7,14 +7,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
+import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
+import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ItemType {
   private String id;
-  private String company_id;
-  private String category_id;
+  private Company company;
+  private ItemCategory category;
   private String code;
   private String name;
   private String description;

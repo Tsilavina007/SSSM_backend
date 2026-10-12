@@ -12,14 +12,16 @@ import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
-import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 
 public class ItemTypeDAOImpl implements ItemTypeDAO {
 
   @Override
-  public List<ItemType> getAllItemTypes(int page, int pageSize) {
+  public List<ItemTypeResponse> getAllItemTypes(int page, int pageSize) {
     String sql = "SELECT * FROM security.item_type ORDER BY id LIMIT ? OFFSET ?";
-    List<ItemType> values = new ArrayList<>();
+    List<ItemTypeResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -30,7 +32,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
           values.add(
-              new ItemType(
+              new ItemTypeResponse(
                   rs.getString("id"),
                   rs.getString("company_id"),
                   rs.getString("category_id"),
@@ -52,10 +54,10 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public List<ItemType> searchItemTypesByName(String value, int page, int pageSize) {
+  public List<ItemTypeResponse> searchItemTypesByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_type WHERE code ILIKE ? OR name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
-    List<ItemType> values = new ArrayList<>();
+    List<ItemTypeResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -70,7 +72,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
           values.add(
-              new ItemType(
+              new ItemTypeResponse(
                   rs.getString("id"),
                   rs.getString("company_id"),
                   rs.getString("category_id"),
@@ -92,7 +94,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public Optional<ItemType> getItemTypeById(String id) {
+  public Optional<ItemTypeResponse> getItemTypeById(String id) {
     String sql = "SELECT * FROM security.item_type WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -103,7 +105,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
           return Optional.of(
-              new ItemType(
+              new ItemTypeResponse(
                   rs.getString("id"),
                   rs.getString("company_id"),
                   rs.getString("category_id"),
@@ -125,7 +127,8 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public ItemType createItemType(ItemType value) {
+  public ItemTypeResponse createItemType(ItemTypeCreateRequest value) {
+    ItemTypeResponse response = new ItemTypeResponse();
     String sql =
         "INSERT INTO security.item_type (company_id, category_id, code, name, description, unit, quantity_total, minimum_stock, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.item_status))";
 
@@ -147,17 +150,28 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          value.setId(rs.getString(1));
+          response.setId(rs.getString(1));
+          response.setCompany_id(rs.getString(2));
+          response.setCategory_id(rs.getString(3));
+          response.setCode(rs.getString(4));
+          response.setName(rs.getString(5));
+          response.setDescription(rs.getString(6));
+          response.setUnit(rs.getString(7));
+          response.setQuantity_total(rs.getBigDecimal(8));
+          response.setMinimum_stock(rs.getBigDecimal(9));
+          response.setStatus(ItemStatus.valueOf(rs.getString(10)));
+          response.setCreated_at(rs.getTimestamp(11));
+          response.setUpdated_at(rs.getTimestamp(12));
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return response;
   }
 
   @Override
-  public ItemType updateItemType(ItemType value) {
+  public ItemTypeResponse updateItemType(String id, ItemTypeUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_type SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -199,12 +213,12 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
     }
 
     if (parameters.isEmpty()) {
-      return value;
+      return new ItemTypeResponse();
     }
 
     sql.setLength(sql.length() - 2);
     sql.append(" WHERE id = ?");
-    parameters.add(UUID.fromString(value.getId()));
+    parameters.add(UUID.fromString(id));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -215,7 +229,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return getItemTypeById(id).get();
   }
 
   @Override

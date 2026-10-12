@@ -164,7 +164,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return new ItemCategoryResponse(id, value.getCompany_id(), value.getName(), value.getDescription());
+    return getItemCategoryById(id).get();
   }
 
   @Override

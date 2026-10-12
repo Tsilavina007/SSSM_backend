@@ -3,18 +3,20 @@ package sssm.dev.sssm_backend.a11_inventory.item_type.repository;
 import java.util.List;
 import java.util.Optional;
 
-import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 
 public interface ItemTypeDAO {
-  List<ItemType> getAllItemTypes(int page, int pageSize);
+  List<ItemTypeResponse> getAllItemTypes(int page, int pageSize);
 
-  List<ItemType> searchItemTypesByName(String value, int page, int pageSize);
+  List<ItemTypeResponse> searchItemTypesByName(String value, int page, int pageSize);
 
-  Optional<ItemType> getItemTypeById(String id);
+  Optional<ItemTypeResponse> getItemTypeById(String id);
 
-  ItemType createItemType(ItemType value);
+  ItemTypeResponse createItemType(ItemTypeCreateRequest value);
 
-  ItemType updateItemType(ItemType value);
+  ItemTypeResponse updateItemType(String id, ItemTypeUpdateRequest value);
 
   void deleteItemType(String id);
 }

@@ -13,13 +13,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
-import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
 
 @RestController
-@RequestMapping("/api/item-categories")
+@RequestMapping("/api/inventory/item-categories")
 public class ItemCategoryController {
   private final ItemCategoryService itemCategoryService;
 

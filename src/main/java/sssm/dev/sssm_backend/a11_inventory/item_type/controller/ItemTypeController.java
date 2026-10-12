@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
 import sssm.dev.sssm_backend.a11_inventory.item_type.service.ItemTypeService;
 
@@ -28,23 +30,23 @@ public class ItemTypeController {
   public List<ItemType> getItemTypes(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) {
+      @RequestParam Optional<String> search) throws Exception {
     return itemTypeService.getItemTypes(search, page, pageSize);
   }
 
   @GetMapping("/{itemTypeId}")
-  public Optional<ItemType> getItemTypeById(@PathVariable String itemTypeId) {
+  public Optional<ItemType> getItemTypeById(@PathVariable String itemTypeId) throws Exception {
     return itemTypeService.getItemTypeById(itemTypeId);
   }
 
   @PostMapping
-  public ItemType createItemType(@RequestBody ItemType itemType) {
+  public ItemType createItemType(@RequestBody ItemTypeCreateRequest itemType) throws Exception {
     return itemTypeService.createItemType(itemType);
   }
 
   @PatchMapping("/{itemTypeId}")
   public ItemType updateItemType(
-      @PathVariable String itemTypeId, @RequestBody ItemType updatedItemType) {
+      @PathVariable String itemTypeId, @RequestBody ItemTypeUpdateRequest updatedItemType) throws Exception {
     return itemTypeService.updateItemType(itemTypeId, updatedItemType);
   }
 
