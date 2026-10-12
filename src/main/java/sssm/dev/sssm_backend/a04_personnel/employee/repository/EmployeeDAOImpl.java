@@ -90,7 +90,7 @@ public class EmployeeDAOImpl implements EmployeeDAO {
             + "first_name, last_name, gender, date_of_birth, phone, email, address, national_id, "
             + "hire_date, end_date, position, status, photo_url, emergency_contact_name, "
             + "emergency_contact_phone, notes) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS employee_status), ?, ?, ?, ?)";
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.employee_status), ?, ?, ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, UUID.fromString(employee.getCompany_id()));
@@ -195,7 +195,7 @@ public class EmployeeDAOImpl implements EmployeeDAO {
       parameters.add(employee.getPosition());
     }
     if (employee.getStatus() != null) {
-      sql.append("status = CAST(? AS employee_status), ");
+      sql.append("status = CAST(? AS security.employee_status), ");
       parameters.add(employee.getStatus().name());
     }
     if (employee.getPhoto_url() != null) {

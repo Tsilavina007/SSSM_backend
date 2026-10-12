@@ -127,7 +127,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   @Override
   public ItemType createItemType(ItemType value) {
     String sql =
-        "INSERT INTO security.item_type (company_id, category_id, code, name, description, unit, quantity_total, minimum_stock, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS item_status))";
+        "INSERT INTO security.item_type (company_id, category_id, code, name, description, unit, quantity_total, minimum_stock, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.item_status))";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -194,7 +194,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       parameters.add(value.getMinimum_stock());
     }
     if (value.getStatus() != null) {
-      sql.append("status = CAST(? AS item_status), ");
+      sql.append("status = CAST(? AS security.item_status), ");
       parameters.add(value.getStatus().name());
     }
 

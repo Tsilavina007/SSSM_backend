@@ -88,7 +88,7 @@ public class SiteDAOImpl implements SiteDAO {
     String sql =
         "INSERT INTO security.site (company_id, client_id, branch_id, name, code, address, city, "
             + "latitude, longitude, status, access_instructions, risk_level) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS site_status), ?, ?)";
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.site_status), ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, UUID.fromString(site.getCompany_id()));
@@ -160,7 +160,7 @@ public class SiteDAOImpl implements SiteDAO {
       parameters.add(site.getLongitude());
     }
     if (site.getStatus() != null) {
-      sql.append("status = CAST(? AS site_status), ");
+      sql.append("status = CAST(? AS security.site_status), ");
       parameters.add(site.getStatus().name());
     }
     if (site.getAccess_instructions() != null) {

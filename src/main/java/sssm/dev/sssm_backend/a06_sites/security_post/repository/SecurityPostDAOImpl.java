@@ -57,7 +57,7 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
   public SecurityPost create(SecurityPost post) {
     String sql =
         "INSERT INTO security.security_post (site_id, name, code, description, required_agents, "
-            + "start_time, end_time, status) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS post_status))";
+            + "start_time, end_time, status) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS security.post_status))";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, UUID.fromString(post.getSite_id()));
@@ -117,7 +117,7 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
       parameters.add(post.getEnd_time());
     }
     if (post.getStatus() != null) {
-      sql.append("status = CAST(? AS post_status), ");
+      sql.append("status = CAST(? AS security.post_status), ");
       parameters.add(post.getStatus().name());
     }
 

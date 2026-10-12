@@ -114,7 +114,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   @Override
   public StockMovement createStockMovement(StockMovement value) {
     String sql =
-        "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS movement_type), ?, ?, ?)";
+        "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS security.movement_type), ?, ?, ?)";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -162,7 +162,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
       parameters.add(UUID.fromString(value.getEmployee_id()));
     }
     if (value.getMovement_type() != null) {
-      sql.append("movement_type = CAST(? AS movement_type), ");
+      sql.append("movement_type = CAST(? AS security.movement_type), ");
       parameters.add(value.getMovement_type().name());
     }
     if (value.getReference() != null) {

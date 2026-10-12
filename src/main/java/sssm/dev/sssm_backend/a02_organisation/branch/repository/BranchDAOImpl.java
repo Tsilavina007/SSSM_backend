@@ -85,7 +85,7 @@ public class BranchDAOImpl implements BranchDAO {
   public Branch createBranch(Branch branch) {
     String sql =
         "INSERT INTO security.branch (company_id, agence_id, name, code, address, city, phone, "
-            + "email, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS site_status))";
+            + "email, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.site_status))";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, UUID.fromString(branch.getCompany_id()));
@@ -149,7 +149,7 @@ public class BranchDAOImpl implements BranchDAO {
       parameters.add(branch.getEmail());
     }
     if (branch.getStatus() != null) {
-      sql.append("status = CAST(? AS site_status), ");
+      sql.append("status = CAST(? AS security.site_status), ");
       parameters.add(branch.getStatus().name());
     }
 

@@ -104,7 +104,7 @@ public class AppUserDAOImpl implements AppUserDAO {
   public AppUser create(AppUser user) {
     String sql =
         "INSERT INTO security.app_user (company_id, username, email, password_hash, first_name, "
-            + "last_name, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS user_status))";
+            + "last_name, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS security.user_status))";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, user.getCompany_id() == null ? null : UUID.fromString(user.getCompany_id()));
@@ -163,7 +163,7 @@ public class AppUserDAOImpl implements AppUserDAO {
       parameters.add(user.getPhone());
     }
     if (user.getStatus() != null) {
-      sql.append("status = CAST(? AS user_status), ");
+      sql.append("status = CAST(? AS security.user_status), ");
       parameters.add(user.getStatus().name());
     }
 

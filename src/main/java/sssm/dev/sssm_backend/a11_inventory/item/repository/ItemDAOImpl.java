@@ -117,7 +117,7 @@ public class ItemDAOImpl implements ItemDAO {
   @Override
   public Item createItem(Item value) {
     String sql =
-        "INSERT INTO security.item (company_id, category_id, item_type_id, qr_code, description, status) VALUES (?, ?, ?, ?, ?, CAST(? AS item_status))";
+        "INSERT INTO security.item (company_id, category_id, item_type_id, qr_code, description, status) VALUES (?, ?, ?, ?, ?, CAST(? AS security.item_status))";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -170,7 +170,7 @@ public class ItemDAOImpl implements ItemDAO {
       parameters.add(value.getDescription());
     }
     if (value.getStatus() != null) {
-      sql.append("status = CAST(? AS item_status), ");
+      sql.append("status = CAST(? AS security.item_status), ");
       parameters.add(value.getStatus().name());
     }
 

@@ -103,7 +103,7 @@ public class ContractDAOImpl implements ContractDAO {
     String sql =
         "INSERT INTO security.contract (company_id, client_id, contract_number, title, start_date, "
             + "end_date, status, billing_frequency, currency_code, payment_terms_days, total_amount, notes) "
-            + "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS contract_status), ?, ?, ?, ?, ?)";
+            + "VALUES (?, ?, ?, ?, ?, ?, CAST(? AS security.contract_status), ?, ?, ?, ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
       stmt.setObject(1, UUID.fromString(contract.getCompany_id()));
@@ -170,7 +170,7 @@ public class ContractDAOImpl implements ContractDAO {
       parameters.add(contract.getEnd_date());
     }
     if (contract.getStatus() != null) {
-      sql.append("status = CAST(? AS contract_status), ");
+      sql.append("status = CAST(? AS security.contract_status), ");
       parameters.add(contract.getStatus().name());
     }
     if (contract.getBilling_frequency() != null) {
