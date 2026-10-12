@@ -32,7 +32,7 @@ public class SecurityConfig {
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers("/api/auth/**", "/error")
+                auth.requestMatchers("/", "/ping", "/api/auth/**", "/error")
                     .permitAll()
                     .requestMatchers("/api/inventory/**")
                     .authenticated()

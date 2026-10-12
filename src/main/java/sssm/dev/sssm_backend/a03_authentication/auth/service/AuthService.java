@@ -48,10 +48,7 @@ public class AuthService {
     String userId = user.getId();
     roles.findGlobalByName(defaultRole).ifPresent(role -> users.assignRole(userId, role.getId()));
     List<String> roleNames = users.findRoleNames(user.getId());
-    return new AuthResponse(
-        jwt.createToken(user.getId(), user.getUsername(), roleNames),
-        "Bearer",
-        toResponse(user, roleNames));
+    return registerResponse(user, roleNames);
   }
 
   public AuthResponse login(LoginRequest request) {
@@ -70,7 +67,7 @@ public class AuthService {
         toResponse(user, roleNames));
   }
 
-  private AuthResponse response(AppUser user, List<String> roles) {
+  private AuthResponse registerResponse(AppUser user, List<String> roles) {
     return new AuthResponse(null, "Bearer", toResponse(user, roles));
   }
 
