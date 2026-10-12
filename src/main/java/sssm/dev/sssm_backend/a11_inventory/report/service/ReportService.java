@@ -32,4 +32,3 @@ public class ReportService {
     return dao.query(q, a);
   }
 }
-

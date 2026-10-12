@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.a03_authentication.permission.repository;
 
 import java.util.List;
 import java.util.Optional;
+
 import sssm.dev.sssm_backend.a03_authentication.permission.entity.Permission;
 
 public interface PermissionDAO {

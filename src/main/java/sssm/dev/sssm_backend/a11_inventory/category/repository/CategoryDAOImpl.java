@@ -130,4 +130,3 @@ public class CategoryDAOImpl implements CategoryDAO {
     return o;
   }
 }
-

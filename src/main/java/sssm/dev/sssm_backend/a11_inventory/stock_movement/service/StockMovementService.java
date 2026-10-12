@@ -34,8 +34,7 @@ public class StockMovementService {
   public StockMovement updateStockMovement(
       String stockMovementId, StockMovement updatedStockMovement) {
     if (stockMovementDAO.getStockMovementById(stockMovementId).isEmpty()) {
-      throw new IllegalArgumentException(
-          "StockMovement not found with ID: " + stockMovementId);
+      throw new IllegalArgumentException("StockMovement not found with ID: " + stockMovementId);
     }
     updatedStockMovement.setId(stockMovementId);
     return stockMovementDAO.updateStockMovement(updatedStockMovement);

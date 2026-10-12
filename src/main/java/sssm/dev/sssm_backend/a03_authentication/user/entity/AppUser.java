@@ -1,10 +1,11 @@
 package sssm.dev.sssm_backend.a03_authentication.user.entity;
 
-import java.sql.Timestamp;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 
 @Data
@@ -15,8 +16,7 @@ public class AppUser {
   private String company_id;
   private String username;
   private String email;
-  @JsonIgnore
-  private String password_hash;
+  @JsonIgnore private String password_hash;
   private String first_name;
   private String last_name;
   private String phone;

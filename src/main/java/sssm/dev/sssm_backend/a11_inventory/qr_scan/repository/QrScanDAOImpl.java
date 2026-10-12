@@ -129,4 +129,3 @@ public class QrScanDAOImpl implements QrScanDAO {
     return o;
   }
 }
-

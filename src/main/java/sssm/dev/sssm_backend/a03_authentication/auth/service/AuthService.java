@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
@@ -20,7 +21,9 @@ public class AuthService {
   private final JwtService jwt;
   private final String defaultRole;
 
-  public AuthService(PasswordEncoder encoder, JwtService jwt,
+  public AuthService(
+      PasswordEncoder encoder,
+      JwtService jwt,
       @Value("${app.auth.default-role:USER}") String defaultRole) {
     this.encoder = encoder;
     this.jwt = jwt;
@@ -52,14 +55,18 @@ public class AuthService {
   }
 
   public AuthResponse login(LoginRequest request) {
-    AppUser user = users.findByUsernameOrEmail(request.login())
-        .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-        .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+    AppUser user =
+        users
+            .findByUsernameOrEmail(request.login())
+            .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+            .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
     if (!encoder.matches(request.password(), user.getPassword_hash()))
       throw new BadCredentialsException("Invalid credentials");
     users.updateLastLogin(user.getId());
     List<String> roleNames = users.findRoleNames(user.getId());
-    return new AuthResponse(jwt.createToken(user.getId(), user.getUsername(), roleNames), "Bearer",
+    return new AuthResponse(
+        jwt.createToken(user.getId(), user.getUsername(), roleNames),
+        "Bearer",
         toResponse(user, roleNames));
   }
 
@@ -68,7 +75,7 @@ public class AuthService {
   }
 
   private AuthResponse.UserResponse toResponse(AppUser u, List<String> roles) {
-    return new AuthResponse.UserResponse(u.getId(), u.getUsername(), u.getEmail(), u.getFirst_name(),
-        u.getLast_name(), roles);
+    return new AuthResponse.UserResponse(
+        u.getId(), u.getUsername(), u.getEmail(), u.getFirst_name(), u.getLast_name(), roles);
   }
 }

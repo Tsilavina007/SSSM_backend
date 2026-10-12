@@ -33,8 +33,7 @@ public class ItemAssignmentController {
   }
 
   @GetMapping("/{itemAssignmentId}")
-  public Optional<ItemAssignment> getItemAssignmentById(
-      @PathVariable String itemAssignmentId) {
+  public Optional<ItemAssignment> getItemAssignmentById(@PathVariable String itemAssignmentId) {
     return itemAssignmentService.getItemAssignmentById(itemAssignmentId);
   }
 
@@ -45,10 +44,8 @@ public class ItemAssignmentController {
 
   @PatchMapping("/{itemAssignmentId}")
   public ItemAssignment updateItemAssignment(
-      @PathVariable String itemAssignmentId,
-      @RequestBody ItemAssignment updatedItemAssignment) {
-    return itemAssignmentService.updateItemAssignment(
-        itemAssignmentId, updatedItemAssignment);
+      @PathVariable String itemAssignmentId, @RequestBody ItemAssignment updatedItemAssignment) {
+    return itemAssignmentService.updateItemAssignment(itemAssignmentId, updatedItemAssignment);
   }
 
   @DeleteMapping("/{itemAssignmentId}")

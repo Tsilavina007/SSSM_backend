@@ -32,4 +32,3 @@ public class CategoryService {
     return dao.query(q, a);
   }
 }
-

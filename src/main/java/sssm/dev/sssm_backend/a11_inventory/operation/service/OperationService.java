@@ -32,4 +32,3 @@ public class OperationService {
     return dao.query(q, a);
   }
 }
-

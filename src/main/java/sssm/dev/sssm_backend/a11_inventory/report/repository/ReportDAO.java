@@ -5,7 +5,8 @@ import java.util.Map;
 
 /** Typed persistence boundary for the inventory report module. */
 public interface ReportDAO {
-  List<Map<String, Object>> list(Integer page, Integer size, String search, String where, Object... args);
+  List<Map<String, Object>> list(
+      Integer page, Integer size, String search, String where, Object... args);
 
   Map<String, Object> one(String id);
 
@@ -15,4 +16,3 @@ public interface ReportDAO {
 
   List<Map<String, Object>> query(String sql, Object... args);
 }
-

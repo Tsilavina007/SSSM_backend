@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.a07_contracts.contract.repository;
 
 import java.util.List;
 import java.util.Optional;
+
 import sssm.dev.sssm_backend.a07_contracts.contract.entity.Contract;
 
 public interface ContractDAO {

@@ -32,4 +32,3 @@ public class QrScanService {
     return dao.query(q, a);
   }
 }
-

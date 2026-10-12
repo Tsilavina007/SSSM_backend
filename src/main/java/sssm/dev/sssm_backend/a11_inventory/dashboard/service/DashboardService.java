@@ -32,4 +32,3 @@ public class DashboardService {
     return dao.query(q, a);
   }
 }
-

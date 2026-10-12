@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import sssm.dev.sssm_backend.a01_common.enums.ContractStatus;
 
 @Data

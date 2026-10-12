@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
@@ -107,7 +108,8 @@ public class AppUserDAOImpl implements AppUserDAO {
             + "last_name, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?, CAST(? AS security.user_status))";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, user.getCompany_id() == null ? null : UUID.fromString(user.getCompany_id()));
+      stmt.setObject(
+          1, user.getCompany_id() == null ? null : UUID.fromString(user.getCompany_id()));
       stmt.setString(2, user.getUsername());
       stmt.setString(3, user.getEmail());
       stmt.setString(4, user.getPassword_hash());

@@ -131,4 +131,3 @@ public class OperationDAOImpl implements OperationDAO {
     return o;
   }
 }
-

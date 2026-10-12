@@ -131,4 +131,3 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
     return o;
   }
 }
-

@@ -32,4 +32,3 @@ public class AssignmentService {
     return dao.query(q, a);
   }
 }
-

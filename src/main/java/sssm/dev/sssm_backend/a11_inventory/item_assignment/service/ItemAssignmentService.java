@@ -34,8 +34,7 @@ public class ItemAssignmentService {
   public ItemAssignment updateItemAssignment(
       String itemAssignmentId, ItemAssignment updatedItemAssignment) {
     if (itemAssignmentDAO.getItemAssignmentById(itemAssignmentId).isEmpty()) {
-      throw new IllegalArgumentException(
-          "ItemAssignment not found with ID: " + itemAssignmentId);
+      throw new IllegalArgumentException("ItemAssignment not found with ID: " + itemAssignmentId);
     }
     updatedItemAssignment.setId(itemAssignmentId);
     return itemAssignmentDAO.updateItemAssignment(updatedItemAssignment);

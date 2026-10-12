@@ -11,6 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 
 @Component
@@ -31,10 +32,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Claims claims = jwt.parse(header.substring(7));
         @SuppressWarnings("unchecked")
         List<String> roles = claims.get("roles", List.class);
-        var authorities = roles == null ? List.<SimpleGrantedAuthority>of()
-            : roles.stream().map(role -> new SimpleGrantedAuthority(
-                role.startsWith("ROLE_") ? role : "ROLE_" + role)).toList();
-        var authentication = new UsernamePasswordAuthenticationToken(claims.getSubject(), null, authorities);
+        var authorities =
+            roles == null
+                ? List.<SimpleGrantedAuthority>of()
+                : roles.stream()
+                    .map(
+                        role ->
+                            new SimpleGrantedAuthority(
+                                role.startsWith("ROLE_") ? role : "ROLE_" + role))
+                    .toList();
+        var authentication =
+            new UsernamePasswordAuthenticationToken(claims.getSubject(), null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       } catch (RuntimeException ignored) {
         SecurityContextHolder.clearContext();

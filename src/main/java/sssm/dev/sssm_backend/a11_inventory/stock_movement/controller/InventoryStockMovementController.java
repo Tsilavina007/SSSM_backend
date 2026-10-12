@@ -33,8 +33,7 @@ public class InventoryStockMovementController {
   }
 
   @GetMapping("/{stockMovementId}")
-  public Optional<StockMovement> getStockMovementById(
-      @PathVariable String stockMovementId) {
+  public Optional<StockMovement> getStockMovementById(@PathVariable String stockMovementId) {
     return stockMovementService.getStockMovementById(stockMovementId);
   }
 
@@ -45,10 +44,8 @@ public class InventoryStockMovementController {
 
   @PatchMapping("/{stockMovementId}")
   public StockMovement updateStockMovement(
-      @PathVariable String stockMovementId,
-      @RequestBody StockMovement updatedStockMovement) {
-    return stockMovementService.updateStockMovement(
-        stockMovementId, updatedStockMovement);
+      @PathVariable String stockMovementId, @RequestBody StockMovement updatedStockMovement) {
+    return stockMovementService.updateStockMovement(stockMovementId, updatedStockMovement);
   }
 
   @DeleteMapping("/{stockMovementId}")
