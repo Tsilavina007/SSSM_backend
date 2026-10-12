@@ -1,17 +1,22 @@
 package sssm.dev.sssm_backend.a11_inventory.warehouse.repository;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 
 public class WarehouseDAOImpl implements WarehouseDAO {
 
   @Override
-  public List<Warehouse> findAll(int page, int pageSize) {
+  public List<Warehouse> getAllWarehouses(int page, int pageSize) {
     String sql = "SELECT * FROM security.warehouse ORDER BY id LIMIT ? OFFSET ?";
     List<Warehouse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
@@ -40,7 +45,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public List<Warehouse> search(String value, int page, int pageSize) {
+  public List<Warehouse> searchWarehousesByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.warehouse WHERE name ILIKE ? OR address ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<Warehouse> values = new ArrayList<>();
@@ -73,7 +78,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public Optional<Warehouse> findById(String id) {
+  public Optional<Warehouse> getWarehouseById(String id) {
     String sql = "SELECT * FROM security.warehouse WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -100,7 +105,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public Warehouse create(Warehouse value) {
+  public Warehouse createWarehouse(Warehouse value) {
     String sql =
         "INSERT INTO security.warehouse (company_id, branch_id, name, address, active) VALUES (?, ?, ?, ?, ?)";
 
@@ -127,7 +132,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public Warehouse update(Warehouse value) {
+  public Warehouse updateWarehouse(Warehouse value) {
     StringBuilder sql = new StringBuilder("UPDATE security.warehouse SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -173,7 +178,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public void delete(String id) {
+  public void deleteWarehouse(String id) {
     String sql = "DELETE FROM security.warehouse WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 

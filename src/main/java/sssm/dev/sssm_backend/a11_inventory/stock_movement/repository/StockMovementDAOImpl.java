@@ -1,10 +1,15 @@
 package sssm.dev.sssm_backend.a11_inventory.stock_movement.repository;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
@@ -12,7 +17,7 @@ import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
 public class StockMovementDAOImpl implements StockMovementDAO {
 
   @Override
-  public List<StockMovement> findAll(int page, int pageSize) {
+  public List<StockMovement> getAllStockMovements(int page, int pageSize) {
     String sql = "SELECT * FROM security.stock_movement ORDER BY id LIMIT ? OFFSET ?";
     List<StockMovement> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
@@ -43,7 +48,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public List<StockMovement> search(String value, int page, int pageSize) {
+  public List<StockMovement> searchStockMovementsByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.stock_movement WHERE reference ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<StockMovement> values = new ArrayList<>();
@@ -78,7 +83,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public Optional<StockMovement> findById(String id) {
+  public Optional<StockMovement> getStockMovementById(String id) {
     String sql = "SELECT * FROM security.stock_movement WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -107,7 +112,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public StockMovement create(StockMovement value) {
+  public StockMovement createStockMovement(StockMovement value) {
     String sql =
         "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS movement_type), ?, ?, ?)";
 
@@ -140,7 +145,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public StockMovement update(StockMovement value) {
+  public StockMovement updateStockMovement(StockMovement value) {
     StringBuilder sql = new StringBuilder("UPDATE security.stock_movement SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -194,7 +199,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public void delete(String id) {
+  public void deleteStockMovement(String id) {
     String sql = "DELETE FROM security.stock_movement WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 

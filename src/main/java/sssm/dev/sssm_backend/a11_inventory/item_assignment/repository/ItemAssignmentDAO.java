@@ -1,18 +1,20 @@
 package sssm.dev.sssm_backend.a11_inventory.item_assignment.repository;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
 
 public interface ItemAssignmentDAO {
-  List<ItemAssignment> findAll(int page, int pageSize);
+  List<ItemAssignment> getAllItemAssignments(int page, int pageSize);
 
-  List<ItemAssignment> search(String value, int page, int pageSize);
+  List<ItemAssignment> searchItemAssignmentsByName(String value, int page, int pageSize);
 
-  Optional<ItemAssignment> findById(String id);
+  Optional<ItemAssignment> getItemAssignmentById(String id);
 
-  ItemAssignment create(ItemAssignment value);
+  ItemAssignment createItemAssignment(ItemAssignment value);
 
-  ItemAssignment update(ItemAssignment value);
+  ItemAssignment updateItemAssignment(ItemAssignment value);
 
-  void delete(String id);
+  void deleteItemAssignment(String id);
 }

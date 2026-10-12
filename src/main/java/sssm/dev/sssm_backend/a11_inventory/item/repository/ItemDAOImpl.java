@@ -1,10 +1,15 @@
 package sssm.dev.sssm_backend.a11_inventory.item.repository;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
@@ -12,7 +17,7 @@ import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 public class ItemDAOImpl implements ItemDAO {
 
   @Override
-  public List<Item> findAll(int page, int pageSize) {
+  public List<Item> getAllItems(int page, int pageSize) {
     String sql = "SELECT * FROM security.item ORDER BY id LIMIT ? OFFSET ?";
     List<Item> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
@@ -44,7 +49,7 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
-  public List<Item> search(String value, int page, int pageSize) {
+  public List<Item> searchItemsByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item WHERE qr_code ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<Item> values = new ArrayList<>();
@@ -80,7 +85,7 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
-  public Optional<Item> findById(String id) {
+  public Optional<Item> getItemById(String id) {
     String sql = "SELECT * FROM security.item WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -110,7 +115,7 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
-  public Item create(Item value) {
+  public Item createItem(Item value) {
     String sql =
         "INSERT INTO security.item (company_id, category_id, item_type_id, qr_code, description, status) VALUES (?, ?, ?, ?, ?, CAST(? AS item_status))";
 
@@ -140,7 +145,7 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
-  public Item update(Item value) {
+  public Item updateItem(Item value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -190,7 +195,7 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
-  public void delete(String id) {
+  public void deleteItem(String id) {
     String sql = "DELETE FROM security.item WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 

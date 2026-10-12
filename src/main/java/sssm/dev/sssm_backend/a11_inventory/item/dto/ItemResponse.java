@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.a11_inventory.item.dto;
 
 import java.sql.Timestamp;
 import lombok.Data;
+
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 
 @Data

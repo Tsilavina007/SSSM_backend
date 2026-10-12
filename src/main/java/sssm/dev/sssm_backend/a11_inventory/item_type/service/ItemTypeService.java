@@ -1,33 +1,45 @@
 package sssm.dev.sssm_backend.a11_inventory.item_type.service;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
-import sssm.dev.sssm_backend.a11_inventory.item_type.repository.*;
+import sssm.dev.sssm_backend.a11_inventory.item_type.repository.ItemTypeDAO;
+import sssm.dev.sssm_backend.a11_inventory.item_type.repository.ItemTypeDAOImpl;
 
 public class ItemTypeService {
-  private final ItemTypeDAO dao = new ItemTypeDAOImpl();
+  private final ItemTypeDAO itemTypeDAO;
 
-  public List<ItemType> findAll(Optional<String> q, Optional<Integer> p, Optional<Integer> s) {
-    int page = p.orElse(1), size = s.orElse(10);
-    return q.isPresent() ? dao.search(q.get(), page, size) : dao.findAll(page, size);
+  public ItemTypeService() {
+    this.itemTypeDAO = new ItemTypeDAOImpl();
   }
 
-  public Optional<ItemType> findById(String id) {
-    return dao.findById(id);
+  public List<ItemType> getItemTypes(
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
+    int pageNumber = page.orElse(1);
+    int pageSizeNumber = pageSize.orElse(10);
+    return search.isPresent()
+        ? itemTypeDAO.searchItemTypesByName(search.get(), pageNumber, pageSizeNumber)
+        : itemTypeDAO.getAllItemTypes(pageNumber, pageSizeNumber);
   }
 
-  public ItemType create(ItemType v) {
-    return dao.create(v);
+  public Optional<ItemType> getItemTypeById(String itemTypeId) {
+    return itemTypeDAO.getItemTypeById(itemTypeId);
   }
 
-  public ItemType update(String id, ItemType v) {
-    if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("ItemType not found with ID: " + id);
-    v.setId(id);
-    return dao.update(v);
+  public ItemType createItemType(ItemType itemType) {
+    return itemTypeDAO.createItemType(itemType);
   }
 
-  public void delete(String id) {
-    dao.delete(id);
+  public ItemType updateItemType(String itemTypeId, ItemType updatedItemType) {
+    if (itemTypeDAO.getItemTypeById(itemTypeId).isEmpty()) {
+      throw new IllegalArgumentException("ItemType not found with ID: " + itemTypeId);
+    }
+    updatedItemType.setId(itemTypeId);
+    return itemTypeDAO.updateItemType(updatedItemType);
+  }
+
+  public void deleteItemType(String itemTypeId) {
+    itemTypeDAO.deleteItemType(itemTypeId);
   }
 }

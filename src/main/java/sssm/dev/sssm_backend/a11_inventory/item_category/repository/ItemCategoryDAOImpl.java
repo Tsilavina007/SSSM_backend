@@ -1,17 +1,22 @@
 package sssm.dev.sssm_backend.a11_inventory.item_category.repository;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 
 public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
   @Override
-  public List<ItemCategory> findAll(int page, int pageSize) {
+  public List<ItemCategory> getAllItemCategories(int page, int pageSize) {
     String sql = "SELECT * FROM security.item_category ORDER BY id LIMIT ? OFFSET ?";
     List<ItemCategory> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
@@ -38,7 +43,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public List<ItemCategory> search(String value, int page, int pageSize) {
+  public List<ItemCategory> searchItemCategoriesByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_category WHERE name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemCategory> values = new ArrayList<>();
@@ -69,7 +74,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public Optional<ItemCategory> findById(String id) {
+  public Optional<ItemCategory> getItemCategoryById(String id) {
     String sql = "SELECT * FROM security.item_category WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -94,7 +99,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public ItemCategory create(ItemCategory value) {
+  public ItemCategory createItemCategory(ItemCategory value) {
     String sql =
         "INSERT INTO security.item_category (company_id, name, description) VALUES (?, ?, ?)";
 
@@ -118,7 +123,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public ItemCategory update(ItemCategory value) {
+  public ItemCategory updateItemCategory(ItemCategory value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_category SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -156,7 +161,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public void delete(String id) {
+  public void deleteItemCategory(String id) {
     String sql = "DELETE FROM security.item_category WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 

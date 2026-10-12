@@ -1,18 +1,20 @@
 package sssm.dev.sssm_backend.a11_inventory.stock_movement.repository;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
 
 public interface StockMovementDAO {
-  List<StockMovement> findAll(int page, int pageSize);
+  List<StockMovement> getAllStockMovements(int page, int pageSize);
 
-  List<StockMovement> search(String value, int page, int pageSize);
+  List<StockMovement> searchStockMovementsByName(String value, int page, int pageSize);
 
-  Optional<StockMovement> findById(String id);
+  Optional<StockMovement> getStockMovementById(String id);
 
-  StockMovement create(StockMovement value);
+  StockMovement createStockMovement(StockMovement value);
 
-  StockMovement update(StockMovement value);
+  StockMovement updateStockMovement(StockMovement value);
 
-  void delete(String id);
+  void deleteStockMovement(String id);
 }

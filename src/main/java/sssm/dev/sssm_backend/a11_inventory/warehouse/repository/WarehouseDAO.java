@@ -1,18 +1,20 @@
 package sssm.dev.sssm_backend.a11_inventory.warehouse.repository;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 
 public interface WarehouseDAO {
-  List<Warehouse> findAll(int page, int pageSize);
+  List<Warehouse> getAllWarehouses(int page, int pageSize);
 
-  List<Warehouse> search(String value, int page, int pageSize);
+  List<Warehouse> searchWarehousesByName(String value, int page, int pageSize);
 
-  Optional<Warehouse> findById(String id);
+  Optional<Warehouse> getWarehouseById(String id);
 
-  Warehouse create(Warehouse value);
+  Warehouse createWarehouse(Warehouse value);
 
-  Warehouse update(Warehouse value);
+  Warehouse updateWarehouse(Warehouse value);
 
-  void delete(String id);
+  void deleteWarehouse(String id);
 }

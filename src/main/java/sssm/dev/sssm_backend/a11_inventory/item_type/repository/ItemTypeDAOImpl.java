@@ -1,10 +1,15 @@
 package sssm.dev.sssm_backend.a11_inventory.item_type.repository;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
@@ -12,7 +17,7 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
 public class ItemTypeDAOImpl implements ItemTypeDAO {
 
   @Override
-  public List<ItemType> findAll(int page, int pageSize) {
+  public List<ItemType> getAllItemTypes(int page, int pageSize) {
     String sql = "SELECT * FROM security.item_type ORDER BY id LIMIT ? OFFSET ?";
     List<ItemType> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
@@ -47,7 +52,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public List<ItemType> search(String value, int page, int pageSize) {
+  public List<ItemType> searchItemTypesByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_type WHERE code ILIKE ? OR name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemType> values = new ArrayList<>();
@@ -87,7 +92,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public Optional<ItemType> findById(String id) {
+  public Optional<ItemType> getItemTypeById(String id) {
     String sql = "SELECT * FROM security.item_type WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -120,7 +125,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public ItemType create(ItemType value) {
+  public ItemType createItemType(ItemType value) {
     String sql =
         "INSERT INTO security.item_type (company_id, category_id, code, name, description, unit, quantity_total, minimum_stock, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS item_status))";
 
@@ -152,7 +157,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public ItemType update(ItemType value) {
+  public ItemType updateItemType(ItemType value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_type SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -214,7 +219,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
-  public void delete(String id) {
+  public void deleteItemType(String id) {
     String sql = "DELETE FROM security.item_type WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 

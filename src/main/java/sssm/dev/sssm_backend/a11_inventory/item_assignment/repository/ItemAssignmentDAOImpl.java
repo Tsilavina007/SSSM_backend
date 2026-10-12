@@ -1,17 +1,22 @@
 package sssm.dev.sssm_backend.a11_inventory.item_assignment.repository;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
 
 public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
   @Override
-  public List<ItemAssignment> findAll(int page, int pageSize) {
+  public List<ItemAssignment> getAllItemAssignments(int page, int pageSize) {
     String sql = "SELECT * FROM security.item_assignment ORDER BY id LIMIT ? OFFSET ?";
     List<ItemAssignment> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
@@ -43,7 +48,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public List<ItemAssignment> search(String value, int page, int pageSize) {
+  public List<ItemAssignment> searchItemAssignmentsByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_assignment WHERE condition_on_assignment ILIKE ? OR condition_on_return ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemAssignment> values = new ArrayList<>();
@@ -80,7 +85,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public Optional<ItemAssignment> findById(String id) {
+  public Optional<ItemAssignment> getItemAssignmentById(String id) {
     String sql = "SELECT * FROM security.item_assignment WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -110,7 +115,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public ItemAssignment create(ItemAssignment value) {
+  public ItemAssignment createItemAssignment(ItemAssignment value) {
     String sql =
         "INSERT INTO security.item_assignment (item_id, employee_id, post_id, assigned_at, returned_at, condition_on_assignment, condition_on_return, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
@@ -139,7 +144,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public ItemAssignment update(ItemAssignment value) {
+  public ItemAssignment updateItemAssignment(ItemAssignment value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_assignment SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -197,7 +202,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public void delete(String id) {
+  public void deleteItemAssignment(String id) {
     String sql = "DELETE FROM security.item_assignment WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 

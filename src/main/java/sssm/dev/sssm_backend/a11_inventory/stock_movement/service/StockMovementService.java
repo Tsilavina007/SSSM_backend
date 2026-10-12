@@ -1,33 +1,47 @@
 package sssm.dev.sssm_backend.a11_inventory.stock_movement.service;
 
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
-import sssm.dev.sssm_backend.a11_inventory.stock_movement.repository.*;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.repository.StockMovementDAO;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.repository.StockMovementDAOImpl;
 
 public class StockMovementService {
-  private final StockMovementDAO dao = new StockMovementDAOImpl();
+  private final StockMovementDAO stockMovementDAO;
 
-  public List<StockMovement> findAll(Optional<String> q, Optional<Integer> p, Optional<Integer> s) {
-    int page = p.orElse(1), size = s.orElse(10);
-    return q.isPresent() ? dao.search(q.get(), page, size) : dao.findAll(page, size);
+  public StockMovementService() {
+    this.stockMovementDAO = new StockMovementDAOImpl();
   }
 
-  public Optional<StockMovement> findById(String id) {
-    return dao.findById(id);
+  public List<StockMovement> getStockMovements(
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
+    int pageNumber = page.orElse(1);
+    int pageSizeNumber = pageSize.orElse(10);
+    return search.isPresent()
+        ? stockMovementDAO.searchStockMovementsByName(search.get(), pageNumber, pageSizeNumber)
+        : stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber);
   }
 
-  public StockMovement create(StockMovement v) {
-    return dao.create(v);
+  public Optional<StockMovement> getStockMovementById(String stockMovementId) {
+    return stockMovementDAO.getStockMovementById(stockMovementId);
   }
 
-  public StockMovement update(String id, StockMovement v) {
-    if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("StockMovement not found with ID: " + id);
-    v.setId(id);
-    return dao.update(v);
+  public StockMovement createStockMovement(StockMovement stockMovement) {
+    return stockMovementDAO.createStockMovement(stockMovement);
   }
 
-  public void delete(String id) {
-    dao.delete(id);
+  public StockMovement updateStockMovement(
+      String stockMovementId, StockMovement updatedStockMovement) {
+    if (stockMovementDAO.getStockMovementById(stockMovementId).isEmpty()) {
+      throw new IllegalArgumentException(
+          "StockMovement not found with ID: " + stockMovementId);
+    }
+    updatedStockMovement.setId(stockMovementId);
+    return stockMovementDAO.updateStockMovement(updatedStockMovement);
+  }
+
+  public void deleteStockMovement(String stockMovementId) {
+    stockMovementDAO.deleteStockMovement(stockMovementId);
   }
 }
