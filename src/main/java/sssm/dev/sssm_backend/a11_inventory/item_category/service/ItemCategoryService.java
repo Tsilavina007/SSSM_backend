@@ -22,23 +22,29 @@ public class ItemCategoryService {
   }
 
   public List<ItemCategory> getItemCategories(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) throws SQLException {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
+      throws SQLException {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return search.isPresent()
-        ? mapperListResponseToCategory(itemCategoryDAO.searchItemCategoriesByName(search.get(), pageNumber, pageSizeNumber))
-        : mapperListResponseToCategory(itemCategoryDAO.getAllItemCategories(pageNumber, pageSizeNumber)) ;
+        ? mapperListResponseToCategory(
+            itemCategoryDAO.searchItemCategoriesByName(search.get(), pageNumber, pageSizeNumber))
+        : mapperListResponseToCategory(
+            itemCategoryDAO.getAllItemCategories(pageNumber, pageSizeNumber));
   }
 
   public Optional<ItemCategory> getItemCategoryById(String itemCategoryId) throws SQLException {
-    return Optional.of(mapperResponseToCategory(itemCategoryDAO.getItemCategoryById(itemCategoryId).get()));
+    return Optional.of(
+        mapperResponseToCategory(itemCategoryDAO.getItemCategoryById(itemCategoryId).get()));
   }
 
-  public ItemCategory createItemCategory(ItemCategoryResponse itemCategoryResponse) throws SQLException {
+  public ItemCategory createItemCategory(ItemCategoryResponse itemCategoryResponse)
+      throws SQLException {
     return mapperResponseToCategory(itemCategoryDAO.createItemCategory(itemCategoryResponse));
   }
 
-  public ItemCategory updateItemCategory(String itemCategoryId, ItemCategoryResponse updatedItemCategory) throws SQLException {
+  public ItemCategory updateItemCategory(
+      String itemCategoryId, ItemCategoryResponse updatedItemCategory) throws SQLException {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
       throw new IllegalArgumentException("ItemCategory not found with ID: " + itemCategoryId);
     }
@@ -52,14 +58,11 @@ public class ItemCategoryService {
 
   private ItemCategory mapperResponseToCategory(ItemCategoryResponse rs) throws SQLException {
     Company c = companyDAO.getCompanyById(rs.getCompany_id()).get();
-    return (new ItemCategory(
-      rs.getId(),
-      c,
-      rs.getName(),
-      rs.getDescription()));
+    return (new ItemCategory(rs.getId(), c, rs.getName(), rs.getDescription()));
   }
 
-  private List<ItemCategory> mapperListResponseToCategory(List<ItemCategoryResponse> items) throws SQLException {
+  private List<ItemCategory> mapperListResponseToCategory(List<ItemCategoryResponse> items)
+      throws SQLException {
     return items.stream()
         .map(
             item -> {

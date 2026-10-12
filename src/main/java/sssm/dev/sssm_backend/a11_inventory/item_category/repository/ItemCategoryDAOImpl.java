@@ -43,7 +43,8 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public List<ItemCategoryResponse> searchItemCategoriesByName(String value, int page, int pageSize) {
+  public List<ItemCategoryResponse> searchItemCategoriesByName(
+      String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_category WHERE name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemCategoryResponse> values = new ArrayList<>();

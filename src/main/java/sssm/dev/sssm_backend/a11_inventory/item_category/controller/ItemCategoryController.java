@@ -29,23 +29,27 @@ public class ItemCategoryController {
   public List<ItemCategory> getItemCategories(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) throws Exception {
+      @RequestParam Optional<String> search)
+      throws Exception {
     return itemCategoryService.getItemCategories(search, page, pageSize);
   }
 
   @GetMapping("/{itemCategoryId}")
-  public Optional<ItemCategory> getItemCategoryById(@PathVariable String itemCategoryId) throws Exception {
+  public Optional<ItemCategory> getItemCategoryById(@PathVariable String itemCategoryId)
+      throws Exception {
     return itemCategoryService.getItemCategoryById(itemCategoryId);
   }
 
   @PostMapping
-  public ItemCategory createItemCategory(@RequestBody ItemCategoryResponse itemCategory) throws Exception {
+  public ItemCategory createItemCategory(@RequestBody ItemCategoryResponse itemCategory)
+      throws Exception {
     return itemCategoryService.createItemCategory(itemCategory);
   }
 
   @PatchMapping("/{itemCategoryId}")
   public ItemCategory updateItemCategory(
-      @PathVariable String itemCategoryId, @RequestBody ItemCategoryResponse updatedItemCategory) throws Exception {
+      @PathVariable String itemCategoryId, @RequestBody ItemCategoryResponse updatedItemCategory)
+      throws Exception {
     return itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
   }
 
