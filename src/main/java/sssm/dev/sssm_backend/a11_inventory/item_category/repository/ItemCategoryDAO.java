@@ -3,18 +3,18 @@ package sssm.dev.sssm_backend.a11_inventory.item_category.repository;
 import java.util.List;
 import java.util.Optional;
 
-import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
+import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 
 public interface ItemCategoryDAO {
-  List<ItemCategory> getAllItemCategories(int page, int pageSize);
+  List<ItemCategoryResponse> getAllItemCategories(int page, int pageSize);
 
-  List<ItemCategory> searchItemCategoriesByName(String value, int page, int pageSize);
+  List<ItemCategoryResponse> searchItemCategoriesByName(String value, int page, int pageSize);
 
-  Optional<ItemCategory> getItemCategoryById(String id);
+  Optional<ItemCategoryResponse> getItemCategoryById(String id);
 
-  ItemCategory createItemCategory(ItemCategory value);
+  ItemCategoryResponse createItemCategory(ItemCategoryResponse value);
 
-  ItemCategory updateItemCategory(ItemCategory value);
+  ItemCategoryResponse updateItemCategory(ItemCategoryResponse value);
 
   void deleteItemCategory(String id);
 }

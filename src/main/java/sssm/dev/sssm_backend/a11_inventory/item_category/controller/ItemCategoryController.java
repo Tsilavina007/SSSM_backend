@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
 
@@ -28,23 +29,23 @@ public class ItemCategoryController {
   public List<ItemCategory> getItemCategories(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) {
+      @RequestParam Optional<String> search) throws Exception {
     return itemCategoryService.getItemCategories(search, page, pageSize);
   }
 
   @GetMapping("/{itemCategoryId}")
-  public Optional<ItemCategory> getItemCategoryById(@PathVariable String itemCategoryId) {
+  public Optional<ItemCategory> getItemCategoryById(@PathVariable String itemCategoryId) throws Exception {
     return itemCategoryService.getItemCategoryById(itemCategoryId);
   }
 
   @PostMapping
-  public ItemCategory createItemCategory(@RequestBody ItemCategory itemCategory) {
+  public ItemCategory createItemCategory(@RequestBody ItemCategoryResponse itemCategory) throws Exception {
     return itemCategoryService.createItemCategory(itemCategory);
   }
 
   @PatchMapping("/{itemCategoryId}")
   public ItemCategory updateItemCategory(
-      @PathVariable String itemCategoryId, @RequestBody ItemCategory updatedItemCategory) {
+      @PathVariable String itemCategoryId, @RequestBody ItemCategoryResponse updatedItemCategory) throws Exception {
     return itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
   }
 

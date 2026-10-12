@@ -11,14 +11,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 
 public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
   @Override
-  public List<ItemCategory> getAllItemCategories(int page, int pageSize) {
+  public List<ItemCategoryResponse> getAllItemCategories(int page, int pageSize) {
     String sql = "SELECT * FROM security.item_category ORDER BY id LIMIT ? OFFSET ?";
-    List<ItemCategory> values = new ArrayList<>();
+    List<ItemCategoryResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -29,7 +30,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
           values.add(
-              new ItemCategory(
+              new ItemCategoryResponse(
                   rs.getString("id"),
                   rs.getString("company_id"),
                   rs.getString("name"),
@@ -43,10 +44,10 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public List<ItemCategory> searchItemCategoriesByName(String value, int page, int pageSize) {
+  public List<ItemCategoryResponse> searchItemCategoriesByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_category WHERE name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
-    List<ItemCategory> values = new ArrayList<>();
+    List<ItemCategoryResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -60,7 +61,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
           values.add(
-              new ItemCategory(
+              new ItemCategoryResponse(
                   rs.getString("id"),
                   rs.getString("company_id"),
                   rs.getString("name"),
@@ -74,7 +75,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public Optional<ItemCategory> getItemCategoryById(String id) {
+  public Optional<ItemCategoryResponse> getItemCategoryById(String id) {
     String sql = "SELECT * FROM security.item_category WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -85,7 +86,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
           return Optional.of(
-              new ItemCategory(
+              new ItemCategoryResponse(
                   rs.getString("id"),
                   rs.getString("company_id"),
                   rs.getString("name"),
@@ -99,7 +100,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public ItemCategory createItemCategory(ItemCategory value) {
+  public ItemCategoryResponse createItemCategory(ItemCategoryResponse value) {
     String sql =
         "INSERT INTO security.item_category (company_id, name, description) VALUES (?, ?, ?)";
 
@@ -123,7 +124,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   }
 
   @Override
-  public ItemCategory updateItemCategory(ItemCategory value) {
+  public ItemCategoryResponse updateItemCategory(ItemCategoryResponse value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_category SET ");
     List<Object> parameters = new ArrayList<>();
 
