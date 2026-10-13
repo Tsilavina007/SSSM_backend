@@ -113,15 +113,14 @@ public class CompanyDAOImpl implements CompanyDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          company.setId(rs.getString(1));
+          return mapRowToCompany(rs);
         }
         else
-          throw new NotFoundException("Error while creating new Company");
+          throw new ServerException("Error when creating new Company");
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return company;
   }
 
   @Override

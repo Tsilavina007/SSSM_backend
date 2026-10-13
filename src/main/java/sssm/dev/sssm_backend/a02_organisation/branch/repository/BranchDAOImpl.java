@@ -9,6 +9,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
@@ -39,7 +41,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return branches;
   }
@@ -62,7 +64,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return branches;
   }
@@ -80,11 +82,11 @@ public class BranchDAOImpl implements BranchDAO {
         if (rs.next()) {
           return Optional.of(mapRowToBranch(rs));
         }
+        throw new NotFoundException("Branch with id : " + branchId + " not Found");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return Optional.empty();
   }
 
   @Override
@@ -110,11 +112,12 @@ public class BranchDAOImpl implements BranchDAO {
         if (rs.next()) {
           return mapRowToBranch(rs);
         }
+        else
+          throw new ServerException("Error when creating new Branch");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return null;
   }
 
   @Override
@@ -174,7 +177,7 @@ public class BranchDAOImpl implements BranchDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return getBranchById(id).get();
   }
@@ -189,7 +192,7 @@ public class BranchDAOImpl implements BranchDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 

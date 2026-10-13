@@ -12,7 +12,6 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
-import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
