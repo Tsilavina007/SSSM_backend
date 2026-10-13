@@ -8,7 +8,7 @@ info:
     item_status et movement_type doivent correspondre aux ENUM PostgreSQL
     déjà présents dans la base.
 servers:
-  - url: http://localhost:8080/api
+  - url: http://localhost:8080/api/inventory
 tags:
   - name: Categories
   - name: Item types
@@ -23,7 +23,7 @@ tags:
 security:
   - bearerAuth: []
 paths:
-  /inventory/categories:
+  /item-categories:
     get:
       tags: [Categories]
       summary: Lister les catégories
@@ -54,7 +54,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Category' }
-  /inventory/categories/{categoryId}:
+  /item-categories/{categoryId}:
     parameters:
       - $ref: '#/components/parameters/CategoryId'
     get:
@@ -87,21 +87,8 @@ paths:
       description: Suppression logique recommandée si la catégorie est utilisée.
       responses:
         '204': { description: Catégorie archivée }
-  /inventory/categories/{categoryId}/types:
-    get:
-      tags: [Categories]
-      summary: Lister les types d'une catégorie
-      parameters:
-        - $ref: '#/components/parameters/CategoryId'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-      responses:
-        '200':
-          description: Types de matériel
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/PagedItemTypes' }
-  /inventory/types:
+
+  /item-types:
     get:
       tags: [Item types]
       summary: Lister les types de matériel
@@ -139,7 +126,21 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ItemType' }
-  /inventory/types/{typeId}:
+  /item-types/category/{categoryId}:
+      get:
+        tags: [Item types]
+        summary: Lister les types d'une catégorie
+        parameters:
+          - $ref: '#/components/parameters/CategoryId'
+          - $ref: '#/components/parameters/Page'
+          - $ref: '#/components/parameters/PageSize'
+        responses:
+          '200':
+            description: Types de matériel
+            content:
+              application/json:
+                schema: { $ref: '#/components/schemas/PagedItemTypes' }
+  /item-types/{typeId}:
     parameters:
       - $ref: '#/components/parameters/TypeId'
     get:
@@ -171,7 +172,7 @@ paths:
       summary: Archiver un type
       responses:
         '204': { description: Type archivé }
-  /inventory/types/{typeId}/items:
+  /item-types/{typeId}/items:
     get:
       tags: [Item types]
       summary: Lister les équipements d'un type
@@ -185,7 +186,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PagedItems' }
-  /inventory/types/{typeId}/stock:
+  /item-types/{typeId}/stock:
     get:
       tags: [Warehouses and stock]
       summary: Résumé du stock d'un type
@@ -197,7 +198,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StockSummary' }
-  /inventory/types/low-stock:
+  /item-types/low-stock:
     get:
       tags: [Alerts and reports]
       summary: Types sous leur seuil minimum global
@@ -209,6 +210,124 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/LowStockAlert' }
+
+
+  /inventory/warehouses:
+    get:
+      tags: [Warehouses and stock]
+      summary: Lister les entrepôts
+      parameters:
+        - name: branchId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: active
+          in: query
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Entrepôts paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedWarehouses' }
+    post:
+      tags: [Warehouses and stock]
+      summary: Créer un entrepôt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarehouseInput' }
+      responses:
+        '201':
+          description: Entrepôt créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Warehouse' }
+  /inventory/warehouses/{warehouseId}:
+    parameters:
+      - $ref: '#/components/parameters/WarehouseId'
+    get:
+      tags: [Warehouses and stock]
+      summary: Consulter un entrepôt
+      responses:
+        '200':
+          description: Entrepôt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Warehouse' }
+    put:
+      tags: [Warehouses and stock]
+      summary: Modifier un entrepôt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarehouseInput' }
+      responses:
+        '200':
+          description: Entrepôt modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Warehouse' }
+    delete:
+      tags: [Warehouses and stock]
+      summary: Archiver un entrepôt
+      responses:
+        '204': { description: Entrepôt archivé }
+  /inventory/warehouses/{warehouseId}/stock:
+    get:
+      tags: [Warehouses and stock]
+      summary: Lister les équipements actuellement dans l'entrepôt
+      parameters:
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: itemTypeId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Stock paginé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedItems' }
+  /inventory/warehouses/{warehouseId}/stock/summary:
+    get:
+      tags: [Warehouses and stock]
+      summary: Résumé du stock par type
+      parameters:
+        - $ref: '#/components/parameters/WarehouseId'
+      responses:
+        '200':
+          description: Résumé
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StockSummary' }
+  /inventory/warehouses/{warehouseId}/movements:
+    get:
+      tags: [Movements]
+      summary: Mouvements d'un entrepôt
+      parameters:
+        - $ref: '#/components/parameters/WarehouseId'
+        - $ref: '#/components/parameters/StartDate'
+        - $ref: '#/components/parameters/EndDate'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Mouvements paginés
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedMovements' }
+
   /inventory/items:
     get:
       tags: [Items]
@@ -385,121 +504,8 @@ paths:
                   assignments:
                     type: array
                     items: { $ref: '#/components/schemas/Assignment' }
-  /inventory/warehouses:
-    get:
-      tags: [Warehouses and stock]
-      summary: Lister les entrepôts
-      parameters:
-        - name: branchId
-          in: query
-          schema: { type: string, format: uuid }
-        - name: active
-          in: query
-          schema: { type: boolean }
-        - $ref: '#/components/parameters/Search'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-      responses:
-        '200':
-          description: Entrepôts paginés
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/PagedWarehouses' }
-    post:
-      tags: [Warehouses and stock]
-      summary: Créer un entrepôt
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/WarehouseInput' }
-      responses:
-        '201':
-          description: Entrepôt créé
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Warehouse' }
-  /inventory/warehouses/{warehouseId}:
-    parameters:
-      - $ref: '#/components/parameters/WarehouseId'
-    get:
-      tags: [Warehouses and stock]
-      summary: Consulter un entrepôt
-      responses:
-        '200':
-          description: Entrepôt
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Warehouse' }
-    put:
-      tags: [Warehouses and stock]
-      summary: Modifier un entrepôt
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/WarehouseInput' }
-      responses:
-        '200':
-          description: Entrepôt modifié
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Warehouse' }
-    delete:
-      tags: [Warehouses and stock]
-      summary: Archiver un entrepôt
-      responses:
-        '204': { description: Entrepôt archivé }
-  /inventory/warehouses/{warehouseId}/stock:
-    get:
-      tags: [Warehouses and stock]
-      summary: Lister les équipements actuellement dans l'entrepôt
-      parameters:
-        - $ref: '#/components/parameters/WarehouseId'
-        - name: itemTypeId
-          in: query
-          schema: { type: string, format: uuid }
-        - name: status
-          in: query
-          schema: { type: string }
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-      responses:
-        '200':
-          description: Stock paginé
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/PagedItems' }
-  /inventory/warehouses/{warehouseId}/stock/summary:
-    get:
-      tags: [Warehouses and stock]
-      summary: Résumé du stock par type
-      parameters:
-        - $ref: '#/components/parameters/WarehouseId'
-      responses:
-        '200':
-          description: Résumé
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/StockSummary' }
-  /inventory/warehouses/{warehouseId}/movements:
-    get:
-      tags: [Movements]
-      summary: Mouvements d'un entrepôt
-      parameters:
-        - $ref: '#/components/parameters/WarehouseId'
-        - $ref: '#/components/parameters/StartDate'
-        - $ref: '#/components/parameters/EndDate'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-      responses:
-        '200':
-          description: Mouvements paginés
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/PagedMovements' }
+
+
   /inventory/branches/{branchId}/stock:
     get:
       tags: [Branch stock]

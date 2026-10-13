@@ -49,7 +49,8 @@ public class ItemCategoryController {
 
   @PatchMapping("/{itemCategoryId}")
   public ItemCategory updateItemCategory(
-      @PathVariable String itemCategoryId, @RequestBody ItemCategoryUpdateRequest updatedItemCategory)
+      @PathVariable String itemCategoryId,
+      @RequestBody ItemCategoryUpdateRequest updatedItemCategory)
       throws Exception {
     return itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
   }

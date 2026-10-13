@@ -10,6 +10,9 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 public interface ItemTypeDAO {
   List<ItemTypeResponse> getAllItemTypes(int page, int pageSize);
 
+  List<ItemTypeResponse> getAllItemTypesByItemCategoryId(
+      String itemCategoryId, int page, int pageSize);
+
   List<ItemTypeResponse> searchItemTypesByName(String value, int page, int pageSize);
 
   Optional<ItemTypeResponse> getItemTypeById(String id);

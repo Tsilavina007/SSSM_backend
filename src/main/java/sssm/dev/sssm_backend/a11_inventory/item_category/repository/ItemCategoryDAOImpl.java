@@ -62,12 +62,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new ItemCategoryResponse(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("name"),
-                  rs.getString("description")));
+          values.add(mapRowToItemCategoryResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -87,12 +82,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(
-              new ItemCategoryResponse(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("name"),
-                  rs.getString("description")));
+          return Optional.of(mapRowToItemCategoryResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -103,7 +93,6 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
   @Override
   public ItemCategoryResponse createItemCategory(ItemCategoryCreateRequest value) {
-    ItemCategoryResponse response = new ItemCategoryResponse();
     String sql =
         "INSERT INTO security.item_category (company_id, name, description) VALUES (?, ?, ?)";
 
@@ -117,16 +106,13 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          response.setId(rs.getString(1));
-          response.setCompany_id(value.getCompany_id());
-          response.setName(value.getName());
-          response.setDescription(value.getDescription());
+          return mapRowToItemCategoryResponse(rs);
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return response;
+    return null;
   }
 
   @Override
@@ -179,5 +165,13 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+  }
+
+  private ItemCategoryResponse mapRowToItemCategoryResponse(ResultSet rs) throws SQLException {
+    return new ItemCategoryResponse(
+        rs.getString("id"),
+        rs.getString("company_id"),
+        rs.getString("name"),
+        rs.getString("description"));
   }
 }

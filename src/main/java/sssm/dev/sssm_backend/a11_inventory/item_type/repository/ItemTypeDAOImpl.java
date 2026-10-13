@@ -54,6 +54,32 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
+  public List<ItemTypeResponse> getAllItemTypesByItemCategoryId(
+      String itemCategoryId, int page, int pageSize) {
+    String sql =
+        "SELECT * FROM security.item_type WHERE category_id = ? ORDER BY id LIMIT ? OFFSET ?";
+    List<ItemTypeResponse> values = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+    UUID uuid = UUID.fromString(itemCategoryId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, uuid);
+      stmt.setInt(2, pageSize);
+      stmt.setInt(3, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          values.add(mapRowToItemTypeResponse(rs));
+        }
+      }
+    } catch (SQLException e) {
+      e.printStackTrace();
+    }
+    return values;
+  }
+
+  @Override
   public List<ItemTypeResponse> searchItemTypesByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_type WHERE code ILIKE ? OR name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
@@ -71,20 +97,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new ItemTypeResponse(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("category_id"),
-                  rs.getString("code"),
-                  rs.getString("name"),
-                  rs.getString("description"),
-                  rs.getString("unit"),
-                  rs.getBigDecimal("quantity_total"),
-                  rs.getBigDecimal("minimum_stock"),
-                  ItemStatus.valueOf(rs.getString("status")),
-                  rs.getTimestamp("created_at"),
-                  rs.getTimestamp("updated_at")));
+          values.add(mapRowToItemTypeResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -104,20 +117,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(
-              new ItemTypeResponse(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("category_id"),
-                  rs.getString("code"),
-                  rs.getString("name"),
-                  rs.getString("description"),
-                  rs.getString("unit"),
-                  rs.getBigDecimal("quantity_total"),
-                  rs.getBigDecimal("minimum_stock"),
-                  ItemStatus.valueOf(rs.getString("status")),
-                  rs.getTimestamp("created_at"),
-                  rs.getTimestamp("updated_at")));
+          return Optional.of(mapRowToItemTypeResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -128,7 +128,6 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
 
   @Override
   public ItemTypeResponse createItemType(ItemTypeCreateRequest value) {
-    ItemTypeResponse response = new ItemTypeResponse();
     String sql =
         "INSERT INTO security.item_type (company_id, category_id, code, name, description, unit, quantity_total, minimum_stock, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.item_status))";
 
@@ -150,24 +149,13 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          response.setId(rs.getString(1));
-          response.setCompany_id(rs.getString(2));
-          response.setCategory_id(rs.getString(3));
-          response.setCode(rs.getString(4));
-          response.setName(rs.getString(5));
-          response.setDescription(rs.getString(6));
-          response.setUnit(rs.getString(7));
-          response.setQuantity_total(rs.getBigDecimal(8));
-          response.setMinimum_stock(rs.getBigDecimal(9));
-          response.setStatus(ItemStatus.valueOf(rs.getString(10)));
-          response.setCreated_at(rs.getTimestamp(11));
-          response.setUpdated_at(rs.getTimestamp(12));
+          return mapRowToItemTypeResponse(rs);
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return response;
+    return null;
   }
 
   @Override
@@ -244,5 +232,21 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+  }
+
+  private ItemTypeResponse mapRowToItemTypeResponse(ResultSet rs) throws SQLException {
+    return new ItemTypeResponse(
+        rs.getString("id"),
+        rs.getString("company_id"),
+        rs.getString("category_id"),
+        rs.getString("code"),
+        rs.getString("name"),
+        rs.getString("description"),
+        rs.getString("unit"),
+        rs.getBigDecimal("quantity_total"),
+        rs.getBigDecimal("minimum_stock"),
+        ItemStatus.valueOf(rs.getString("status")),
+        rs.getTimestamp("created_at"),
+        rs.getTimestamp("updated_at"));
   }
 }

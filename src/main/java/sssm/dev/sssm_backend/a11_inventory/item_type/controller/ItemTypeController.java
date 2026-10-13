@@ -18,7 +18,7 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
 import sssm.dev.sssm_backend.a11_inventory.item_type.service.ItemTypeService;
 
 @RestController
-@RequestMapping({"/api/item-types", "/api/inventory/types"})
+@RequestMapping("/api/inventory/item-types")
 public class ItemTypeController {
   private final ItemTypeService itemTypeService;
 
@@ -30,7 +30,8 @@ public class ItemTypeController {
   public List<ItemType> getItemTypes(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) throws Exception {
+      @RequestParam Optional<String> search)
+      throws Exception {
     return itemTypeService.getItemTypes(search, page, pageSize);
   }
 
@@ -46,12 +47,37 @@ public class ItemTypeController {
 
   @PatchMapping("/{itemTypeId}")
   public ItemType updateItemType(
-      @PathVariable String itemTypeId, @RequestBody ItemTypeUpdateRequest updatedItemType) throws Exception {
+      @PathVariable String itemTypeId, @RequestBody ItemTypeUpdateRequest updatedItemType)
+      throws Exception {
     return itemTypeService.updateItemType(itemTypeId, updatedItemType);
   }
 
   @DeleteMapping("/{itemTypeId}")
   public void deleteItemType(@PathVariable String itemTypeId) {
     itemTypeService.deleteItemType(itemTypeId);
+  }
+
+  @GetMapping("/category/{itemCategoryId}")
+  public List<ItemType> getItemTypesByItemCategoryId(
+      @PathVariable String itemCategoryId,
+      @RequestParam Optional<Integer> page,
+      @RequestParam Optional<Integer> pageSize)
+      throws Exception {
+    return itemTypeService.getItemTypesByItemCategoryId(itemCategoryId, page, pageSize);
+  }
+
+  @GetMapping("/low-stock")
+  public List<ItemType> getItemTypesLowStock() throws Exception {
+    return null;
+  }
+
+  @GetMapping("/items/{typeId}")
+  public List<ItemType> getItemsByItemTypes() throws Exception {
+    return null;
+  }
+
+  @GetMapping("/stocks/{typeId}")
+  public List<ItemType> getStocksByItemTypes() throws Exception {
+    return null;
   }
 }

@@ -27,11 +27,13 @@ public class ItemTypeService {
   }
 
   public List<ItemType> getItemTypes(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) throws SQLException {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
+      throws SQLException {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return search.isPresent()
-        ? mapperListResponseToType(itemTypeDAO.searchItemTypesByName(search.get(), pageNumber, pageSizeNumber))
+        ? mapperListResponseToType(
+            itemTypeDAO.searchItemTypesByName(search.get(), pageNumber, pageSizeNumber))
         : mapperListResponseToType(itemTypeDAO.getAllItemTypes(pageNumber, pageSizeNumber));
   }
 
@@ -39,11 +41,21 @@ public class ItemTypeService {
     return Optional.of(mapperResponseToType(itemTypeDAO.getItemTypeById(itemTypeId).get()));
   }
 
+  public List<ItemType> getItemTypesByItemCategoryId(
+      String itemCategoryId, Optional<Integer> page, Optional<Integer> pageSize)
+      throws SQLException {
+    int pageNumber = page.orElse(1);
+    int pageSizeNumber = pageSize.orElse(10);
+    return mapperListResponseToType(
+        itemTypeDAO.getAllItemTypesByItemCategoryId(itemCategoryId, pageNumber, pageSizeNumber));
+  }
+
   public ItemType createItemType(ItemTypeCreateRequest itemType) throws SQLException {
     return mapperResponseToType(itemTypeDAO.createItemType(itemType));
   }
 
-  public ItemType updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType) throws SQLException {
+  public ItemType updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType)
+      throws SQLException {
     if (itemTypeDAO.getItemTypeById(itemTypeId).isEmpty()) {
       throw new IllegalArgumentException("ItemType not found with ID: " + itemTypeId);
     }
@@ -55,11 +67,25 @@ public class ItemTypeService {
   }
 
   private ItemType mapperResponseToType(ItemTypeResponse rs) throws SQLException {
+    if (rs == null || rs.getCompany_id() == null) {
+      return null;
+    }
     Company c = companyService.getCompanyById(rs.getCompany_id()).get();
     ItemCategory ic = itemCategoryService.getItemCategoryById(rs.getCategory_id()).get();
 
-    return (new ItemType(rs.getId(), c, ic, rs.getCode(), rs.getName(), rs.getDescription(), rs.getUnit(), rs.getQuantity_total(), 
-                rs.getMinimum_stock(), rs.getStatus(), rs.getCreated_at(), rs.getUpdated_at()));
+    return (new ItemType(
+        rs.getId(),
+        c,
+        ic,
+        rs.getCode(),
+        rs.getName(),
+        rs.getDescription(),
+        rs.getUnit(),
+        rs.getQuantity_total(),
+        rs.getMinimum_stock(),
+        rs.getStatus(),
+        rs.getCreated_at(),
+        rs.getUpdated_at()));
   }
 
   private List<ItemType> mapperListResponseToType(List<ItemTypeResponse> items)

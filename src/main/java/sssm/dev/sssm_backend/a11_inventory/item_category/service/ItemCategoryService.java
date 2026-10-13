@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Optional;
 
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
-import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAO;
-import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
@@ -50,8 +48,10 @@ public class ItemCategoryService {
       String itemCategoryId, ItemCategoryUpdateRequest updatedItemCategory) throws SQLException {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
       throw new IllegalArgumentException("ItemCategory not found with ID: " + itemCategoryId);
-    };
-    return mapperResponseToCategory(itemCategoryDAO.updateItemCategory(itemCategoryId, updatedItemCategory));
+    }
+    ;
+    return mapperResponseToCategory(
+        itemCategoryDAO.updateItemCategory(itemCategoryId, updatedItemCategory));
   }
 
   public void deleteItemCategory(String itemCategoryId) {
@@ -59,6 +59,9 @@ public class ItemCategoryService {
   }
 
   private ItemCategory mapperResponseToCategory(ItemCategoryResponse rs) throws SQLException {
+    if (rs == null || rs.getCompany_id() == null) {
+      return null;
+    }
     Company c = companyService.getCompanyById(rs.getCompany_id()).get();
     return (new ItemCategory(rs.getId(), c, rs.getName(), rs.getDescription()));
   }
