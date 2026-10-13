@@ -66,6 +66,8 @@ public class AppUserController {
       return ResponseEntity.ok().body(updatedUser);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
     } catch (ServerException e) {
       return ResponseEntity.internalServerError().body(e.getMessage());
     }
@@ -78,6 +80,8 @@ public class AppUserController {
       return ResponseEntity.ok().build();
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
     } catch (ServerException e) {
       return ResponseEntity.internalServerError().body(e.getMessage());
     }

@@ -206,7 +206,7 @@ public class AppUserDAOImpl implements AppUserDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 
@@ -230,7 +230,7 @@ public class AppUserDAOImpl implements AppUserDAO {
       stmt.setObject(2, UUID.fromString(secondId));
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 
