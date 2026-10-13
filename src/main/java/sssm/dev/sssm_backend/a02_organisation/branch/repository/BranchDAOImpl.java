@@ -108,7 +108,7 @@ public class BranchDAOImpl implements BranchDAO {
           return mapRowToBranch(rs);
         }
       }
-    } catch (SQLException e) {  
+    } catch (SQLException e) {
       e.printStackTrace();
     }
     return null;

@@ -1,14 +1,13 @@
 package sssm.dev.sssm_backend.a11_inventory.warehouse.dto;
 
 import java.sql.Timestamp;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor 
-@AllArgsConstructor 
+@NoArgsConstructor
+@AllArgsConstructor
 public class WarehouseResponse {
   private String id;
   private String company_id;

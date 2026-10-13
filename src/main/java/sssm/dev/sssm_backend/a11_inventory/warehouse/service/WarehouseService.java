@@ -23,33 +23,36 @@ public class WarehouseService {
   }
 
   public List<Warehouse> getWarehouses(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) throws SQLException {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
+      throws SQLException {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return search.isPresent()
-        ? mapperListResponseToWarehouse(warehouseDAO.searchWarehousesByName(search.get(), pageNumber, pageSizeNumber))
+        ? mapperListResponseToWarehouse(
+            warehouseDAO.searchWarehousesByName(search.get(), pageNumber, pageSizeNumber))
         : mapperListResponseToWarehouse(warehouseDAO.getAllWarehouses(pageNumber, pageSizeNumber));
   }
 
-  public Optional<Warehouse> getWarehouseById(String warehouseId) throws SQLException  {
+  public Optional<Warehouse> getWarehouseById(String warehouseId) throws SQLException {
     return Optional.of(mapperResponseToWarehouse(warehouseDAO.getWarehouseById(warehouseId).get()));
   }
 
-  public Warehouse createWarehouse(WarehouseCreateRequest warehouse) throws SQLException  {
+  public Warehouse createWarehouse(WarehouseCreateRequest warehouse) throws SQLException {
     return mapperResponseToWarehouse(warehouseDAO.createWarehouse(warehouse));
   }
 
-  public Warehouse updateWarehouse(String warehouseId, WarehouseUpdateRequest updatedWarehouse) throws SQLException  {
+  public Warehouse updateWarehouse(String warehouseId, WarehouseUpdateRequest updatedWarehouse)
+      throws SQLException {
     if (warehouseDAO.getWarehouseById(warehouseId).isEmpty()) {
       throw new IllegalArgumentException("Warehouse not found with ID: " + warehouseId);
     }
     return mapperResponseToWarehouse(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
   }
 
-  public void deleteWarehouse(String warehouseId) throws SQLException  {
+  public void deleteWarehouse(String warehouseId) throws SQLException {
     warehouseDAO.deleteWarehouse(warehouseId);
   }
-  
+
   private Warehouse mapperResponseToWarehouse(WarehouseResponse rs) throws SQLException {
     if (rs == null || rs.getBranch_id() == null) {
       return null;

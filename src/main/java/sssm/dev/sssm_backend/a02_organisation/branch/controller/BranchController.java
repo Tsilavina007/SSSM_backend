@@ -18,7 +18,8 @@ public class BranchController {
   public List<Branch> getBranches(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) throws Exception {
+      @RequestParam Optional<String> search)
+      throws Exception {
     return branchService.getBranches(search, page, pageSize);
   }
 
@@ -33,7 +34,8 @@ public class BranchController {
   }
 
   @PatchMapping("/{branchId}")
-  public Branch updateBranch(@PathVariable String branchId, @RequestBody BranchUpdateRequest branch) throws Exception {
+  public Branch updateBranch(@PathVariable String branchId, @RequestBody BranchUpdateRequest branch)
+      throws Exception {
     return branchService.updateBranch(branchId, branch);
   }
 

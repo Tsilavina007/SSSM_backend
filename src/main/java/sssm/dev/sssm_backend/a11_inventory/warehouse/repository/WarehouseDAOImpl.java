@@ -171,7 +171,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
       e.printStackTrace();
     }
   }
-  
+
   private WarehouseResponse mapRowToWarehouseResponse(ResultSet rs) throws SQLException {
     return new WarehouseResponse(
         rs.getString("id"),

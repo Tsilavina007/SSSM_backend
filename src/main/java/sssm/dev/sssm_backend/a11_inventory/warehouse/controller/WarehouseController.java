@@ -30,7 +30,8 @@ public class WarehouseController {
   public List<Warehouse> getWarehouses(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) throws Exception {
+      @RequestParam Optional<String> search)
+      throws Exception {
     return warehouseService.getWarehouses(search, page, pageSize);
   }
 
@@ -46,7 +47,8 @@ public class WarehouseController {
 
   @PatchMapping("/{warehouseId}")
   public Warehouse updateWarehouse(
-      @PathVariable String warehouseId, @RequestBody WarehouseUpdateRequest updatedWarehouse) throws Exception {
+      @PathVariable String warehouseId, @RequestBody WarehouseUpdateRequest updatedWarehouse)
+      throws Exception {
     return warehouseService.updateWarehouse(warehouseId, updatedWarehouse);
   }
 

@@ -21,8 +21,10 @@ public class BranchService {
     this.branchDAO = new BranchDAOImpl();
     this.agencyService = new AgencyService();
   }
+
   public List<Branch> getBranches(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) throws SQLException {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
+      throws SQLException {
     int p = page.orElse(1), size = pageSize.orElse(10);
     return search.isPresent()
         ? mapperListResponseToBranch(branchDAO.searchBranchesByName(search.get(), p, size))
@@ -51,13 +53,23 @@ public class BranchService {
     if (rs == null || rs.getAgence_id() == null) {
       return null;
     }
-  Agency c = agencyService.getAgencyById(rs.getAgence_id()).get();
-    return (new Branch(rs.getId(), rs.getCompany_id(), c, rs.getName(), rs.getCode(), rs.getAddress(),
-                          rs.getCity(), rs.getPhone(), rs.getEmail(), rs.getStatus(), rs.getCreated_at(), rs.getUpdated_at()));
+    Agency c = agencyService.getAgencyById(rs.getAgence_id()).get();
+    return (new Branch(
+        rs.getId(),
+        rs.getCompany_id(),
+        c,
+        rs.getName(),
+        rs.getCode(),
+        rs.getAddress(),
+        rs.getCity(),
+        rs.getPhone(),
+        rs.getEmail(),
+        rs.getStatus(),
+        rs.getCreated_at(),
+        rs.getUpdated_at()));
   }
 
-  private List<Branch> mapperListResponseToBranch(List<BranchResponse> items)
-      throws SQLException {
+  private List<Branch> mapperListResponseToBranch(List<BranchResponse> items) throws SQLException {
     return items.stream()
         .map(
             item -> {
