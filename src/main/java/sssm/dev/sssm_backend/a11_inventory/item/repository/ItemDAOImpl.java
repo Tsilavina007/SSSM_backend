@@ -12,14 +12,17 @@ import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 
 public class ItemDAOImpl implements ItemDAO {
 
   @Override
-  public List<Item> getAllItems(int page, int pageSize) {
+  public List<ItemResponse> getAllItems(int page, int pageSize) {
     String sql = "SELECT * FROM security.item ORDER BY id LIMIT ? OFFSET ?";
-    List<Item> values = new ArrayList<>();
+    List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -29,17 +32,7 @@ public class ItemDAOImpl implements ItemDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new Item(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("category_id"),
-                  rs.getString("item_type_id"),
-                  rs.getString("qr_code"),
-                  rs.getString("description"),
-                  ItemStatus.valueOf(rs.getString("status")),
-                  rs.getTimestamp("created_at"),
-                  rs.getTimestamp("updated_at")));
+          values.add(mapRowToItemResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -49,10 +42,10 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
-  public List<Item> searchItemsByName(String value, int page, int pageSize) {
+  public List<ItemResponse> searchItemsByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item WHERE qr_code ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
-    List<Item> values = new ArrayList<>();
+    List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -65,17 +58,7 @@ public class ItemDAOImpl implements ItemDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new Item(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("category_id"),
-                  rs.getString("item_type_id"),
-                  rs.getString("qr_code"),
-                  rs.getString("description"),
-                  ItemStatus.valueOf(rs.getString("status")),
-                  rs.getTimestamp("created_at"),
-                  rs.getTimestamp("updated_at")));
+          values.add(mapRowToItemResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -85,7 +68,7 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
-  public Optional<Item> getItemById(String id) {
+  public Optional<ItemResponse> getItemById(String id) {
     String sql = "SELECT * FROM security.item WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -95,17 +78,7 @@ public class ItemDAOImpl implements ItemDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(
-              new Item(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("category_id"),
-                  rs.getString("item_type_id"),
-                  rs.getString("qr_code"),
-                  rs.getString("description"),
-                  ItemStatus.valueOf(rs.getString("status")),
-                  rs.getTimestamp("created_at"),
-                  rs.getTimestamp("updated_at")));
+          return Optional.of(mapRowToItemResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -113,11 +86,20 @@ public class ItemDAOImpl implements ItemDAO {
     }
     return Optional.empty();
   }
+// public class ItemCreateRequest {
+//   private String company_id;
+//   private String category_id;
+//   private String item_type_id;
+//   private String qr_code;
+//   private String description;
+//   private ItemStatus status;
+//   private String current_warehouse_id;
+// }
 
   @Override
-  public Item createItem(Item value) {
+  public ItemResponse createItem(ItemCreateRequest value) {
     String sql =
-        "INSERT INTO security.item (company_id, category_id, item_type_id, qr_code, description, status) VALUES (?, ?, ?, ?, ?, CAST(? AS security.item_status))";
+        "INSERT INTO security.item (company_id, category_id, item_type_id, qr_code, description, status, current_warehouse_id) VALUES (?, ?, ?, ?, ?, CAST(? AS security.item_status), ?)";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -131,21 +113,25 @@ public class ItemDAOImpl implements ItemDAO {
       stmt.setString(5, value.getDescription());
       stmt.setString(
           6, value.getStatus() == null ? ItemStatus.AVAILABLE.name() : value.getStatus().name());
+      stmt.setObject(
+          7, value.getCurrent_warehouse_id() == null
+              ? null
+              : UUID.fromString(value.getCurrent_warehouse_id()));
       stmt.executeUpdate();
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          value.setId(rs.getString(1));
+          return mapRowToItemResponse(rs);
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return null;
   }
 
   @Override
-  public Item updateItem(Item value) {
+  public ItemResponse updateItem(String id, ItemUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -173,14 +159,17 @@ public class ItemDAOImpl implements ItemDAO {
       sql.append("status = CAST(? AS security.item_status), ");
       parameters.add(value.getStatus().name());
     }
-
+    if (value.getCurrent_warehouse_id() != null) {
+      sql.append("current_warehouse_id = ?, ");
+      parameters.add(UUID.fromString(value.getCurrent_warehouse_id()));
+    }
     if (parameters.isEmpty()) {
-      return value;
+      return getItemById(id).get();
     }
 
     sql.setLength(sql.length() - 2);
     sql.append(" WHERE id = ?");
-    parameters.add(UUID.fromString(value.getId()));
+    parameters.add(UUID.fromString(id));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -191,7 +180,7 @@ public class ItemDAOImpl implements ItemDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return getItemById(id).get();
   }
 
   @Override
@@ -206,5 +195,23 @@ public class ItemDAOImpl implements ItemDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+  }
+
+  public ItemResponse mapRowToItemResponse(ResultSet rs) throws SQLException {
+    return new ItemResponse(
+        rs.getString("id"),
+        rs.getString("company_id"),
+        rs.getString("category_id"),
+        rs.getString("item_type_id"),
+        rs.getString("qr_code"),
+        rs.getString("description"),
+        ItemStatus.valueOf(rs.getString("status")),
+        rs.getString("current_warehouse_id"),
+        rs.getTimestamp("created_at"),
+        rs.getTimestamp("updated_at"),
+        rs.getTimestamp("archived_at"),
+        rs.getString("archived_by"),
+        rs.getTimestamp("last_inventory_at")
+      );
   }
 }

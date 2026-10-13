@@ -12,4 +12,5 @@ public class ItemUpdateRequest {
   private String qr_code;
   private String description;
   private ItemStatus status;
+  private String current_warehouse_id;
 }

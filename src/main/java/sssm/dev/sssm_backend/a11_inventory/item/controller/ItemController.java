@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 
@@ -28,22 +30,22 @@ public class ItemController {
   public List<Item> getItems(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) {
+      @RequestParam Optional<String> search) throws Exception {
     return itemService.getItems(search, page, pageSize);
   }
 
   @GetMapping("/{itemId}")
-  public Optional<Item> getItemById(@PathVariable String itemId) {
+  public Optional<Item> getItemById(@PathVariable String itemId) throws Exception {
     return itemService.getItemById(itemId);
   }
 
   @PostMapping
-  public Item createItem(@RequestBody Item item) {
+  public Item createItem(@RequestBody ItemCreateRequest item) throws Exception {
     return itemService.createItem(item);
   }
 
   @PatchMapping("/{itemId}")
-  public Item updateItem(@PathVariable String itemId, @RequestBody Item updatedItem) {
+  public Item updateItem(@PathVariable String itemId, @RequestBody ItemUpdateRequest updatedItem) throws Exception {
     return itemService.updateItem(itemId, updatedItem);
   }
 

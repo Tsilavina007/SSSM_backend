@@ -3,18 +3,20 @@ package sssm.dev.sssm_backend.a11_inventory.item.repository;
 import java.util.List;
 import java.util.Optional;
 
-import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 
 public interface ItemDAO {
-  List<Item> getAllItems(int page, int pageSize);
+  List<ItemResponse> getAllItems(int page, int pageSize);
 
-  List<Item> searchItemsByName(String value, int page, int pageSize);
+  List<ItemResponse> searchItemsByName(String value, int page, int pageSize);
 
-  Optional<Item> getItemById(String id);
+  Optional<ItemResponse> getItemById(String id);
 
-  Item createItem(Item value);
+  ItemResponse createItem(ItemCreateRequest value);
 
-  Item updateItem(Item value);
+  ItemResponse updateItem(String id, ItemUpdateRequest value);
 
   void deleteItem(String id);
 }
