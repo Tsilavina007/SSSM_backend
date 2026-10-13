@@ -12,11 +12,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.service.WarehouseService;
 
 @RestController
-@RequestMapping({"/api/warehouses", "/api/inventory/warehouses"})
+@RequestMapping("/api/inventory/warehouses")
 public class WarehouseController {
   private final WarehouseService warehouseService;
 
@@ -28,28 +30,28 @@ public class WarehouseController {
   public List<Warehouse> getWarehouses(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) {
+      @RequestParam Optional<String> search) throws Exception {
     return warehouseService.getWarehouses(search, page, pageSize);
   }
 
   @GetMapping("/{warehouseId}")
-  public Optional<Warehouse> getWarehouseById(@PathVariable String warehouseId) {
+  public Optional<Warehouse> getWarehouseById(@PathVariable String warehouseId) throws Exception {
     return warehouseService.getWarehouseById(warehouseId);
   }
 
   @PostMapping
-  public Warehouse createWarehouse(@RequestBody Warehouse warehouse) {
+  public Warehouse createWarehouse(@RequestBody WarehouseCreateRequest warehouse) throws Exception {
     return warehouseService.createWarehouse(warehouse);
   }
 
   @PatchMapping("/{warehouseId}")
   public Warehouse updateWarehouse(
-      @PathVariable String warehouseId, @RequestBody Warehouse updatedWarehouse) {
+      @PathVariable String warehouseId, @RequestBody WarehouseUpdateRequest updatedWarehouse) throws Exception {
     return warehouseService.updateWarehouse(warehouseId, updatedWarehouse);
   }
 
   @DeleteMapping("/{warehouseId}")
-  public void deleteWarehouse(@PathVariable String warehouseId) {
+  public void deleteWarehouse(@PathVariable String warehouseId) throws Exception {
     warehouseService.deleteWarehouse(warehouseId);
   }
 }

@@ -157,7 +157,7 @@ public class BranchDAOImpl implements BranchDAO {
     }
 
     if (parameters.isEmpty()) {
-      return null;
+      return getBranchById(id).get();
     }
 
     sql.setLength(sql.length() - 2);

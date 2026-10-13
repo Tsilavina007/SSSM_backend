@@ -201,7 +201,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
     }
 
     if (parameters.isEmpty()) {
-      return new ItemTypeResponse();
+      return getItemTypeById(id).get();
     }
 
     sql.setLength(sql.length() - 2);

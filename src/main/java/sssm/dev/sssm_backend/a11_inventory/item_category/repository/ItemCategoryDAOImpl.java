@@ -134,7 +134,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
     }
 
     if (parameters.isEmpty()) {
-      return new ItemCategoryResponse();
+      return getItemCategoryById(id).get();
     }
 
     sql.setLength(sql.length() - 2);

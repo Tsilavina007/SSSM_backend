@@ -11,14 +11,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
-import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
 
 public class WarehouseDAOImpl implements WarehouseDAO {
 
   @Override
-  public List<Warehouse> getAllWarehouses(int page, int pageSize) {
+  public List<WarehouseResponse> getAllWarehouses(int page, int pageSize) {
     String sql = "SELECT * FROM security.warehouse ORDER BY id LIMIT ? OFFSET ?";
-    List<Warehouse> values = new ArrayList<>();
+    List<WarehouseResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -28,14 +30,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new Warehouse(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("branch_id"),
-                  rs.getString("name"),
-                  rs.getString("address"),
-                  rs.getBoolean("active")));
+          values.add(mapRowToWarehouseResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -45,10 +40,10 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public List<Warehouse> searchWarehousesByName(String value, int page, int pageSize) {
+  public List<WarehouseResponse> searchWarehousesByName(String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.warehouse WHERE name ILIKE ? OR address ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
-    List<Warehouse> values = new ArrayList<>();
+    List<WarehouseResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -61,14 +56,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new Warehouse(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("branch_id"),
-                  rs.getString("name"),
-                  rs.getString("address"),
-                  rs.getBoolean("active")));
+          values.add(mapRowToWarehouseResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -78,7 +66,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public Optional<Warehouse> getWarehouseById(String id) {
+  public Optional<WarehouseResponse> getWarehouseById(String id) {
     String sql = "SELECT * FROM security.warehouse WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -88,14 +76,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(
-              new Warehouse(
-                  rs.getString("id"),
-                  rs.getString("company_id"),
-                  rs.getString("branch_id"),
-                  rs.getString("name"),
-                  rs.getString("address"),
-                  rs.getBoolean("active")));
+          return Optional.of(mapRowToWarehouseResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -105,7 +86,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   }
 
   @Override
-  public Warehouse createWarehouse(Warehouse value) {
+  public WarehouseResponse createWarehouse(WarehouseCreateRequest value) {
     String sql =
         "INSERT INTO security.warehouse (company_id, branch_id, name, address, active) VALUES (?, ?, ?, ?, ?)";
 
@@ -122,17 +103,17 @@ public class WarehouseDAOImpl implements WarehouseDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          value.setId(rs.getString(1));
+          return mapRowToWarehouseResponse(rs);
         }
       }
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return null;
   }
 
   @Override
-  public Warehouse updateWarehouse(Warehouse value) {
+  public WarehouseResponse updateWarehouse(String id, WarehouseUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.warehouse SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -158,12 +139,12 @@ public class WarehouseDAOImpl implements WarehouseDAO {
     }
 
     if (parameters.isEmpty()) {
-      return value;
+      return getWarehouseById(id).get();
     }
 
     sql.setLength(sql.length() - 2);
     sql.append(" WHERE id = ?");
-    parameters.add(UUID.fromString(value.getId()));
+    parameters.add(UUID.fromString(id));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -174,7 +155,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return value;
+    return getWarehouseById(id).get();
   }
 
   @Override
@@ -189,5 +170,18 @@ public class WarehouseDAOImpl implements WarehouseDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
+  }
+  
+  private WarehouseResponse mapRowToWarehouseResponse(ResultSet rs) throws SQLException {
+    return new WarehouseResponse(
+        rs.getString("id"),
+        rs.getString("company_id"),
+        rs.getString("branch_id"),
+        rs.getString("name"),
+        rs.getString("adress"),
+        rs.getBoolean("active"),
+        rs.getTimestamp("created_at"),
+        rs.getTimestamp("updated_at"),
+        rs.getTimestamp("archived_at"));
   }
 }
