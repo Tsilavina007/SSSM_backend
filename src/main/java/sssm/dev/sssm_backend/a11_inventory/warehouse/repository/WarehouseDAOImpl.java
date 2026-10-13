@@ -178,7 +178,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         rs.getString("company_id"),
         rs.getString("branch_id"),
         rs.getString("name"),
-        rs.getString("adress"),
+        rs.getString("address"),
         rs.getBoolean("active"),
         rs.getTimestamp("created_at"),
         rs.getTimestamp("updated_at"),
