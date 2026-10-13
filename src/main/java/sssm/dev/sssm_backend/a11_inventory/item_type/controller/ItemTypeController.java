@@ -12,19 +12,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
 import sssm.dev.sssm_backend.a11_inventory.item_type.service.ItemTypeService;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/inventory/item-types")
 public class ItemTypeController {
   private final ItemTypeService itemTypeService;
-
-  public ItemTypeController() {
-    this.itemTypeService = new ItemTypeService();
-  }
 
   @GetMapping
   public List<ItemType> getItemTypes(

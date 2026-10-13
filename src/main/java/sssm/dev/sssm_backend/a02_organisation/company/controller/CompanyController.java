@@ -4,18 +4,16 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.web.bind.annotation.*;
 
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/company")
 public class CompanyController {
 
   private final CompanyService companyService;
-
-  public CompanyController() {
-    this.companyService = new CompanyService();
-  }
 
   @GetMapping
   public List<Company> getCompanies(

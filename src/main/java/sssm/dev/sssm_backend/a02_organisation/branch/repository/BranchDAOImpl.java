@@ -6,12 +6,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
 
+@Repository
 public class BranchDAOImpl implements BranchDAO {
 
   @Override

@@ -12,19 +12,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/inventory/item-categories")
 public class ItemCategoryController {
   private final ItemCategoryService itemCategoryService;
-
-  public ItemCategoryController() {
-    this.itemCategoryService = new ItemCategoryService();
-  }
 
   @GetMapping
   public List<ItemCategory> getItemCategories(

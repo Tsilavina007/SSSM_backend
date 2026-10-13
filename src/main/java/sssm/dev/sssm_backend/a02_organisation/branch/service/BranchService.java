@@ -1,6 +1,5 @@
 package sssm.dev.sssm_backend.a02_organisation.branch.service;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,23 +22,22 @@ public class BranchService {
   }
 
   public List<Branch> getBranches(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
-      throws SQLException {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int p = page.orElse(1), size = pageSize.orElse(10);
     return search.isPresent()
         ? mapperListResponseToBranch(branchDAO.searchBranchesByName(search.get(), p, size))
         : mapperListResponseToBranch(branchDAO.getAllBranches(p, size));
   }
 
-  public Optional<Branch> getBranchById(String id) throws SQLException {
+  public Optional<Branch> getBranchById(String id) {
     return Optional.of(mapperResponseToBranch(branchDAO.getBranchById(id).get()));
   }
 
-  public Branch createBranch(BranchCreateRequest branch) throws SQLException {
+  public Branch createBranch(BranchCreateRequest branch) {
     return mapperResponseToBranch(branchDAO.createBranch(branch));
   }
 
-  public Branch updateBranch(String id, BranchUpdateRequest branch) throws SQLException {
+  public Branch updateBranch(String id, BranchUpdateRequest branch) {
     if (branchDAO.getBranchById(id).isEmpty())
       throw new IllegalArgumentException("Branch not found with ID: " + id);
     return mapperResponseToBranch(branchDAO.updateBranch(id, branch));
@@ -49,7 +47,7 @@ public class BranchService {
     if (branchDAO.getBranchById(id).isPresent()) branchDAO.deleteBranch(id);
   }
 
-  private Branch mapperResponseToBranch(BranchResponse rs) throws SQLException {
+  private Branch mapperResponseToBranch(BranchResponse rs) {
     if (rs == null || rs.getAgence_id() == null) {
       return null;
     }
@@ -69,15 +67,11 @@ public class BranchService {
         rs.getUpdated_at()));
   }
 
-  private List<Branch> mapperListResponseToBranch(List<BranchResponse> items) throws SQLException {
+  private List<Branch> mapperListResponseToBranch(List<BranchResponse> items) {
     return items.stream()
         .map(
             item -> {
-              try {
                 return mapperResponseToBranch(item);
-              } catch (SQLException e) {
-                throw new RuntimeException(e);
-              }
             })
         .toList();
   }

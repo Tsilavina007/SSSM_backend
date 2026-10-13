@@ -3,17 +3,17 @@ package sssm.dev.sssm_backend.a02_organisation.company.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAO;
-import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;
 
+@Service
+@RequiredArgsConstructor
 public class CompanyService {
 
   private final CompanyDAO companyDAO;
-
-  public CompanyService() {
-    this.companyDAO = new CompanyDAOImpl();
-  }
 
   public List<Company> getCompanies(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {

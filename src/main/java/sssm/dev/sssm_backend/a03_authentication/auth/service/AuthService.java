@@ -3,7 +3,6 @@ package sssm.dev.sssm_backend.a03_authentication.auth.service;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +36,7 @@ public class AuthService {
     if (request == null) {
       throw new ClientException("Request body is missing");
     }
+    
     try {
       users.findByUsernameOrEmail(request.username());
       throw new ClientException("Username already exists: " + request.username());

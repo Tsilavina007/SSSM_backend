@@ -4,6 +4,9 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
@@ -13,22 +16,16 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
 import sssm.dev.sssm_backend.a11_inventory.item_type.repository.ItemTypeDAO;
-import sssm.dev.sssm_backend.a11_inventory.item_type.repository.ItemTypeDAOImpl;
 
+@Service
+@RequiredArgsConstructor
 public class ItemTypeService {
   private final ItemTypeDAO itemTypeDAO;
   private final CompanyService companyService;
   private final ItemCategoryService itemCategoryService;
 
-  public ItemTypeService() {
-    this.itemTypeDAO = new ItemTypeDAOImpl();
-    this.companyService = new CompanyService();
-    this.itemCategoryService = new ItemCategoryService();
-  }
-
   public List<ItemType> getItemTypes(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
-      throws SQLException {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return search.isPresent()
@@ -37,25 +34,23 @@ public class ItemTypeService {
         : mapperListResponseToType(itemTypeDAO.getAllItemTypes(pageNumber, pageSizeNumber));
   }
 
-  public Optional<ItemType> getItemTypeById(String itemTypeId) throws SQLException {
+  public Optional<ItemType> getItemTypeById(String itemTypeId) {
     return Optional.of(mapperResponseToType(itemTypeDAO.getItemTypeById(itemTypeId).get()));
   }
 
   public List<ItemType> getItemTypesByItemCategoryId(
-      String itemCategoryId, Optional<Integer> page, Optional<Integer> pageSize)
-      throws SQLException {
+      String itemCategoryId, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return mapperListResponseToType(
         itemTypeDAO.getAllItemTypesByItemCategoryId(itemCategoryId, pageNumber, pageSizeNumber));
   }
 
-  public ItemType createItemType(ItemTypeCreateRequest itemType) throws SQLException {
+  public ItemType createItemType(ItemTypeCreateRequest itemType) {
     return mapperResponseToType(itemTypeDAO.createItemType(itemType));
   }
 
-  public ItemType updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType)
-      throws SQLException {
+  public ItemType updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType) {
     if (itemTypeDAO.getItemTypeById(itemTypeId).isEmpty()) {
       throw new IllegalArgumentException("ItemType not found with ID: " + itemTypeId);
     }
@@ -66,7 +61,7 @@ public class ItemTypeService {
     itemTypeDAO.deleteItemType(itemTypeId);
   }
 
-  private ItemType mapperResponseToType(ItemTypeResponse rs) throws SQLException {
+  private ItemType mapperResponseToType(ItemTypeResponse rs) {
     if (rs == null || rs.getCompany_id() == null) {
       return null;
     }
@@ -88,16 +83,11 @@ public class ItemTypeService {
         rs.getUpdated_at()));
   }
 
-  private List<ItemType> mapperListResponseToType(List<ItemTypeResponse> items)
-      throws SQLException {
+  private List<ItemType> mapperListResponseToType(List<ItemTypeResponse> items) {
     return items.stream()
         .map(
             item -> {
-              try {
                 return mapperResponseToType(item);
-              } catch (SQLException e) {
-                throw new RuntimeException(e);
-              }
             })
         .toList();
   }

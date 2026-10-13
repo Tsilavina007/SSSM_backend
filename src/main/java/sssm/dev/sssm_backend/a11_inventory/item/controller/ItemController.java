@@ -12,19 +12,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/inventory/items")
 public class ItemController {
   private final ItemService itemService;
-
-  public ItemController() {
-    this.itemService = new ItemService();
-  }
 
   @GetMapping
   public List<Item> getItems(

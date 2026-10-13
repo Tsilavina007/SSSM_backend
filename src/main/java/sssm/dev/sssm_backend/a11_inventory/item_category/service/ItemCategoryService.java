@@ -4,6 +4,9 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
@@ -11,16 +14,12 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryRespons
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAO;
-import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAOImpl;
 
+@Service 
+@RequiredArgsConstructor
 public class ItemCategoryService {
   private final ItemCategoryDAO itemCategoryDAO;
   private final CompanyService companyService;
-
-  public ItemCategoryService() {
-    this.itemCategoryDAO = new ItemCategoryDAOImpl();
-    this.companyService = new CompanyService();
-  }
 
   public List<ItemCategory> getItemCategories(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
@@ -34,7 +33,7 @@ public class ItemCategoryService {
             itemCategoryDAO.getAllItemCategories(pageNumber, pageSizeNumber));
   }
 
-  public Optional<ItemCategory> getItemCategoryById(String itemCategoryId) throws SQLException {
+  public Optional<ItemCategory> getItemCategoryById(String itemCategoryId) {
     return Optional.of(
         mapperResponseToCategory(itemCategoryDAO.getItemCategoryById(itemCategoryId).get()));
   }
@@ -45,7 +44,7 @@ public class ItemCategoryService {
   }
 
   public ItemCategory updateItemCategory(
-      String itemCategoryId, ItemCategoryUpdateRequest updatedItemCategory) throws SQLException {
+      String itemCategoryId, ItemCategoryUpdateRequest updatedItemCategory) {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
       throw new IllegalArgumentException("ItemCategory not found with ID: " + itemCategoryId);
     }
@@ -58,7 +57,7 @@ public class ItemCategoryService {
     itemCategoryDAO.deleteItemCategory(itemCategoryId);
   }
 
-  private ItemCategory mapperResponseToCategory(ItemCategoryResponse rs) throws SQLException {
+  private ItemCategory mapperResponseToCategory(ItemCategoryResponse rs) {
     if (rs == null || rs.getCompany_id() == null) {
       return null;
     }
@@ -66,16 +65,11 @@ public class ItemCategoryService {
     return (new ItemCategory(rs.getId(), c, rs.getName(), rs.getDescription()));
   }
 
-  private List<ItemCategory> mapperListResponseToCategory(List<ItemCategoryResponse> items)
-      throws SQLException {
+  private List<ItemCategory> mapperListResponseToCategory(List<ItemCategoryResponse> items) {
     return items.stream()
         .map(
             item -> {
-              try {
-                return mapperResponseToCategory(item);
-              } catch (SQLException e) {
-                throw new RuntimeException(e);
-              }
+              return mapperResponseToCategory(item);
             })
         .toList();
   }

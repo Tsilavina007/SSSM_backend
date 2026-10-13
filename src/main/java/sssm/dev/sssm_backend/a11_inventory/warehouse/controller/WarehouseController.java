@@ -12,19 +12,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.service.WarehouseService;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/inventory/warehouses")
 public class WarehouseController {
   private final WarehouseService warehouseService;
-
-  public WarehouseController() {
-    this.warehouseService = new WarehouseService();
-  }
 
   @GetMapping
   public List<Warehouse> getWarehouses(

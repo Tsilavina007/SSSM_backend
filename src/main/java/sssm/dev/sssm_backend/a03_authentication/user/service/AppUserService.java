@@ -2,10 +2,13 @@ package sssm.dev.sssm_backend.a03_authentication.user.service;
 
 import java.util.*;
 
+import org.springframework.stereotype.Service;
+
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.repository.*;
 
+@Service 
 public class AppUserService {
   private final AppUserDAO dao = new AppUserDAOImpl();
 

@@ -10,12 +10,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 
+@Repository 
 public class ItemTypeDAOImpl implements ItemTypeDAO {
 
   @Override

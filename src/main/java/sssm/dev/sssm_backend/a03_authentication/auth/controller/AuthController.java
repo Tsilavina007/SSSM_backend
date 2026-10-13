@@ -39,7 +39,6 @@ public class AuthController {
         for (FieldError error : bindingResult.getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
-
         return ResponseEntity.badRequest().body(errors);
     }
 

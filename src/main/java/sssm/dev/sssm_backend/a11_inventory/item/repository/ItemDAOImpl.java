@@ -10,12 +10,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 
+@Repository 
 public class ItemDAOImpl implements ItemDAO {
 
   @Override
@@ -35,7 +40,7 @@ public class ItemDAOImpl implements ItemDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return values;
   }
@@ -61,7 +66,7 @@ public class ItemDAOImpl implements ItemDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return values;
   }
@@ -79,21 +84,12 @@ public class ItemDAOImpl implements ItemDAO {
         if (rs.next()) {
           return Optional.of(mapRowToItemResponse(rs));
         }
+        throw new NotFoundException("Item.id=" + id + " not found");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return Optional.empty();
   }
-// public class ItemCreateRequest {
-//   private String company_id;
-//   private String category_id;
-//   private String item_type_id;
-//   private String qr_code;
-//   private String description;
-//   private ItemStatus status;
-//   private String current_warehouse_id;
-// }
 
   @Override
   public ItemResponse createItem(ItemCreateRequest value) {
@@ -124,7 +120,7 @@ public class ItemDAOImpl implements ItemDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return null;
   }
@@ -177,7 +173,7 @@ public class ItemDAOImpl implements ItemDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return getItemById(id).get();
   }
@@ -192,7 +188,7 @@ public class ItemDAOImpl implements ItemDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 
