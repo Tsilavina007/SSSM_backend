@@ -6,9 +6,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 
+@Repository 
 public class CompanyDAOImpl implements CompanyDAO {
 
   @Override
@@ -35,7 +40,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return companies;
   }
@@ -59,7 +64,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return companies;
   }
@@ -77,11 +82,11 @@ public class CompanyDAOImpl implements CompanyDAO {
         if (rs.next()) {
           return Optional.of(mapRowToCompany(rs));
         }
+        throw new NotFoundException("Company with id : " + companyId + " not Found");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return Optional.empty();
   }
 
   @Override
@@ -110,9 +115,11 @@ public class CompanyDAOImpl implements CompanyDAO {
         if (rs.next()) {
           company.setId(rs.getString(1));
         }
+        else
+          throw new NotFoundException("Error while creating new Company");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return company;
   }
@@ -181,10 +188,9 @@ public class CompanyDAOImpl implements CompanyDAO {
         statement.setObject(index + 1, parameters.get(index));
       }
       statement.executeUpdate();
-    } catch (SQLException exception) {
-      exception.printStackTrace();
+    } catch (SQLException e) {
+      throw new ServerException(e);
     }
-
     return company;
   }
 
@@ -198,7 +204,7 @@ public class CompanyDAOImpl implements CompanyDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 
