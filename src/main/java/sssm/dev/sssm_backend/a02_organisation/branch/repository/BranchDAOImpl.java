@@ -8,15 +8,17 @@ import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
-import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
 
 public class BranchDAOImpl implements BranchDAO {
 
   @Override
-  public List<Branch> searchBranchesByName(String searchName, int page, int pageSize) {
+  public List<BranchResponse> searchBranchesByName(String searchName, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.branch WHERE name ILIKE ? OR code ILIKE ? LIMIT ? OFFSET ?";
-    List<Branch> branches = new ArrayList<>();
+    List<BranchResponse> branches = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -29,7 +31,7 @@ public class BranchDAOImpl implements BranchDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          Branch branch = mapRowToBranch(rs);
+          BranchResponse branch = mapRowToBranch(rs);
           branches.add(branch);
         }
       }
@@ -40,9 +42,9 @@ public class BranchDAOImpl implements BranchDAO {
   }
 
   @Override
-  public List<Branch> getAllBranches(int page, int pageSize) {
+  public List<BranchResponse> getAllBranches(int page, int pageSize) {
     String sql = "SELECT * FROM security.branch LIMIT ? OFFSET ?";
-    List<Branch> branches = new ArrayList<>();
+    List<BranchResponse> branches = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -52,7 +54,7 @@ public class BranchDAOImpl implements BranchDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          Branch branch = mapRowToBranch(rs);
+          BranchResponse branch = mapRowToBranch(rs);
           branches.add(branch);
         }
       }
@@ -63,7 +65,7 @@ public class BranchDAOImpl implements BranchDAO {
   }
 
   @Override
-  public Optional<Branch> getBranchById(String branchId) {
+  public Optional<BranchResponse> getBranchById(String branchId) {
     String sql = "SELECT * FROM security.branch WHERE id = ?";
     UUID id = UUID.fromString(branchId);
 
@@ -83,7 +85,7 @@ public class BranchDAOImpl implements BranchDAO {
   }
 
   @Override
-  public Branch createBranch(Branch branch) {
+  public BranchResponse createBranch(BranchCreateRequest branch) {
     String sql =
         "INSERT INTO security.branch (company_id, agence_id, name, code, address, city, phone, "
             + "email, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.site_status))";
@@ -103,17 +105,17 @@ public class BranchDAOImpl implements BranchDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          branch.setId(rs.getString(1));
+          return mapRowToBranch(rs);
         }
       }
-    } catch (SQLException e) {
+    } catch (SQLException e) {  
       e.printStackTrace();
     }
-    return branch;
+    return null;
   }
 
   @Override
-  public Branch updateBranch(Branch branch) {
+  public BranchResponse updateBranch(String id, BranchUpdateRequest branch) {
     StringBuilder sql = new StringBuilder("UPDATE security.branch SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -155,12 +157,12 @@ public class BranchDAOImpl implements BranchDAO {
     }
 
     if (parameters.isEmpty()) {
-      return branch;
+      return null;
     }
 
     sql.setLength(sql.length() - 2);
     sql.append(" WHERE id = ?");
-    parameters.add(UUID.fromString(branch.getId()));
+    parameters.add(UUID.fromString(id));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -171,7 +173,7 @@ public class BranchDAOImpl implements BranchDAO {
     } catch (SQLException e) {
       e.printStackTrace();
     }
-    return branch;
+    return getBranchById(id).get();
   }
 
   @Override
@@ -188,8 +190,8 @@ public class BranchDAOImpl implements BranchDAO {
     }
   }
 
-  private Branch mapRowToBranch(ResultSet rs) throws SQLException {
-    return new Branch(
+  private BranchResponse mapRowToBranch(ResultSet rs) throws SQLException {
+    return new BranchResponse(
         rs.getString("id"),
         rs.getString("company_id"),
         rs.getString("agence_id"),

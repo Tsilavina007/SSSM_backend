@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
+import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 
 @Data
 @NoArgsConstructor
@@ -13,7 +14,7 @@ import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 public class Branch {
   private String id;
   private String company_id;
-  private String agence_id;
+  private Agency agence;
   private String name;
   private String code;
   private String address;

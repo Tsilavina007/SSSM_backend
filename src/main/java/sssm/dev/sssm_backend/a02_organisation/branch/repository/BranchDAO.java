@@ -3,18 +3,20 @@ package sssm.dev.sssm_backend.a02_organisation.branch.repository;
 import java.util.List;
 import java.util.Optional;
 
-import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
 
 public interface BranchDAO {
-  List<Branch> getAllBranches(int page, int pageSize);
+  List<BranchResponse> getAllBranches(int page, int pageSize);
 
-  List<Branch> searchBranchesByName(String searchName, int page, int pageSize);
+  List<BranchResponse> searchBranchesByName(String searchName, int page, int pageSize);
 
-  Optional<Branch> getBranchById(String branchId);
+  Optional<BranchResponse> getBranchById(String branchId);
 
-  Branch createBranch(Branch branch);
+  BranchResponse createBranch(BranchCreateRequest branch);
 
-  Branch updateBranch(Branch branch);
+  BranchResponse updateBranch(String id, BranchUpdateRequest branch);
 
   void deleteBranch(String branchId);
 }
