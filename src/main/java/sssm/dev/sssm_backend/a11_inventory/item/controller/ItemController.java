@@ -18,7 +18,7 @@ import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 
 @RestController
-@RequestMapping({"/api/items", "/api/inventory/items"})
+@RequestMapping("/api/inventory/items")
 public class ItemController {
   private final ItemService itemService;
 

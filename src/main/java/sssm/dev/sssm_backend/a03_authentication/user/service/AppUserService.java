@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.a03_authentication.user.service;
 
 import java.util.*;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.repository.*;
 
@@ -16,13 +17,25 @@ public class AppUserService {
     return dao.findById(id);
   }
 
+  public List<String> findRoleNames(String userId) {
+    return dao.findRoleNames(userId);
+  }
+
+  public Optional<AppUser> findByUsernameOrEmail(String login) {
+    return dao.findByUsernameOrEmail(login);
+  }
+
+  public void updateLastLogin(String userId) {
+    dao.updateLastLogin(userId);
+  }
+
   public AppUser create(AppUser user) {
     return dao.create(user);
   }
 
   public AppUser update(String id, AppUser user) {
     if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("User not found with ID: " + id);
+      throw new ClientException("User not found with ID: " + id);
     user.setId(id);
     return dao.update(user);
   }

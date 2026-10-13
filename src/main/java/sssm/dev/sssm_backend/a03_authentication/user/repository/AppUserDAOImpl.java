@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 
@@ -30,7 +32,7 @@ public class AppUserDAOImpl implements AppUserDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return users;
   }
@@ -48,11 +50,11 @@ public class AppUserDAOImpl implements AppUserDAO {
         if (rs.next()) {
           return Optional.of(mapRowToAppUser(rs));
         }
+        throw new NotFoundException("User.id=" + userId + " not found");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return Optional.empty();
   }
 
   @Override
@@ -64,11 +66,11 @@ public class AppUserDAOImpl implements AppUserDAO {
       stmt.setString(2, login);
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) return Optional.of(mapRowToAppUser(rs));
+        throw new NotFoundException("User.login=" + login + " not found");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return Optional.empty();
   }
 
   @Override
@@ -84,7 +86,7 @@ public class AppUserDAOImpl implements AppUserDAO {
         while (rs.next()) roles.add(rs.getString(1));
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return roles;
   }
@@ -97,7 +99,7 @@ public class AppUserDAOImpl implements AppUserDAO {
       stmt.setObject(1, UUID.fromString(userId));
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 
@@ -126,7 +128,7 @@ public class AppUserDAOImpl implements AppUserDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return user;
   }
@@ -184,7 +186,7 @@ public class AppUserDAOImpl implements AppUserDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return user;
   }

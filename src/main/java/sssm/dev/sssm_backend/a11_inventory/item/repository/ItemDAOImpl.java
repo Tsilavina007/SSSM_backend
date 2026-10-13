@@ -15,7 +15,6 @@ import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
-import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 
 public class ItemDAOImpl implements ItemDAO {
 

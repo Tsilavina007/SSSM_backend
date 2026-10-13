@@ -11,11 +11,11 @@ import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
-import sssm.dev.sssm_backend.a03_authentication.user.repository.*;
+import sssm.dev.sssm_backend.a03_authentication.user.service.AppUserService;
 
 @Service
 public class AuthService {
-  private final AppUserDAO users = new AppUserDAOImpl();
+  private final AppUserService users = new AppUserService();
   private final RoleDAO roles = new RoleDAOImpl();
   private final PasswordEncoder encoder;
   private final JwtService jwt;
@@ -44,7 +44,8 @@ public class AuthService {
     user.setPhone(request.phone());
     user.setStatus(UserStatus.ACTIVE);
     user = users.create(user);
-    if (user.getId() == null) throw new IllegalStateException("Unable to create user");
+    if (user.getId() == null)
+      throw new IllegalStateException("Unable to create user");
     String userId = user.getId();
     roles.findGlobalByName(defaultRole).ifPresent(role -> users.assignRole(userId, role.getId()));
     List<String> roleNames = users.findRoleNames(user.getId());
@@ -56,9 +57,9 @@ public class AuthService {
         users
             .findByUsernameOrEmail(request.login())
             .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-            .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+            .orElseThrow(() -> new BadCredentialsException("Invalid credentials or inactive user account"));
     if (!encoder.matches(request.password(), user.getPassword_hash()))
-      throw new BadCredentialsException("Invalid credentials");
+      throw new BadCredentialsException("Invalid credentials or inactive user account");
     users.updateLastLogin(user.getId());
     List<String> roleNames = users.findRoleNames(user.getId());
     return new AuthResponse(
