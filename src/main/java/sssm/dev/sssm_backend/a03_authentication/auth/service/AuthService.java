@@ -7,6 +7,9 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
@@ -31,9 +34,21 @@ public class AuthService {
   }
 
   public AuthResponse register(RegisterRequest request) {
-    if (users.findByUsernameOrEmail(request.username()).isPresent()
-        || (request.email() != null && users.findByUsernameOrEmail(request.email()).isPresent())) {
-      throw new IllegalArgumentException("Username or email already exists");
+    if (request == null) {
+      throw new ClientException("Request body is missing");
+    }
+    try {
+      users.findByUsernameOrEmail(request.username());
+      throw new ClientException("Username already exists: " + request.username());
+    } catch (NotFoundException e) {
+      if (request.email() != null) {
+        try {
+          users.findByUsernameOrEmail(request.email());
+          throw new ClientException("Email already exists: " + request.email());
+        } catch (NotFoundException e2) {
+          // No user found with the given username or email, proceed with registration
+        }
+      }
     }
     AppUser user = new AppUser();
     user.setUsername(request.username().trim());
@@ -43,9 +58,15 @@ public class AuthService {
     user.setLast_name(request.lastName());
     user.setPhone(request.phone());
     user.setStatus(UserStatus.ACTIVE);
-    user = users.create(user);
-    if (user.getId() == null)
-      throw new IllegalStateException("Unable to create user");
+    try { 
+      user = users.create(user);
+    } catch (ServerException e) {
+      throw new ServerException("Failed to create user: " + e.getMessage());
+    } catch (ClientException e) {
+      throw new ClientException("Failed to create user: " + e.getMessage());
+    } catch (Exception e) {
+      throw new ServerException("An unexpected error occurred while creating the user: " + e.getMessage());
+    }
     String userId = user.getId();
     roles.findGlobalByName(defaultRole).ifPresent(role -> users.assignRole(userId, role.getId()));
     List<String> roleNames = users.findRoleNames(user.getId());
@@ -57,9 +78,9 @@ public class AuthService {
         users
             .findByUsernameOrEmail(request.login())
             .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-            .orElseThrow(() -> new BadCredentialsException("Invalid credentials or inactive user account"));
+            .orElseThrow(() -> new ClientException("Invalid credentials or inactive user account"));
     if (!encoder.matches(request.password(), user.getPassword_hash()))
-      throw new BadCredentialsException("Invalid credentials or inactive user account");
+      throw new ClientException("Invalid credentials or inactive user account");
     users.updateLastLogin(user.getId());
     List<String> roleNames = users.findRoleNames(user.getId());
     return new AuthResponse(

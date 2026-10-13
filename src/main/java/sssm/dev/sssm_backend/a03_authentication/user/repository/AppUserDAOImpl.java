@@ -50,7 +50,7 @@ public class AppUserDAOImpl implements AppUserDAO {
         if (rs.next()) {
           return Optional.of(mapRowToAppUser(rs));
         }
-        throw new NotFoundException("User.id=" + userId + " not found");
+        throw new NotFoundException("User.id= " + userId + " not found");
       }
     } catch (SQLException e) {
       throw new ServerException(e);
@@ -126,6 +126,8 @@ public class AppUserDAOImpl implements AppUserDAO {
         if (rs.next()) {
           user.setId(rs.getString(1));
         }
+      } catch (SQLException e) {
+        throw new ServerException(e);
       }
     } catch (SQLException e) {
       throw new ServerException(e);
