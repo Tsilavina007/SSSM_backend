@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
@@ -22,8 +23,7 @@ public class ItemCategoryService {
   private final CompanyService companyService;
 
   public List<ItemCategory> getItemCategories(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize)
-      throws SQLException {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return search.isPresent()
@@ -38,15 +38,14 @@ public class ItemCategoryService {
         mapperResponseToCategory(itemCategoryDAO.getItemCategoryById(itemCategoryId).get()));
   }
 
-  public ItemCategory createItemCategory(ItemCategoryCreateRequest itemCategoryCreateRequest)
-      throws SQLException {
+  public ItemCategory createItemCategory(ItemCategoryCreateRequest itemCategoryCreateRequest) {
     return mapperResponseToCategory(itemCategoryDAO.createItemCategory(itemCategoryCreateRequest));
   }
 
   public ItemCategory updateItemCategory(
       String itemCategoryId, ItemCategoryUpdateRequest updatedItemCategory) {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
-      throw new IllegalArgumentException("ItemCategory not found with ID: " + itemCategoryId);
+      throw new NotFoundException("ItemCategory not found with ID: " + itemCategoryId);
     }
     ;
     return mapperResponseToCategory(

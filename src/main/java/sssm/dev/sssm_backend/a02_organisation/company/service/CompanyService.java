@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAO;
 
@@ -41,7 +42,7 @@ public class CompanyService {
       updatedCompany.setId(companyId);
       return companyDAO.updateCompany(updatedCompany);
     } else {
-      throw new IllegalArgumentException("Company not found with ID: " + companyId);
+      throw new NotFoundException("Company not found with ID: " + companyId);
     }
   }
 

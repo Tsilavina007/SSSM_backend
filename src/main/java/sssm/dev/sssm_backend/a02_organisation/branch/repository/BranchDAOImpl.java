@@ -41,7 +41,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when searchBranchesByName : " + e);
     }
     return branches;
   }
@@ -64,7 +64,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when getAllBranches : " + e);
     }
     return branches;
   }
@@ -85,7 +85,7 @@ public class BranchDAOImpl implements BranchDAO {
         throw new NotFoundException("Branch with id : " + branchId + " not Found");
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when getBranchById : " + e);
     }
   }
 
@@ -112,12 +112,11 @@ public class BranchDAOImpl implements BranchDAO {
         if (rs.next()) {
           return mapRowToBranch(rs);
         }
-        else
-          throw new ServerException("Error when creating new Branch");
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when createBranch : " + e);
     }
+    return null;
   }
 
   @Override
@@ -177,7 +176,7 @@ public class BranchDAOImpl implements BranchDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when updateBranch : " + e);
     }
     return getBranchById(id).get();
   }
@@ -192,7 +191,7 @@ public class BranchDAOImpl implements BranchDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when deleteBranch : " + e);
     }
   }
 

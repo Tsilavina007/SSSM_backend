@@ -2,6 +2,8 @@ package sssm.dev.sssm_backend.a11_inventory.item_category.controller;
 
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -13,10 +15,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
+
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,36 +33,78 @@ public class ItemCategoryController {
   private final ItemCategoryService itemCategoryService;
 
   @GetMapping
-  public List<ItemCategory> getItemCategories(
+  public ResponseEntity<Object> getItemCategories(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search)
-      throws Exception {
-    return itemCategoryService.getItemCategories(search, page, pageSize);
+      @RequestParam Optional<String> search) {
+    try {
+      List<ItemCategory> categories = itemCategoryService.getItemCategories(search, page, pageSize);
+      return ResponseEntity.ok().body(categories);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @GetMapping("/{itemCategoryId}")
-  public Optional<ItemCategory> getItemCategoryById(@PathVariable String itemCategoryId)
-      throws Exception {
-    return itemCategoryService.getItemCategoryById(itemCategoryId);
+  public ResponseEntity<Object> getItemCategoryById(@PathVariable String itemCategoryId) {
+    try {
+      Optional<ItemCategory> category = itemCategoryService.getItemCategoryById(itemCategoryId);
+      return ResponseEntity.ok().body(category);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @PostMapping
-  public ItemCategory createItemCategory(@RequestBody ItemCategoryCreateRequest itemCategory)
-      throws Exception {
-    return itemCategoryService.createItemCategory(itemCategory);
+  public ResponseEntity<Object> createItemCategory(@RequestBody ItemCategoryCreateRequest itemCategory) {
+    try {
+      ItemCategory category = itemCategoryService.createItemCategory(itemCategory);
+      return ResponseEntity.ok().body(category);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @PatchMapping("/{itemCategoryId}")
-  public ItemCategory updateItemCategory(
+  public ResponseEntity<Object> updateItemCategory(
       @PathVariable String itemCategoryId,
-      @RequestBody ItemCategoryUpdateRequest updatedItemCategory)
-      throws Exception {
-    return itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
+      @RequestBody ItemCategoryUpdateRequest updatedItemCategory) {
+    try {
+      ItemCategory category = itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
+      return ResponseEntity.ok().body(category);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @DeleteMapping("/{itemCategoryId}")
-  public void deleteItemCategory(@PathVariable String itemCategoryId) {
-    itemCategoryService.deleteItemCategory(itemCategoryId);
+  public ResponseEntity<Object> deleteItemCategory(@PathVariable String itemCategoryId) {
+    try {
+      itemCategoryService.deleteItemCategory(itemCategoryId);
+      return ResponseEntity.ok().body("ItemCategory deleted : " + itemCategoryId);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
+    
   }
 }

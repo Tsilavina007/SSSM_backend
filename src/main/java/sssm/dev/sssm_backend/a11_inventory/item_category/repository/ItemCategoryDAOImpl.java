@@ -13,6 +13,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
@@ -42,7 +44,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when getAllItemCategories : " + e);
     }
     return values;
   }
@@ -69,7 +71,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when searchItemCategoriesByName : " + e);
     }
     return values;
   }
@@ -87,11 +89,11 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         if (rs.next()) {
           return Optional.of(mapRowToItemCategoryResponse(rs));
         }
+        throw new NotFoundException("ItemCategory with id : " + id + " not Found");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when getItemCategoryById : " + e);
     }
-    return Optional.empty();
   }
 
   @Override
@@ -113,7 +115,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when createItemCategory : " + e);
     }
     return null;
   }
@@ -151,7 +153,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when updateItemCategory : " + e);
     }
     return getItemCategoryById(id).get();
   }
@@ -166,7 +168,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when deleteItemCategory : " + e);
     }
   }
 

@@ -40,7 +40,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when searchCompaniesByName : " + e);
     }
     return companies;
   }
@@ -64,7 +64,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when getAllCompanies : " + e);
     }
     return companies;
   }
@@ -85,7 +85,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         throw new NotFoundException("Company with id : " + companyId + " not Found");
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when getCompanyById : " + e);
     }
   }
 
@@ -115,12 +115,11 @@ public class CompanyDAOImpl implements CompanyDAO {
         if (rs.next()) {
           return mapRowToCompany(rs);
         }
-        else
-          throw new ServerException("Error when creating new Company");
       }
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when createCompany : " + e);
     }
+    return null;
   }
 
   @Override
@@ -188,7 +187,7 @@ public class CompanyDAOImpl implements CompanyDAO {
       }
       statement.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when updateCompany : " + e);
     }
     return company;
   }
@@ -203,7 +202,7 @@ public class CompanyDAOImpl implements CompanyDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException(e);
+      throw new ServerException("Error when deleteCompany : " + e);
     }
   }
 

@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a02_organisation.branch.service;
 import java.util.List;
 import java.util.Optional;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 import sssm.dev.sssm_backend.a02_organisation.agency.service.AgencyService;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
@@ -39,7 +40,7 @@ public class BranchService {
 
   public Branch updateBranch(String id, BranchUpdateRequest branch) {
     if (branchDAO.getBranchById(id).isEmpty())
-      throw new IllegalArgumentException("Branch not found with ID: " + id);
+      throw new NotFoundException("Branch not found with ID: " + id);
     return mapperResponseToBranch(branchDAO.updateBranch(id, branch));
   }
 
