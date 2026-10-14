@@ -84,11 +84,11 @@ public class ItemDAOImpl implements ItemDAO {
         if (rs.next()) {
           return Optional.of(mapRowToItemResponse(rs));
         }
-        throw new NotFoundException("Item.id=" + id + " not found");
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
+    return Optional.empty();
   }
 
   @Override
