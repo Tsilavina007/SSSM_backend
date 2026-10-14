@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.a11_inventory.item.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
+import sssm.dev.sssm_backend.a11_inventory.item.mapper.ItemErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -42,11 +44,11 @@ public class ItemController {
       List<Item> items = itemService.getItems(search, page, pageSize);
       return ResponseEntity.ok().body(items);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
     }
   }
 
@@ -56,25 +58,52 @@ public class ItemController {
       Optional<Item> item = itemService.getItemById(itemId);
       return ResponseEntity.ok().body(item);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
     }
   }
 
   @PostMapping
-  public ResponseEntity<Object> createItem(@RequestBody ItemCreateRequest item) throws Exception {
+  public ResponseEntity<Object> createItem(@RequestBody ItemCreateRequest item) {
     try {
       Item itemRes = itemService.createItem(item);
       return ResponseEntity.ok().body(itemRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  @PostMapping("/bulk")
+  public ResponseEntity<Object> createItems(@RequestBody List<ItemCreateRequest> items) {
+    try {
+      List<Object> itemsRes = itemService.createItems(items);
+      List<Item> createdItems = (List<Item>) itemsRes.get(0);
+      Map<ItemCreateRequest, String> failedItems = (Map<ItemCreateRequest, String>) itemsRes.get(1);
+      List<Map<String, Object>> failedItemsWithErrors = failedItems.entrySet().stream()
+          .map(entry -> Map.of(
+              "item", entry.getKey(),
+              "error", entry.getValue()
+          ))
+          .toList();
+      Map<String, Object> response = Map.of(
+          "createdItems", createdItems,
+          "failedItems", failedItemsWithErrors
+      );
+      return ResponseEntity.ok().body(response);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
     }
   }
 
@@ -84,11 +113,11 @@ public class ItemController {
       Item itemRes = itemService.updateItem(itemId, updatedItem);
       return ResponseEntity.ok().body(itemRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
     }
   }
 
@@ -98,11 +127,11 @@ public class ItemController {
       itemService.deleteItem(itemId);
     return ResponseEntity.ok().body("Item deleted : " + itemId);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
     }
   }
 }

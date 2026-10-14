@@ -1,18 +1,23 @@
 package sssm.dev.sssm_backend.a11_inventory.item.service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
+import sssm.dev.sssm_backend.a11_inventory.item.mapper.ItemError;
+import sssm.dev.sssm_backend.a11_inventory.item.mapper.ItemErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
@@ -50,6 +55,21 @@ public class ItemService {
   public Item createItem(ItemCreateRequest item) {
     return mapperResponseToItem(itemDAO.createItem(item));
   }
+
+  public List<Object> createItems(List<ItemCreateRequest> items) {
+    List<Item> createdItems = new ArrayList<>();
+    Map<ItemCreateRequest, ItemError> failedItemsWithErrors = new java.util.HashMap<>();
+    for (ItemCreateRequest item : items) {
+      try {
+        ItemResponse createdItemResponse = itemDAO.createItem(item);
+          createdItems.add(mapperResponseToItem(createdItemResponse));
+      } catch (ServerException e) {
+        failedItemsWithErrors.put(item, ItemErrorMapper.toItemError(e));
+      }
+    }
+    return new ArrayList<>(List.of(createdItems, failedItemsWithErrors));
+  }
+
   public Item updateItem(String itemId, ItemUpdateRequest updatedItem) {
     Optional<ItemResponse> itemResponse = itemDAO.getItemById(itemId);
     if (itemResponse.isEmpty()) {
