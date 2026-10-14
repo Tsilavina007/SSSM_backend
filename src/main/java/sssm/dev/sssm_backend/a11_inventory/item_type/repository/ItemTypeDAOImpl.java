@@ -13,6 +13,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
@@ -51,7 +53,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when getAllItemTypes : " + e);
     }
     return values;
   }
@@ -77,7 +79,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when getAllItemTypesByItemCategoryId : " + e);
     }
     return values;
   }
@@ -104,7 +106,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when searchItemTypesByName : " + e);
     }
     return values;
   }
@@ -122,11 +124,11 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         if (rs.next()) {
           return Optional.of(mapRowToItemTypeResponse(rs));
         }
+        throw new NotFoundException("ItemType with id : " + id + " not Found");
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when getItemTypeById : " + e);
     }
-    return Optional.empty();
   }
 
   @Override
@@ -156,7 +158,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when createItemType : " + e);
     }
     return null;
   }
@@ -218,7 +220,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when updateItemType : " + e);
     }
     return getItemTypeById(id).get();
   }
@@ -233,7 +235,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when deleteItemType : " + e);
     }
   }
 

@@ -1,6 +1,5 @@
 package sssm.dev.sssm_backend.a11_inventory.item_category.service;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 

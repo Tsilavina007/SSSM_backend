@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
@@ -51,7 +52,7 @@ public class ItemTypeService {
 
   public ItemType updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType) {
     if (itemTypeDAO.getItemTypeById(itemTypeId).isEmpty()) {
-      throw new IllegalArgumentException("ItemType not found with ID: " + itemTypeId);
+      throw new NotFoundException("ItemType not found with ID: " + itemTypeId);
     }
     return mapperResponseToType(itemTypeDAO.updateItemType(itemTypeId, updatedItemType));
   }
