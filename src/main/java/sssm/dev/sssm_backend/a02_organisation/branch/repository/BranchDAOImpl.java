@@ -82,11 +82,11 @@ public class BranchDAOImpl implements BranchDAO {
         if (rs.next()) {
           return Optional.of(mapRowToBranch(rs));
         }
-        throw new NotFoundException("Branch with id : " + branchId + " not Found");
       }
     } catch (SQLException e) {
       throw new ServerException("Error when getBranchById : " + e);
     }
+    return Optional.empty();
   }
 
   @Override

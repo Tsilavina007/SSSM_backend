@@ -106,12 +106,20 @@ public class ItemTypeController {
   }
 
   @GetMapping("/category/{itemCategoryId}")
-  public List<ItemType> getItemTypesByItemCategoryId(
+  public ResponseEntity<Object> getItemTypesByItemCategoryId(
       @PathVariable String itemCategoryId,
       @RequestParam Optional<Integer> page,
-      @RequestParam Optional<Integer> pageSize)
-      throws Exception {
-    return itemTypeService.getItemTypesByItemCategoryId(itemCategoryId, page, pageSize);
+      @RequestParam Optional<Integer> pageSize) {
+    try {
+      List<ItemType> types = itemTypeService.getItemTypesByItemCategoryId(itemCategoryId, page, pageSize);
+      return ResponseEntity.ok().body(types);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @GetMapping("/low-stock")

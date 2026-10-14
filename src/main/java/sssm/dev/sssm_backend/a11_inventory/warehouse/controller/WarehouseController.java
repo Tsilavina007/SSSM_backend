@@ -2,6 +2,8 @@ package sssm.dev.sssm_backend.a11_inventory.warehouse.controller;
 
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -13,10 +15,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.service.WarehouseService;
+
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,33 +32,76 @@ public class WarehouseController {
   private final WarehouseService warehouseService;
 
   @GetMapping
-  public List<Warehouse> getWarehouses(
+  public ResponseEntity<Object> getWarehouses(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search)
-      throws Exception {
-    return warehouseService.getWarehouses(search, page, pageSize);
+      @RequestParam Optional<String> search) {
+    try {
+      List<Warehouse> warehouses = warehouseService.getWarehouses(search, page, pageSize);
+      return ResponseEntity.ok().body(warehouses);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @GetMapping("/{warehouseId}")
-  public Optional<Warehouse> getWarehouseById(@PathVariable String warehouseId) throws Exception {
-    return warehouseService.getWarehouseById(warehouseId);
+  public ResponseEntity<Object> getWarehouseById(@PathVariable String warehouseId) {
+    try {
+      Optional<Warehouse> warehouses = warehouseService.getWarehouseById(warehouseId);
+      return ResponseEntity.ok().body(warehouses);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @PostMapping
-  public Warehouse createWarehouse(@RequestBody WarehouseCreateRequest warehouse) throws Exception {
-    return warehouseService.createWarehouse(warehouse);
+  public ResponseEntity<Object> createWarehouse(@RequestBody WarehouseCreateRequest warehouse) {
+    try {
+      Warehouse warehouses = warehouseService.createWarehouse(warehouse);
+      return ResponseEntity.ok().body(warehouses);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @PatchMapping("/{warehouseId}")
-  public Warehouse updateWarehouse(
-      @PathVariable String warehouseId, @RequestBody WarehouseUpdateRequest updatedWarehouse)
-      throws Exception {
-    return warehouseService.updateWarehouse(warehouseId, updatedWarehouse);
+  public ResponseEntity<Object> updateWarehouse(
+      @PathVariable String warehouseId, @RequestBody WarehouseUpdateRequest updatedWarehouse) {
+    try {
+      Warehouse warehouses = warehouseService.updateWarehouse(warehouseId, updatedWarehouse);
+      return ResponseEntity.ok().body(warehouses);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 
   @DeleteMapping("/{warehouseId}")
-  public void deleteWarehouse(@PathVariable String warehouseId) throws Exception {
-    warehouseService.deleteWarehouse(warehouseId);
+  public ResponseEntity<Object> deleteWarehouse(@PathVariable String warehouseId) {
+    try {
+      warehouseService.deleteWarehouse(warehouseId);
+      return ResponseEntity.ok().body("Warehouse deleted : " + warehouseId);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError().body(e.getMessage());
+    }
   }
 }

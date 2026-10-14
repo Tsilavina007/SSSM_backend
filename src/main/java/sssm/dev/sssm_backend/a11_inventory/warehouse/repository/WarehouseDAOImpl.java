@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
@@ -37,7 +38,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when getAllWarehouses : " + e);
     }
     return values;
   }
@@ -63,7 +64,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when searchWarehousesByName : " + e);
     }
     return values;
   }
@@ -83,7 +84,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when getWarehouseById : " + e);
     }
     return Optional.empty();
   }
@@ -110,7 +111,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when createWarehouse : " + e);
     }
     return null;
   }
@@ -156,7 +157,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when updateWarehouse : " + e);
     }
     return getWarehouseById(id).get();
   }
@@ -171,7 +172,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException("Error when deleteWarehouse : " + e);
     }
   }
 

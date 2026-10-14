@@ -82,11 +82,11 @@ public class CompanyDAOImpl implements CompanyDAO {
         if (rs.next()) {
           return Optional.of(mapRowToCompany(rs));
         }
-        throw new NotFoundException("Company with id : " + companyId + " not Found");
       }
     } catch (SQLException e) {
       throw new ServerException("Error when getCompanyById : " + e);
     }
+    return Optional.empty();
   }
 
   @Override

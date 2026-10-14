@@ -124,11 +124,11 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         if (rs.next()) {
           return Optional.of(mapRowToItemTypeResponse(rs));
         }
-        throw new NotFoundException("ItemType with id : " + id + " not Found");
       }
     } catch (SQLException e) {
       throw new ServerException("Error when getItemTypeById : " + e);
     }
+    return Optional.empty();
   }
 
   @Override

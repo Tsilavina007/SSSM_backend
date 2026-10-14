@@ -89,11 +89,11 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         if (rs.next()) {
           return Optional.of(mapRowToItemCategoryResponse(rs));
         }
-        throw new NotFoundException("ItemCategory with id : " + id + " not Found");
       }
     } catch (SQLException e) {
       throw new ServerException("Error when getItemCategoryById : " + e);
     }
+    return Optional.empty();
   }
 
   @Override

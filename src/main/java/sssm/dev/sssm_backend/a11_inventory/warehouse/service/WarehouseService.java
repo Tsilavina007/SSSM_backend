@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
 import sssm.dev.sssm_backend.a02_organisation.branch.service.BranchService;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
@@ -40,7 +41,7 @@ public class WarehouseService {
 
   public Warehouse updateWarehouse(String warehouseId, WarehouseUpdateRequest updatedWarehouse) {
     if (warehouseDAO.getWarehouseById(warehouseId).isEmpty()) {
-      throw new IllegalArgumentException("Warehouse not found with ID: " + warehouseId);
+      throw new NotFoundException("Warehouse not found with ID: " + warehouseId);
     }
     return mapperResponseToWarehouse(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
   }

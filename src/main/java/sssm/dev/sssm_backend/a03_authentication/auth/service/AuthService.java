@@ -13,11 +13,11 @@ import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
-import sssm.dev.sssm_backend.a03_authentication.user.service.AppUserService;
+import sssm.dev.sssm_backend.a03_authentication.user.repository.AppUserDAOImpl;
 
 @Service
 public class AuthService {
-  private final AppUserService users = new AppUserService();
+  private final AppUserDAOImpl users = new AppUserDAOImpl();
   private final RoleDAO roles = new RoleDAOImpl();
   private final PasswordEncoder encoder;
   private final JwtService jwt;
@@ -36,19 +36,14 @@ public class AuthService {
     if (request == null) {
       throw new ClientException("Request body is missing");
     }
-    
-    try {
-      users.findByUsernameOrEmail(request.username());
-      throw new ClientException("Username already exists: " + request.username());
-    } catch (NotFoundException e) {
-      if (request.email() != null) {
-        try {
-          users.findByUsernameOrEmail(request.email());
-          throw new ClientException("Email already exists: " + request.email());
-        } catch (NotFoundException e2) {
-          // No user found with the given username or email, proceed with registration
-        }
-      }
+    if (request.email() == null) {
+      throw new ClientException("Request body is missing, email required");
+    }
+    if (request.username() == null) {
+      throw new ClientException("Request body is missing, username required");
+    }
+    if (users.findByUsernameOrEmail(request.username()).isPresent() || users.findByUsernameOrEmail(request.email()).isPresent()) {
+      throw new ClientException("Username or Email already exists");
     }
     AppUser user = new AppUser();
     user.setUsername(request.username().trim());

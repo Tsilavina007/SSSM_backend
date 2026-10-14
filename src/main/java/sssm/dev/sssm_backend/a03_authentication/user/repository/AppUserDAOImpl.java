@@ -53,11 +53,11 @@ public class AppUserDAOImpl implements AppUserDAO {
         if (rs.next()) {
           return Optional.of(mapRowToAppUser(rs));
         }
-        throw new NotFoundException("User.id= " + userId + " not found");
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
+    return Optional.empty();
   }
 
   @Override
@@ -69,11 +69,11 @@ public class AppUserDAOImpl implements AppUserDAO {
       stmt.setString(2, login);
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) return Optional.of(mapRowToAppUser(rs));
-        throw new NotFoundException("User.login=" + login + " not found");
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
+    return Optional.empty();
   }
 
   @Override

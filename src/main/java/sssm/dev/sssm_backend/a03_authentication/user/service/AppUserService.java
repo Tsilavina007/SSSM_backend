@@ -5,6 +5,7 @@ import java.util.*;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.repository.*;
 
@@ -17,6 +18,9 @@ public class AppUserService {
   }
 
   public Optional<AppUser> findById(String id) {
+    if (dao.findById(id).isEmpty()) {
+      throw new NotFoundException("User not found with ID: " + id);
+    }
     return dao.findById(id);
   }
 
@@ -25,6 +29,9 @@ public class AppUserService {
   }
 
   public Optional<AppUser> findByUsernameOrEmail(String login) {
+    if (dao.findByUsernameOrEmail(login).isEmpty()) {
+      throw new NotFoundException("Login not found with login: " + login);
+    }
     return dao.findByUsernameOrEmail(login);
   }
 
@@ -38,7 +45,7 @@ public class AppUserService {
 
   public AppUser update(String id, AppUser user) {
     if (dao.findById(id).isEmpty())
-      throw new ClientException("User not found with ID: " + id);
+      throw new NotFoundException("User not found with ID: " + id);
     user.setId(id);
     return dao.update(user);
   }
