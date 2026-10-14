@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a11_inventory.item_category.controller;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
@@ -26,10 +26,10 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategorySer
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/inventory/item-categories")
 public class ItemCategoryController {
-  private final ItemCategoryService itemCategoryService;
+  @Autowired 
+  private ItemCategoryService itemCategoryService;
 
   @GetMapping
   public ResponseEntity<Object> getItemCategories(

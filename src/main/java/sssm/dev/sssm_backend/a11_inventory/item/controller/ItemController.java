@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a11_inventory.item.controller;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,7 +30,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequiredArgsConstructor
 @RequestMapping("/api/inventory/items")
 public class ItemController {
-  private final ItemService itemService;
+  @Autowired 
+  private ItemService itemService;
 
   @GetMapping
   public ResponseEntity<Object> getItems(

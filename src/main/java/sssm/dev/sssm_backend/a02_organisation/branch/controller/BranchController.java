@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a02_organisation.branch.controller;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +20,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RestController
 @RequestMapping("/api/branch")
 public class BranchController {
-  private final BranchService branchService = new BranchService();
+  @Autowired
+  private BranchService branchService;
 
   @GetMapping
   public ResponseEntity<Object> getBranches(

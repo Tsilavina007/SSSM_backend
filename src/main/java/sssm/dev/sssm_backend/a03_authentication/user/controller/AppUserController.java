@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.a03_authentication.user.controller;
 
 import java.util.*;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,7 +17,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RestController
 @RequestMapping("/api/users")
 public class AppUserController {
-  private final AppUserService service = new AppUserService();
+  @Autowired 
+  private AppUserService service;
 
   @GetMapping
   public ResponseEntity<Object> findAll(

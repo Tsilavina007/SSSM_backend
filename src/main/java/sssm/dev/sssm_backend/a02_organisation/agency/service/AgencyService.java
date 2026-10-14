@@ -3,12 +3,16 @@ package sssm.dev.sssm_backend.a02_organisation.agency.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 import sssm.dev.sssm_backend.a02_organisation.agency.repository.AgencyDAO;
-import sssm.dev.sssm_backend.a02_organisation.agency.repository.AgencyDAOImpl;
 
+@Service 
+@RequiredArgsConstructor 
 public class AgencyService {
-  private final AgencyDAO agencyDAO = new AgencyDAOImpl();
+  private final AgencyDAO agencyDAO;
 
   public List<Agency> getAgencies(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {

@@ -17,7 +17,7 @@ public class CompanyService {
   private final CompanyDAO companyDAO;
 
   public List<Company> getCompanies(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
+    Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
 
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);

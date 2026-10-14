@@ -3,6 +3,9 @@ package sssm.dev.sssm_backend.a02_organisation.branch.service;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 import sssm.dev.sssm_backend.a02_organisation.agency.service.AgencyService;
@@ -10,17 +13,13 @@ import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
-import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAO;
 import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAOImpl;
 
+@Service
+@RequiredArgsConstructor 
 public class BranchService {
-  private final BranchDAO branchDAO;
+  private final BranchDAOImpl branchDAO;
   private final AgencyService agencyService;
-
-  public BranchService() {
-    this.branchDAO = new BranchDAOImpl();
-    this.agencyService = new AgencyService();
-  }
 
   public List<Branch> getBranches(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
