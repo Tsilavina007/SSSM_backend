@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.AuthService;
 
@@ -44,24 +45,25 @@ public class AuthController {
       AuthResponse response = service.register(request);
       return ResponseEntity.status(HttpStatus.CREATED).body(response);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
   @PostMapping("/login")
-  public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+  public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest request) {
     try {
-      return service.login(request);
+      AuthResponse response =  service.login(request);
+      return ResponseEntity.ok().body(response);
     } catch (ClientException e) {
-      throw new ClientException(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      throw new NotFoundException(e.getMessage());
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      throw new ServerException(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 }

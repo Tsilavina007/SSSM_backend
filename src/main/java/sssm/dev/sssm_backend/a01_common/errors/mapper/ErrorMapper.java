@@ -1,12 +1,14 @@
 
-package sssm.dev.sssm_backend.a11_inventory.item.mapper;
+package sssm.dev.sssm_backend.a01_common.errors.mapper;
 
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.ServerErrorMessage;
 import org.springframework.stereotype.Component;
 
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
+
 @Component 
-public class ItemErrorMapper {
+public class ErrorMapper {
 
     public static ItemError toItemError(Throwable exception) {
         Throwable cause = exception;

@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 
 @Component
@@ -45,10 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             new UsernamePasswordAuthenticationToken(claims.getSubject(), null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       } catch (RuntimeException e) {
-        System.err.println("Erreur lors de la validation du JWT : " + e.getMessage());
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.getWriter().write("Unauthorized access: Invalid or expired token provided.");
-        return;
+        throw new ClientException(e);
       }
     }
     chain.doFilter(request, response);

@@ -52,15 +52,7 @@ public class AuthService {
     user.setLast_name(request.lastName());
     user.setPhone(request.phone());
     user.setStatus(UserStatus.ACTIVE);
-    try { 
-      user = users.create(user);
-    } catch (ServerException e) {
-      throw new ServerException("Failed to create user: " + e.getMessage());
-    } catch (ClientException e) {
-      throw new ClientException("Failed to create user: " + e.getMessage());
-    } catch (Exception e) {
-      throw new ServerException("An unexpected error occurred while creating the user: " + e.getMessage());
-    }
+    user = users.create(user);
     String userId = user.getId();
     roles.findGlobalByName(defaultRole).ifPresent(role -> users.assignRole(userId, role.getId()));
     List<String> roleNames = users.findRoleNames(user.getId());

@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
@@ -32,11 +33,11 @@ public class BranchController {
       List<Branch> branches = branchService.getBranches(search, page, pageSize);
       return ResponseEntity.ok().body(branches);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -46,11 +47,11 @@ public class BranchController {
       Optional<Branch> branches = branchService.getBranchById(branchId);
       return ResponseEntity.ok().body(branches);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -60,11 +61,11 @@ public class BranchController {
       Branch branchRes = branchService.createBranch(branch);
       return ResponseEntity.ok().body(branchRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -74,11 +75,11 @@ public class BranchController {
       Branch branchRes = branchService.updateBranch(branchId, branch);
       return ResponseEntity.ok().body(branchRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -88,11 +89,11 @@ public class BranchController {
       branchService.deleteBranch(branchId);
       return ResponseEntity.ok().body("Company deleted : " + branchId);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 }

@@ -20,10 +20,10 @@ import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
-import sssm.dev.sssm_backend.a11_inventory.item.mapper.ItemErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -44,11 +44,11 @@ public class ItemController {
       List<Item> items = itemService.getItems(search, page, pageSize);
       return ResponseEntity.ok().body(items);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -58,11 +58,11 @@ public class ItemController {
       Optional<Item> item = itemService.getItemById(itemId);
       return ResponseEntity.ok().body(item);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -72,11 +72,11 @@ public class ItemController {
       Item itemRes = itemService.createItem(item);
       return ResponseEntity.ok().body(itemRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -99,11 +99,11 @@ public class ItemController {
       );
       return ResponseEntity.ok().body(response);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -113,11 +113,11 @@ public class ItemController {
       Item itemRes = itemService.updateItem(itemId, updatedItem);
       return ResponseEntity.ok().body(itemRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -127,11 +127,11 @@ public class ItemController {
       itemService.deleteItem(itemId);
     return ResponseEntity.ok().body("Item deleted : " + itemId);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ItemErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 }

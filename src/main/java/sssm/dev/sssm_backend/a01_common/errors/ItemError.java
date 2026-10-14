@@ -1,4 +1,4 @@
-package sssm.dev.sssm_backend.a11_inventory.item.mapper;
+package sssm.dev.sssm_backend.a01_common.errors;
 
 public record ItemError(
     String message,

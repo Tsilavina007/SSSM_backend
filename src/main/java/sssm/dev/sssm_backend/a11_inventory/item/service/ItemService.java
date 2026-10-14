@@ -10,14 +10,14 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
+import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
-import sssm.dev.sssm_backend.a11_inventory.item.mapper.ItemError;
-import sssm.dev.sssm_backend.a11_inventory.item.mapper.ItemErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
@@ -64,7 +64,7 @@ public class ItemService {
         ItemResponse createdItemResponse = itemDAO.createItem(item);
           createdItems.add(mapperResponseToItem(createdItemResponse));
       } catch (ServerException e) {
-        failedItemsWithErrors.put(item, ItemErrorMapper.toItemError(e));
+        failedItemsWithErrors.put(item, ErrorMapper.toItemError(e));
       }
     }
     return new ArrayList<>(List.of(createdItems, failedItemsWithErrors));

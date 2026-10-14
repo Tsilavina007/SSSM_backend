@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
@@ -40,11 +41,11 @@ public class ItemTypeController {
       List<ItemType> types = itemTypeService.getItemTypes(search, page, pageSize);
       return ResponseEntity.ok().body(types);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -54,11 +55,11 @@ public class ItemTypeController {
       Optional<ItemType> types = itemTypeService.getItemTypeById(itemTypeId);
       return ResponseEntity.ok().body(types);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -68,11 +69,11 @@ public class ItemTypeController {
       ItemType types = itemTypeService.createItemType(itemType);
       return ResponseEntity.ok().body(types);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -83,11 +84,11 @@ public class ItemTypeController {
       ItemType types = itemTypeService.updateItemType(itemTypeId, updatedItemType);
       return ResponseEntity.ok().body(types);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -97,11 +98,11 @@ public class ItemTypeController {
       itemTypeService.deleteItemType(itemTypeId);
       return ResponseEntity.ok().body("ItemType deleted : " + itemTypeId);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -114,11 +115,11 @@ public class ItemTypeController {
       List<ItemType> types = itemTypeService.getItemTypesByItemCategoryId(itemCategoryId, page, pageSize);
       return ResponseEntity.ok().body(types);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 

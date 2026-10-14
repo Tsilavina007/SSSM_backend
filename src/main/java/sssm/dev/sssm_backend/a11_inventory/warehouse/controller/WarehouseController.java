@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
@@ -40,11 +41,11 @@ public class WarehouseController {
       List<Warehouse> warehouses = warehouseService.getWarehouses(search, page, pageSize);
       return ResponseEntity.ok().body(warehouses);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -54,11 +55,11 @@ public class WarehouseController {
       Optional<Warehouse> warehouses = warehouseService.getWarehouseById(warehouseId);
       return ResponseEntity.ok().body(warehouses);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -68,11 +69,11 @@ public class WarehouseController {
       Warehouse warehouses = warehouseService.createWarehouse(warehouse);
       return ResponseEntity.ok().body(warehouses);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -83,11 +84,11 @@ public class WarehouseController {
       Warehouse warehouses = warehouseService.updateWarehouse(warehouseId, updatedWarehouse);
       return ResponseEntity.ok().body(warehouses);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 
@@ -97,11 +98,11 @@ public class WarehouseController {
       warehouseService.deleteWarehouse(warehouseId);
       return ResponseEntity.ok().body("Warehouse deleted : " + warehouseId);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(e.getMessage());
+      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(e.getMessage());
+      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
     }
   }
 }
