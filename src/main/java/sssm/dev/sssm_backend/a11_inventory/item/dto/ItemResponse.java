@@ -1,14 +1,14 @@
 package sssm.dev.sssm_backend.a11_inventory.item.dto;
 
 import java.sql.Timestamp;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 
 @Data
-@NoArgsConstructor 
+@NoArgsConstructor
 @AllArgsConstructor
 public class ItemResponse {
   private String id;

@@ -1,9 +1,9 @@
 package sssm.dev.sssm_backend.a02_organisation.branch.controller;
 
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,13 +17,10 @@ import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
 import sssm.dev.sssm_backend.a02_organisation.branch.service.BranchService;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
-
 @RestController
 @RequestMapping("/api/branch")
 public class BranchController {
-  @Autowired
-  private BranchService branchService;
+  @Autowired private BranchService branchService;
 
   @GetMapping
   public ResponseEntity<Object> getBranches(
@@ -38,7 +35,8 @@ public class BranchController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -52,7 +50,8 @@ public class BranchController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -66,12 +65,14 @@ public class BranchController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
   @PatchMapping("/{branchId}")
-  public ResponseEntity<Object> updateBranch(@PathVariable String branchId, @RequestBody BranchUpdateRequest branch) {
+  public ResponseEntity<Object> updateBranch(
+      @PathVariable String branchId, @RequestBody BranchUpdateRequest branch) {
     try {
       Branch branchRes = branchService.updateBranch(branchId, branch);
       return ResponseEntity.ok().body(branchRes);
@@ -80,7 +81,8 @@ public class BranchController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -94,7 +96,8 @@ public class BranchController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 }

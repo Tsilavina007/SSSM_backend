@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a03_authentication.user.controller;
 
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.*;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,13 +13,10 @@ import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.service.AppUserService;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
-
 @RestController
 @RequestMapping("/api/users")
 public class AppUserController {
-  @Autowired 
-  private AppUserService service;
+  @Autowired private AppUserService service;
 
   @GetMapping
   public ResponseEntity<Object> findAll(
@@ -32,7 +29,8 @@ public class AppUserController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -46,7 +44,8 @@ public class AppUserController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -58,7 +57,8 @@ public class AppUserController {
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -72,7 +72,8 @@ public class AppUserController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -86,31 +87,36 @@ public class AppUserController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
   @PostMapping("/{userId}/roles/{roleId}")
-  public ResponseEntity<Object> assignRole(@PathVariable String userId, @PathVariable String roleId) {
+  public ResponseEntity<Object> assignRole(
+      @PathVariable String userId, @PathVariable String roleId) {
     try {
       service.assignRole(userId, roleId);
       return ResponseEntity.ok().build();
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
   @DeleteMapping("/{userId}/roles/{roleId}")
-  public ResponseEntity<Object> removeRole(@PathVariable String userId, @PathVariable String roleId) {
+  public ResponseEntity<Object> removeRole(
+      @PathVariable String userId, @PathVariable String roleId) {
     try {
       service.removeRole(userId, roleId);
       return ResponseEntity.ok().build();
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 }

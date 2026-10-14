@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
@@ -18,7 +17,7 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateR
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
 
-@Repository 
+@Repository
 public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
   @Override

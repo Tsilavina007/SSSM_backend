@@ -2,10 +2,9 @@ package sssm.dev.sssm_backend.a02_organisation.branch.service;
 
 import java.util.List;
 import java.util.Optional;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 import sssm.dev.sssm_backend.a02_organisation.agency.service.AgencyService;
@@ -16,7 +15,7 @@ import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
 import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAOImpl;
 
 @Service
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
 public class BranchService {
   private final BranchDAOImpl branchDAO;
   private final AgencyService agencyService;
@@ -71,7 +70,7 @@ public class BranchService {
     return items.stream()
         .map(
             item -> {
-                return mapperResponseToBranch(item);
+              return mapperResponseToBranch(item);
             })
         .toList();
   }

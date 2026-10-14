@@ -4,10 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
@@ -40,7 +39,8 @@ public class ItemService {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return search.isPresent()
-        ? mapperListResponseToItem(itemDAO.searchItemsByName(search.get(), pageNumber, pageSizeNumber))
+        ? mapperListResponseToItem(
+            itemDAO.searchItemsByName(search.get(), pageNumber, pageSizeNumber))
         : mapperListResponseToItem(itemDAO.getAllItems(pageNumber, pageSizeNumber));
   }
 
@@ -62,7 +62,7 @@ public class ItemService {
     for (ItemCreateRequest item : items) {
       try {
         ItemResponse createdItemResponse = itemDAO.createItem(item);
-          createdItems.add(mapperResponseToItem(createdItemResponse));
+        createdItems.add(mapperResponseToItem(createdItemResponse));
       } catch (ServerException e) {
         failedItemsWithErrors.put(item, ErrorMapper.toItemError(e));
       }
@@ -83,7 +83,11 @@ public class ItemService {
   }
 
   private Item mapperResponseToItem(ItemResponse rs) {
-    if (rs == null || rs.getCompany_id() == null || rs.getCategory_id() == null || rs.getItem_type_id() == null || rs.getCurrent_warehouse_id() == null) {
+    if (rs == null
+        || rs.getCompany_id() == null
+        || rs.getCategory_id() == null
+        || rs.getItem_type_id() == null
+        || rs.getCurrent_warehouse_id() == null) {
       return null;
     }
     Company c = companyService.getCompanyById(rs.getCompany_id()).get();
@@ -105,14 +109,13 @@ public class ItemService {
         rs.getArchived_at(),
         rs.getArchived_by(),
         rs.getLast_inventory_at()));
-    
   }
 
   private List<Item> mapperListResponseToItem(List<ItemResponse> items) {
     return items.stream()
         .map(
             item -> {
-                return mapperResponseToItem(item);
+              return mapperResponseToItem(item);
             })
         .toList();
   }

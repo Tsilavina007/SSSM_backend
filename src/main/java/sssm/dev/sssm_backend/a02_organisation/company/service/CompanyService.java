@@ -2,10 +2,9 @@ package sssm.dev.sssm_backend.a02_organisation.company.service;
 
 import java.util.List;
 import java.util.Optional;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAO;
@@ -17,7 +16,7 @@ public class CompanyService {
   private final CompanyDAO companyDAO;
 
   public List<Company> getCompanies(
-    Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
+      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
 
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);

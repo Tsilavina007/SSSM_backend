@@ -40,7 +40,8 @@ public class AuthService {
     if (request.username() == null) {
       throw new ClientException("Request body is missing, username required");
     }
-    if (users.findByUsernameOrEmail(request.username()).isPresent() || users.findByUsernameOrEmail(request.email()).isPresent()) {
+    if (users.findByUsernameOrEmail(request.username()).isPresent()
+        || users.findByUsernameOrEmail(request.email()).isPresent()) {
       throw new ClientException("Username or Email already exists");
     }
     AppUser user = new AppUser();

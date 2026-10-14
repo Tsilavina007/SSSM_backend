@@ -1,9 +1,9 @@
 package sssm.dev.sssm_backend.a11_inventory.warehouse.controller;
 
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,13 +25,10 @@ import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.service.WarehouseService;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
-
 @RestController
 @RequestMapping("/api/inventory/warehouses")
 public class WarehouseController {
-  @Autowired 
-  private WarehouseService warehouseService;
+  @Autowired private WarehouseService warehouseService;
 
   @GetMapping
   public ResponseEntity<Object> getWarehouses(
@@ -46,7 +43,8 @@ public class WarehouseController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -60,7 +58,8 @@ public class WarehouseController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -74,7 +73,8 @@ public class WarehouseController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -89,7 +89,8 @@ public class WarehouseController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -103,7 +104,8 @@ public class WarehouseController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 }

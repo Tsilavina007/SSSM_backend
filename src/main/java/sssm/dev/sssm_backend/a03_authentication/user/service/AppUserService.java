@@ -1,15 +1,14 @@
 package sssm.dev.sssm_backend.a03_authentication.user.service;
 
 import java.util.*;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.repository.*;
 
-@Service 
+@Service
 @RequiredArgsConstructor
 public class AppUserService {
   private final AppUserDAO dao;
@@ -45,8 +44,7 @@ public class AppUserService {
   }
 
   public AppUser update(String id, AppUser user) {
-    if (dao.findById(id).isEmpty())
-      throw new NotFoundException("User not found with ID: " + id);
+    if (dao.findById(id).isEmpty()) throw new NotFoundException("User not found with ID: " + id);
     user.setId(id);
     return dao.update(user);
   }

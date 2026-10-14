@@ -1,7 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.item.entity;
 
 import java.sql.Timestamp;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

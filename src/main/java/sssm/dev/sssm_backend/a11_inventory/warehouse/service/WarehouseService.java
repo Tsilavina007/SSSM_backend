@@ -2,10 +2,9 @@ package sssm.dev.sssm_backend.a11_inventory.warehouse.service;
 
 import java.util.List;
 import java.util.Optional;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
 import sssm.dev.sssm_backend.a02_organisation.branch.service.BranchService;
@@ -71,7 +70,7 @@ public class WarehouseService {
     return items.stream()
         .map(
             item -> {
-                return mapperResponseToWarehouse(item);
+              return mapperResponseToWarehouse(item);
             })
         .toList();
   }

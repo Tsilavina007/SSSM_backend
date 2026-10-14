@@ -2,10 +2,9 @@ package sssm.dev.sssm_backend.a11_inventory.item_type.service;
 
 import java.util.List;
 import java.util.Optional;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
@@ -87,7 +86,7 @@ public class ItemTypeService {
     return items.stream()
         .map(
             item -> {
-                return mapperResponseToType(item);
+              return mapperResponseToType(item);
             })
         .toList();
   }

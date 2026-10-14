@@ -7,10 +7,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
 import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
@@ -20,7 +18,7 @@ import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 
-@Repository 
+@Repository
 public class ItemDAOImpl implements ItemDAO {
 
   @Override
@@ -109,7 +107,8 @@ public class ItemDAOImpl implements ItemDAO {
       stmt.setString(
           6, value.getStatus() == null ? ItemStatus.AVAILABLE.name() : value.getStatus().name());
       stmt.setObject(
-          7, value.getCurrent_warehouse_id() == null
+          7,
+          value.getCurrent_warehouse_id() == null
               ? null
               : UUID.fromString(value.getCurrent_warehouse_id()));
       stmt.executeUpdate();
@@ -206,7 +205,6 @@ public class ItemDAOImpl implements ItemDAO {
         rs.getTimestamp("updated_at"),
         rs.getTimestamp("archived_at"),
         rs.getString("archived_by"),
-        rs.getTimestamp("last_inventory_at")
-      );
+        rs.getTimestamp("last_inventory_at"));
   }
 }

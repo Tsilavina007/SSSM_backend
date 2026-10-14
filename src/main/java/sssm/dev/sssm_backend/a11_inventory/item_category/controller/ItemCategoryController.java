@@ -1,9 +1,9 @@
 package sssm.dev.sssm_backend.a11_inventory.item_category.controller;
 
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,13 +25,10 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateR
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
-
 @RestController
 @RequestMapping("/api/inventory/item-categories")
 public class ItemCategoryController {
-  @Autowired 
-  private ItemCategoryService itemCategoryService;
+  @Autowired private ItemCategoryService itemCategoryService;
 
   @GetMapping
   public ResponseEntity<Object> getItemCategories(
@@ -46,7 +43,8 @@ public class ItemCategoryController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -60,12 +58,14 @@ public class ItemCategoryController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
   @PostMapping
-  public ResponseEntity<Object> createItemCategory(@RequestBody ItemCategoryCreateRequest itemCategory) {
+  public ResponseEntity<Object> createItemCategory(
+      @RequestBody ItemCategoryCreateRequest itemCategory) {
     try {
       ItemCategory category = itemCategoryService.createItemCategory(itemCategory);
       return ResponseEntity.ok().body(category);
@@ -74,7 +74,8 @@ public class ItemCategoryController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -83,14 +84,16 @@ public class ItemCategoryController {
       @PathVariable String itemCategoryId,
       @RequestBody ItemCategoryUpdateRequest updatedItemCategory) {
     try {
-      ItemCategory category = itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
+      ItemCategory category =
+          itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
       return ResponseEntity.ok().body(category);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -104,8 +107,8 @@ public class ItemCategoryController {
     } catch (NotFoundException e) {
       return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
-    
   }
 }

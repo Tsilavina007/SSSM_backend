@@ -1,4 +1,3 @@
-
 package sssm.dev.sssm_backend.a01_common.errors.mapper;
 
 import org.postgresql.util.PSQLException;
@@ -7,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 
-@Component 
+@Component
 public class ErrorMapper {
 
     public static ItemError toItemError(Throwable exception) {
