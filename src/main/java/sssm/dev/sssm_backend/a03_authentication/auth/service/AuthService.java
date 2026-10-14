@@ -7,7 +7,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;

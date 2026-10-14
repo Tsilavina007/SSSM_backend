@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.a02_organisation.branch.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,11 +34,11 @@ public class BranchController {
       List<Branch> branches = branchService.getBranches(search, page, pageSize);
       return ResponseEntity.ok().body(branches);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -47,11 +48,11 @@ public class BranchController {
       Optional<Branch> branches = branchService.getBranchById(branchId);
       return ResponseEntity.ok().body(branches);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -61,11 +62,11 @@ public class BranchController {
       Branch branchRes = branchService.createBranch(branch);
       return ResponseEntity.ok().body(branchRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -75,11 +76,11 @@ public class BranchController {
       Branch branchRes = branchService.updateBranch(branchId, branch);
       return ResponseEntity.ok().body(branchRes);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 
@@ -89,11 +90,11 @@ public class BranchController {
       branchService.deleteBranch(branchId);
       return ResponseEntity.ok().body("Company deleted : " + branchId);
     } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(ErrorMapper.toItemError(e));
+      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (ServerException e) {
-      return ResponseEntity.internalServerError().body(ErrorMapper.toItemError(e));
+      return ResponseEntity.internalServerError().body(Map.of("errors", ErrorMapper.toItemError(e)));
     }
   }
 }
