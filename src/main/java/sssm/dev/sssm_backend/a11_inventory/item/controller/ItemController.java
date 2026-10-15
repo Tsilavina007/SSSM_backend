@@ -23,6 +23,7 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.rest.ItemQrCodeRest;
 import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 
@@ -54,6 +55,21 @@ public class ItemController {
   public ResponseEntity<Object> getItemById(@PathVariable String itemId) {
     try {
       Optional<Item> item = itemService.getItemById(itemId);
+      return ResponseEntity.ok().body(item);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
+    }
+  }
+
+  @GetMapping("/{itemId}/qr-code")
+  public ResponseEntity<Object> getQrCodeByItemId(@PathVariable String itemId) {
+    try {
+      Optional<ItemQrCodeRest> item = itemService.getQrCodeByItemId(itemId);
       return ResponseEntity.ok().body(item);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));

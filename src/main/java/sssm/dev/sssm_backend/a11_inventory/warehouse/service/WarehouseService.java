@@ -6,11 +6,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
 import sssm.dev.sssm_backend.a02_organisation.branch.service.BranchService;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.mapper.WarehouseMapper;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.repository.WarehouseDAO;
 
@@ -19,6 +19,7 @@ import sssm.dev.sssm_backend.a11_inventory.warehouse.repository.WarehouseDAO;
 public class WarehouseService {
   private final WarehouseDAO warehouseDAO;
   private final BranchService branchService;
+  private final WarehouseMapper warehouseMapper;
 
   public List<Warehouse> getWarehouses(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
@@ -31,46 +32,29 @@ public class WarehouseService {
   }
 
   public Optional<Warehouse> getWarehouseById(String warehouseId) {
-    return Optional.of(mapperResponseToWarehouse(warehouseDAO.getWarehouseById(warehouseId).get()));
+    return Optional.of(warehouseMapper.toRest(warehouseDAO.getWarehouseById(warehouseId).get()));
   }
 
   public Warehouse createWarehouse(WarehouseCreateRequest warehouse) {
-    return mapperResponseToWarehouse(warehouseDAO.createWarehouse(warehouse));
+    return warehouseMapper.toRest(warehouseDAO.createWarehouse(warehouse));
   }
 
   public Warehouse updateWarehouse(String warehouseId, WarehouseUpdateRequest updatedWarehouse) {
     if (warehouseDAO.getWarehouseById(warehouseId).isEmpty()) {
       throw new NotFoundException("Warehouse not found with ID: " + warehouseId);
     }
-    return mapperResponseToWarehouse(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
+    return warehouseMapper.toRest(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
   }
 
   public void deleteWarehouse(String warehouseId) {
     warehouseDAO.deleteWarehouse(warehouseId);
   }
 
-  private Warehouse mapperResponseToWarehouse(WarehouseResponse rs) {
-    if (rs == null || rs.getBranch_id() == null) {
-      return null;
-    }
-    Branch c = branchService.getBranchById(rs.getBranch_id()).get();
-    return (new Warehouse(
-        rs.getId(),
-        rs.getCompany_id(),
-        c,
-        rs.getName(),
-        rs.getAddress(),
-        rs.getActive(),
-        rs.getCreated_at(),
-        rs.getUpdated_at(),
-        rs.getArchived_at()));
-  }
-
   private List<Warehouse> mapperListResponseToWarehouse(List<WarehouseResponse> items) {
     return items.stream()
         .map(
             item -> {
-              return mapperResponseToWarehouse(item);
+              return warehouseMapper.toRest(item);
             })
         .toList();
   }

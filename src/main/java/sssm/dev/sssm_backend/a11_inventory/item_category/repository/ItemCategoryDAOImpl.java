@@ -38,7 +38,10 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
                   rs.getString("id"),
                   rs.getString("company_id"),
                   rs.getString("name"),
-                  rs.getString("description")));
+                  rs.getString("description"),
+                  rs.getTimestamp("created_at"),
+                  rs.getTimestamp("updated_at"),
+                  rs.getTimestamp("archived_at")));
         }
       }
     } catch (SQLException e) {
@@ -175,6 +178,9 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         rs.getString("id"),
         rs.getString("company_id"),
         rs.getString("name"),
-        rs.getString("description"));
+        rs.getString("description"),
+        rs.getTimestamp("created_at"),
+        rs.getTimestamp("updated_at"),
+        rs.getTimestamp("archived_at"));
   }
 }

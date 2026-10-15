@@ -6,19 +6,18 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
-import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_category.dto.mapper.ItemCategoryMapper;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
-import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAO;
+import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAOImpl;
 
 @Service
 @RequiredArgsConstructor
 public class ItemCategoryService {
-  private final ItemCategoryDAO itemCategoryDAO;
-  private final CompanyService companyService;
+  private final ItemCategoryDAOImpl itemCategoryDAO;
+  private final ItemCategoryMapper itemCategoryMapper;
 
   public List<ItemCategory> getItemCategories(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
@@ -33,11 +32,11 @@ public class ItemCategoryService {
 
   public Optional<ItemCategory> getItemCategoryById(String itemCategoryId) {
     return Optional.of(
-        mapperResponseToCategory(itemCategoryDAO.getItemCategoryById(itemCategoryId).get()));
+        itemCategoryMapper.toRest(itemCategoryDAO.getItemCategoryById(itemCategoryId).get()));
   }
 
   public ItemCategory createItemCategory(ItemCategoryCreateRequest itemCategoryCreateRequest) {
-    return mapperResponseToCategory(itemCategoryDAO.createItemCategory(itemCategoryCreateRequest));
+    return itemCategoryMapper.toRest(itemCategoryDAO.createItemCategory(itemCategoryCreateRequest));
   }
 
   public ItemCategory updateItemCategory(
@@ -46,7 +45,7 @@ public class ItemCategoryService {
       throw new NotFoundException("ItemCategory not found with ID: " + itemCategoryId);
     }
     ;
-    return mapperResponseToCategory(
+    return itemCategoryMapper.toRest(
         itemCategoryDAO.updateItemCategory(itemCategoryId, updatedItemCategory));
   }
 
@@ -54,19 +53,11 @@ public class ItemCategoryService {
     itemCategoryDAO.deleteItemCategory(itemCategoryId);
   }
 
-  private ItemCategory mapperResponseToCategory(ItemCategoryResponse rs) {
-    if (rs == null || rs.getCompany_id() == null) {
-      return null;
-    }
-    Company c = companyService.getCompanyById(rs.getCompany_id()).get();
-    return (new ItemCategory(rs.getId(), c, rs.getName(), rs.getDescription()));
-  }
-
   private List<ItemCategory> mapperListResponseToCategory(List<ItemCategoryResponse> items) {
     return items.stream()
         .map(
             item -> {
-              return mapperResponseToCategory(item);
+              return itemCategoryMapper.toRest(item);
             })
         .toList();
   }

@@ -5,15 +5,16 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.rest.BranchRest;
+import sssm.dev.sssm_backend.a02_organisation.company.dto.rest.CompanyRest;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Warehouse {
   private String id;
-  private String company_id;
-  private Branch branch;
+  private CompanyRest company_id;
+  private BranchRest branch;
   private String name;
   private String address;
   private Boolean active;
