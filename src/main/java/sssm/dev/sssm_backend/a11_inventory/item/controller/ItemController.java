@@ -4,8 +4,6 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,10 +26,13 @@ import sssm.dev.sssm_backend.a11_inventory.item.entity.Item;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 
 @RestController
-@RequiredArgsConstructor
 @RequestMapping("/api/inventory/items")
 public class ItemController {
-  @Autowired private ItemService itemService;
+  private final ItemService itemService;
+
+  ItemController(ItemService itemService) {
+    this.itemService = itemService;
+  }
 
   @GetMapping
   public ResponseEntity<Object> getItems(

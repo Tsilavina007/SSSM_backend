@@ -1,6 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.item_category.dto.mapper;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import sssm.dev.sssm_backend.a02_organisation.company.dto.mapper.CompanyRestMapper;
@@ -10,9 +10,10 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryRespons
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
 
 @Component
+@RequiredArgsConstructor
 public class ItemCategoryMapper {
-  @Autowired private CompanyDAOImpl companyDAOImpl;
-  @Autowired private CompanyRestMapper companyRestMapper;
+  private final CompanyDAOImpl companyDAOImpl;
+  private final CompanyRestMapper companyRestMapper;
 
   public ItemCategory toRest(ItemCategoryResponse rs) {
     Company company = companyDAOImpl.getCompanyById(rs.getCompany_id()).get();

@@ -3,7 +3,6 @@ package sssm.dev.sssm_backend.a03_authentication.auth.controller;
 import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -21,7 +20,11 @@ import sssm.dev.sssm_backend.a03_authentication.auth.service.AuthService;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-  @Autowired private AuthService service;
+  private final AuthService service;
+
+  AuthController(AuthService service) {
+    this.service = service;
+  }
 
   @PostMapping("/register")
   @ResponseStatus(HttpStatus.CREATED)

@@ -4,7 +4,6 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +27,11 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.service.ItemTypeService;
 @RestController
 @RequestMapping("/api/inventory/item-types")
 public class ItemTypeController {
-  @Autowired private ItemTypeService itemTypeService;
+  private final ItemTypeService itemTypeService;
+
+  ItemTypeController(ItemTypeService itemTypeService) {
+    this.itemTypeService = itemTypeService;
+  }
 
   @GetMapping
   public ResponseEntity<Object> getItemTypes(

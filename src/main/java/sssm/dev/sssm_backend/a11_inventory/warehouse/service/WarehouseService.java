@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a02_organisation.branch.service.BranchService;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
@@ -18,7 +17,6 @@ import sssm.dev.sssm_backend.a11_inventory.warehouse.repository.WarehouseDAO;
 @RequiredArgsConstructor
 public class WarehouseService {
   private final WarehouseDAO warehouseDAO;
-  private final BranchService branchService;
   private final WarehouseMapper warehouseMapper;
 
   public List<Warehouse> getWarehouses(

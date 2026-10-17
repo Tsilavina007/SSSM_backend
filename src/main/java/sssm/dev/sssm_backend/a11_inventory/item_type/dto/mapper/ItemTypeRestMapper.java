@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a11_inventory.item_type.dto.mapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.company.dto.mapper.CompanyRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;
@@ -13,11 +14,12 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.rest.ItemTypeRest;
 
 @Component
+@RequiredArgsConstructor
 public class ItemTypeRestMapper {
-  @Autowired private CompanyDAOImpl companyDAOImpl;
-  @Autowired private ItemCategoryDAOImpl itemCategoryDAOImpl;
-  @Autowired private CompanyRestMapper companyRestMapper;
-  @Autowired private ItemCategoryRestMapper itemCategoryRestMapper;
+  private final CompanyDAOImpl companyDAOImpl;
+  private final ItemCategoryDAOImpl itemCategoryDAOImpl;
+  private final CompanyRestMapper companyRestMapper;
+  private final ItemCategoryRestMapper itemCategoryRestMapper;
 
   public ItemTypeRest toRest(ItemTypeResponse rs) {
     Company company = companyDAOImpl.getCompanyById(rs.getCompany_id()).get();

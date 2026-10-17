@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a02_organisation.agency.controller;
 
 import java.util.List;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
@@ -11,7 +10,11 @@ import sssm.dev.sssm_backend.a02_organisation.agency.service.AgencyService;
 @RestController
 @RequestMapping("/api/agency")
 public class AgencyController {
-  @Autowired private AgencyService agencyService;
+  private final AgencyService agencyService;
+
+  AgencyController(AgencyService agencyService) {
+    this.agencyService = agencyService;
+  }
 
   @GetMapping
   public List<Agency> getAgencies(
