@@ -1,6 +1,5 @@
 package sssm.dev.sssm_backend.a11_inventory.item_type.dto.mapper;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;

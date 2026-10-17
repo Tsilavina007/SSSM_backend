@@ -1,8 +1,8 @@
 package sssm.dev.sssm_backend.a11_inventory.warehouse.dto.mapper;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.mapper.BranchRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAOImpl;
@@ -13,11 +13,12 @@ import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.rest.WarehouseRest;
 
 @Component
+@RequiredArgsConstructor
 public class WarehouseRestMapper {
-  @Autowired private CompanyDAOImpl companyDAOImpl;
-  @Autowired private CompanyRestMapper companyRestMapper;
-  @Autowired private BranchDAOImpl branchDAOImpl;
-  @Autowired private BranchRestMapper branchRestMapper;
+  private final CompanyDAOImpl companyDAOImpl;
+  private final CompanyRestMapper companyRestMapper;
+  private final BranchDAOImpl branchDAOImpl;
+  private final BranchRestMapper branchRestMapper;
 
   public WarehouseRest toRest(WarehouseResponse rs) {
     Company company = companyDAOImpl.getCompanyById(rs.getCompany_id()).get();
