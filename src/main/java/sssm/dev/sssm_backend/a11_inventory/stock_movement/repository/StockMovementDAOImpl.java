@@ -9,11 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
 
+@Repository
 public class StockMovementDAOImpl implements StockMovementDAO {
 
   @Override
@@ -29,20 +34,11 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new StockMovement(
-                  rs.getString("id"),
-                  rs.getString("warehouse_id"),
-                  rs.getString("item_id"),
-                  rs.getString("employee_id"),
-                  MovementType.valueOf(rs.getString("movement_type")),
-                  rs.getString("reference"),
-                  rs.getTimestamp("movement_date"),
-                  rs.getString("notes")));
+          values.add(mapRowToStockMovement(rs));
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return values;
   }
@@ -64,20 +60,11 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new StockMovement(
-                  rs.getString("id"),
-                  rs.getString("warehouse_id"),
-                  rs.getString("item_id"),
-                  rs.getString("employee_id"),
-                  MovementType.valueOf(rs.getString("movement_type")),
-                  rs.getString("reference"),
-                  rs.getTimestamp("movement_date"),
-                  rs.getString("notes")));
+          values.add(mapRowToStockMovement(rs));
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return values;
   }
@@ -93,28 +80,20 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(
-              new StockMovement(
-                  rs.getString("id"),
-                  rs.getString("warehouse_id"),
-                  rs.getString("item_id"),
-                  rs.getString("employee_id"),
-                  MovementType.valueOf(rs.getString("movement_type")),
-                  rs.getString("reference"),
-                  rs.getTimestamp("movement_date"),
-                  rs.getString("notes")));
+          return Optional.of(mapRowToStockMovement(rs));
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
 
   @Override
-  public StockMovement createStockMovement(StockMovement value) {
+  public StockMovement createStockMovement(StockMovementCreateRequest value) {
     String sql =
         "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS security.movement_type), ?, ?, ?)";
+    String generatedId = null;
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -135,17 +114,25 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          value.setId(rs.getString(1));
+          generatedId = rs.getString(1);
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return value;
+    return new StockMovement(
+        generatedId,
+        value.getWarehouse_id(),
+        value.getItem_id(),
+        value.getEmployee_id(),
+        value.getMovement_type(),
+        value.getReference(),
+        value.getMovement_date(),
+        value.getNotes());
   }
 
   @Override
-  public StockMovement updateStockMovement(StockMovement value) {
+  public StockMovement updateStockMovement(String id, StockMovementUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.stock_movement SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -179,12 +166,12 @@ public class StockMovementDAOImpl implements StockMovementDAO {
     }
 
     if (parameters.isEmpty()) {
-      return value;
+      return getStockMovementById(id).get();
     }
 
     sql.setLength(sql.length() - 2);
     sql.append(" WHERE id = ?");
-    parameters.add(UUID.fromString(value.getId()));
+    parameters.add(UUID.fromString(id));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -193,9 +180,9 @@ public class StockMovementDAOImpl implements StockMovementDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return value;
+    return getStockMovementById(id).get();
   }
 
   @Override
@@ -208,7 +195,19 @@ public class StockMovementDAOImpl implements StockMovementDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
+  }
+
+  private StockMovement mapRowToStockMovement(ResultSet rs) throws SQLException {
+    return new StockMovement(
+        rs.getString("id"),
+        rs.getString("warehouse_id"),
+        rs.getString("item_id"),
+        rs.getString("employee_id"),
+        MovementType.valueOf(rs.getString("movement_type")),
+        rs.getString("reference"),
+        rs.getTimestamp("movement_date"),
+        rs.getString("notes"));
   }
 }

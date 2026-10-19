@@ -3,6 +3,8 @@ package sssm.dev.sssm_backend.a11_inventory.stock_movement.repository;
 import java.util.List;
 import java.util.Optional;
 
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
 
 public interface StockMovementDAO {
@@ -12,9 +14,9 @@ public interface StockMovementDAO {
 
   Optional<StockMovement> getStockMovementById(String id);
 
-  StockMovement createStockMovement(StockMovement value);
+  StockMovement createStockMovement(StockMovementCreateRequest value);
 
-  StockMovement updateStockMovement(StockMovement value);
+  StockMovement updateStockMovement(String id, StockMovementUpdateRequest value);
 
   void deleteStockMovement(String id);
 }
