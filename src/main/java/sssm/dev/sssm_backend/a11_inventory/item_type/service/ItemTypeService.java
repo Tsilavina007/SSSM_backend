@@ -30,7 +30,11 @@ public class ItemTypeService {
   }
 
   public Optional<ItemType> getItemTypeById(String itemTypeId) {
-    return Optional.of(itemTypeMapper.toRest(itemTypeDAO.getItemTypeById(itemTypeId).get()));
+    Optional<ItemTypeResponse> itemTypeResponse = itemTypeDAO.getItemTypeById(itemTypeId);
+    if (itemTypeResponse.isEmpty()) {
+      throw new NotFoundException("ItemType not found with ID: " + itemTypeId);
+    }
+    return Optional.of(itemTypeMapper.toRest(itemTypeResponse.get()));
   }
 
   public List<ItemType> getItemTypesByItemCategoryId(

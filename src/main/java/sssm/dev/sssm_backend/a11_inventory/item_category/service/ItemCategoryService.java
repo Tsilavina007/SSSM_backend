@@ -11,12 +11,12 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryRespons
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.mapper.ItemCategoryMapper;
 import sssm.dev.sssm_backend.a11_inventory.item_category.entity.ItemCategory;
-import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAOImpl;
+import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAO;
 
 @Service
 @RequiredArgsConstructor
 public class ItemCategoryService {
-  private final ItemCategoryDAOImpl itemCategoryDAO;
+  private final ItemCategoryDAO itemCategoryDAO;
   private final ItemCategoryMapper itemCategoryMapper;
 
   public List<ItemCategory> getItemCategories(
@@ -31,8 +31,12 @@ public class ItemCategoryService {
   }
 
   public Optional<ItemCategory> getItemCategoryById(String itemCategoryId) {
-    return Optional.of(
-        itemCategoryMapper.toRest(itemCategoryDAO.getItemCategoryById(itemCategoryId).get()));
+    Optional<ItemCategoryResponse> itemCategoryResponse =
+        itemCategoryDAO.getItemCategoryById(itemCategoryId);
+    if (itemCategoryResponse.isEmpty()) {
+      throw new NotFoundException("ItemCategory not found with ID: " + itemCategoryId);
+    }
+    return Optional.of(itemCategoryMapper.toRest(itemCategoryResponse.get()));
   }
 
   public ItemCategory createItemCategory(ItemCategoryCreateRequest itemCategoryCreateRequest) {
@@ -44,7 +48,6 @@ public class ItemCategoryService {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
       throw new NotFoundException("ItemCategory not found with ID: " + itemCategoryId);
     }
-    ;
     return itemCategoryMapper.toRest(
         itemCategoryDAO.updateItemCategory(itemCategoryId, updatedItemCategory));
   }

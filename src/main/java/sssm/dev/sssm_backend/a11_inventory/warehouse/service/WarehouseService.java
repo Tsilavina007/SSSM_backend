@@ -30,7 +30,11 @@ public class WarehouseService {
   }
 
   public Optional<Warehouse> getWarehouseById(String warehouseId) {
-    return Optional.of(warehouseMapper.toRest(warehouseDAO.getWarehouseById(warehouseId).get()));
+    Optional<WarehouseResponse> warehouseResponse = warehouseDAO.getWarehouseById(warehouseId);
+    if (warehouseResponse.isEmpty()) {
+      throw new NotFoundException("Warehouse not found with ID: " + warehouseId);
+    }
+    return Optional.of(warehouseMapper.toRest(warehouseResponse.get()));
   }
 
   public Warehouse createWarehouse(WarehouseCreateRequest warehouse) {
