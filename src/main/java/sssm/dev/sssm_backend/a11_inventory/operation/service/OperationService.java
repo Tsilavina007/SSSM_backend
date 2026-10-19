@@ -1,34 +1,34 @@
 package sssm.dev.sssm_backend.a11_inventory.operation.service;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a11_inventory.operation.repository.OperationDAO;
-import sssm.dev.sssm_backend.a11_inventory.operation.repository.OperationDAOImpl;
 
+@Service
+@RequiredArgsConstructor
 public class OperationService {
-  private final OperationDAO dao;
-
-  public OperationService() {
-    this.dao = new OperationDAOImpl();
-  }
+  private final OperationDAO operationDAO;
 
   public List<Map<String, Object>> list(Integer p, Integer s, String q, String w, Object... a) {
-    return dao.list(p, s, q, w, a);
+    return operationDAO.list(p, s, q, w, a);
   }
 
   public Map<String, Object> one(String id) {
-    return dao.one(id);
+    return operationDAO.one(id);
   }
 
   public Map<String, Object> save(String id, Map<String, Object> b, boolean u) {
-    return dao.save(id, b, u);
+    return operationDAO.save(id, b, u);
   }
 
   public Map<String, Object> delete(String id) {
-    return dao.delete(id);
+    return operationDAO.delete(id);
   }
 
   public List<Map<String, Object>> query(String q, Object... a) {
-    return dao.query(q, a);
+    return operationDAO.query(q, a);
   }
 }

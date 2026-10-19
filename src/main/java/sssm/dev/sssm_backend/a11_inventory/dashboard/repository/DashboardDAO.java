@@ -5,6 +5,10 @@ import java.util.Map;
 
 /** Typed persistence boundary for the inventory dashboard module. */
 public interface DashboardDAO {
+  List<Map<String, Object>> getSummary();
+
+  List<Map<String, Object>> getLowStock();
+
   List<Map<String, Object>> list(
       Integer page, Integer size, String search, String where, Object... args);
 

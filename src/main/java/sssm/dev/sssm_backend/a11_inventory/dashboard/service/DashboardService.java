@@ -1,34 +1,42 @@
 package sssm.dev.sssm_backend.a11_inventory.dashboard.service;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a11_inventory.dashboard.repository.DashboardDAO;
-import sssm.dev.sssm_backend.a11_inventory.dashboard.repository.DashboardDAOImpl;
 
+@Service
+@RequiredArgsConstructor
 public class DashboardService {
-  private final DashboardDAO dao;
+  private final DashboardDAO dashboardDAO;
 
-  public DashboardService() {
-    this.dao = new DashboardDAOImpl();
+  public List<Map<String, Object>> getSummary() {
+    return dashboardDAO.getSummary();
+  }
+
+  public List<Map<String, Object>> getLowStock() {
+    return dashboardDAO.getLowStock();
   }
 
   public List<Map<String, Object>> list(Integer p, Integer s, String q, String w, Object... a) {
-    return dao.list(p, s, q, w, a);
+    return dashboardDAO.list(p, s, q, w, a);
   }
 
   public Map<String, Object> one(String id) {
-    return dao.one(id);
+    return dashboardDAO.one(id);
   }
 
   public Map<String, Object> save(String id, Map<String, Object> b, boolean u) {
-    return dao.save(id, b, u);
+    return dashboardDAO.save(id, b, u);
   }
 
   public Map<String, Object> delete(String id) {
-    return dao.delete(id);
+    return dashboardDAO.delete(id);
   }
 
   public List<Map<String, Object>> query(String q, Object... a) {
-    return dao.query(q, a);
+    return dashboardDAO.query(q, a);
   }
 }

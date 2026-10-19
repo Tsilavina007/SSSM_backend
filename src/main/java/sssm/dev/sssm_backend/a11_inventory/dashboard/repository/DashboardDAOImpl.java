@@ -2,10 +2,13 @@ package sssm.dev.sssm_backend.a11_inventory.dashboard.repository;
 
 import java.sql.*;
 import java.util.*;
+import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 
 /** JDBC DAO for the inventory dashboard module. */
+@Repository
 public class DashboardDAOImpl implements DashboardDAO {
   private static final String item = "security.item";
 
@@ -22,6 +25,16 @@ public class DashboardDAOImpl implements DashboardDAO {
     } catch (Exception e) {
       return x;
     }
+  }
+
+  public List<Map<String, Object>> getSummary() {
+    return query(
+        "SELECT (SELECT count(*) FROM security.item) AS items,(SELECT count(*) FROM security.warehouse) AS warehouses,(SELECT count(*) FROM security.inventory_operation) AS operations");
+  }
+
+  public List<Map<String, Object>> getLowStock() {
+    return query(
+        "SELECT t.*,count(i.id) AS stock_quantity FROM security.item_type t LEFT JOIN security.item i ON i.item_type_id=t.id GROUP BY t.id HAVING count(i.id)<t.minimum_stock");
   }
 
   public List<Map<String, Object>> list(
@@ -49,7 +62,7 @@ public class DashboardDAOImpl implements DashboardDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }
@@ -62,7 +75,7 @@ public class DashboardDAOImpl implements DashboardDAO {
         return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
       }
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -101,7 +114,7 @@ public class DashboardDAOImpl implements DashboardDAO {
       }
       return one(v);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -111,7 +124,7 @@ public class DashboardDAOImpl implements DashboardDAO {
       p.setObject(1, id(v));
       return Map.of("id", v, "deleted", p.executeUpdate() > 0);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -124,7 +137,7 @@ public class DashboardDAOImpl implements DashboardDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }
