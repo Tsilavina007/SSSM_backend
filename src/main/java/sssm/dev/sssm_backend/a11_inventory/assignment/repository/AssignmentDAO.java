@@ -5,6 +5,12 @@ import java.util.Map;
 
 /** Typed persistence boundary for the inventory assignment module. */
 public interface AssignmentDAO {
+  List<Map<String, Object>> listActive(Integer page, Integer size);
+
+  List<Map<String, Object>> listByEmployee(String id);
+
+  List<Map<String, Object>> listByPost(String id);
+
   List<Map<String, Object>> list(
       Integer page, Integer size, String search, String where, Object... args);
 

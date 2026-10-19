@@ -2,10 +2,13 @@ package sssm.dev.sssm_backend.a11_inventory.inventory_count.repository;
 
 import java.sql.*;
 import java.util.*;
+import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 
 /** JDBC DAO for the inventory inventory count module. */
+@Repository
 public class InventoryCountDAOImpl implements InventoryCountDAO {
   private static final String inventory_count = "security.inventory_count";
 
@@ -22,6 +25,12 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
     } catch (Exception e) {
       return x;
     }
+  }
+
+  public List<Map<String, Object>> getResults(String id) {
+    return query(
+        "SELECT s.*,i.qr_code FROM security.inventory_count_scan s JOIN security.item i ON i.id=s.item_id WHERE s.inventory_count_id=?",
+        id);
   }
 
   public List<Map<String, Object>> list(
@@ -49,7 +58,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }
@@ -63,7 +72,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
         return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
       }
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -102,7 +111,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
       }
       return one(v);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -113,7 +122,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
       p.setObject(1, id(v));
       return Map.of("id", v, "deleted", p.executeUpdate() > 0);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -126,7 +135,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }

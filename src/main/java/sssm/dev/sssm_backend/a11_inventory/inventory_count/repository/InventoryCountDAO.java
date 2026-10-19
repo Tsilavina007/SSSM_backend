@@ -5,6 +5,8 @@ import java.util.Map;
 
 /** Typed persistence boundary for the inventory inventory count module. */
 public interface InventoryCountDAO {
+  List<Map<String, Object>> getResults(String id);
+
   List<Map<String, Object>> list(
       Integer page, Integer size, String search, String where, Object... args);
 

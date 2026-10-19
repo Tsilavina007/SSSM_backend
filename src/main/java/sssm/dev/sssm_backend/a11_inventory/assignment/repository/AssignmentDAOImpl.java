@@ -2,10 +2,13 @@ package sssm.dev.sssm_backend.a11_inventory.assignment.repository;
 
 import java.sql.*;
 import java.util.*;
+import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 
 /** JDBC DAO for the inventory assignment module. */
+@Repository
 public class AssignmentDAOImpl implements AssignmentDAO {
   private static final String item_assignment = "security.item_assignment";
 
@@ -22,6 +25,18 @@ public class AssignmentDAOImpl implements AssignmentDAO {
     } catch (Exception e) {
       return x;
     }
+  }
+
+  public List<Map<String, Object>> listActive(Integer page, Integer size) {
+    return list(page, size, null, "returned_at IS NULL");
+  }
+
+  public List<Map<String, Object>> listByEmployee(String id) {
+    return list(1, 500, null, "employee_id=?", id);
+  }
+
+  public List<Map<String, Object>> listByPost(String id) {
+    return list(1, 500, null, "post_id=?", id);
   }
 
   public List<Map<String, Object>> list(
@@ -49,7 +64,7 @@ public class AssignmentDAOImpl implements AssignmentDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }
@@ -63,7 +78,7 @@ public class AssignmentDAOImpl implements AssignmentDAO {
         return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
       }
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -102,7 +117,7 @@ public class AssignmentDAOImpl implements AssignmentDAO {
       }
       return one(v);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -113,7 +128,7 @@ public class AssignmentDAOImpl implements AssignmentDAO {
       p.setObject(1, id(v));
       return Map.of("id", v, "deleted", p.executeUpdate() > 0);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -126,7 +141,7 @@ public class AssignmentDAOImpl implements AssignmentDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }
