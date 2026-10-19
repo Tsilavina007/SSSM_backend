@@ -9,10 +9,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
 
+@Repository
 public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
   @Override
@@ -28,21 +33,11 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new ItemAssignment(
-                  rs.getString("id"),
-                  rs.getString("item_id"),
-                  rs.getString("employee_id"),
-                  rs.getString("post_id"),
-                  rs.getTimestamp("assigned_at"),
-                  rs.getTimestamp("returned_at"),
-                  rs.getString("condition_on_assignment"),
-                  rs.getString("condition_on_return"),
-                  rs.getString("notes")));
+          values.add(mapRowToItemAssignment(rs));
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return values;
   }
@@ -65,21 +60,11 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(
-              new ItemAssignment(
-                  rs.getString("id"),
-                  rs.getString("item_id"),
-                  rs.getString("employee_id"),
-                  rs.getString("post_id"),
-                  rs.getTimestamp("assigned_at"),
-                  rs.getTimestamp("returned_at"),
-                  rs.getString("condition_on_assignment"),
-                  rs.getString("condition_on_return"),
-                  rs.getString("notes")));
+          values.add(mapRowToItemAssignment(rs));
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return values;
   }
@@ -95,29 +80,20 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(
-              new ItemAssignment(
-                  rs.getString("id"),
-                  rs.getString("item_id"),
-                  rs.getString("employee_id"),
-                  rs.getString("post_id"),
-                  rs.getTimestamp("assigned_at"),
-                  rs.getTimestamp("returned_at"),
-                  rs.getString("condition_on_assignment"),
-                  rs.getString("condition_on_return"),
-                  rs.getString("notes")));
+          return Optional.of(mapRowToItemAssignment(rs));
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
 
   @Override
-  public ItemAssignment createItemAssignment(ItemAssignment value) {
+  public ItemAssignment createItemAssignment(ItemAssignmentCreateRequest value) {
     String sql =
         "INSERT INTO security.item_assignment (item_id, employee_id, post_id, assigned_at, returned_at, condition_on_assignment, condition_on_return, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    String generatedId = null;
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -134,17 +110,26 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
         if (rs.next()) {
-          value.setId(rs.getString(1));
+          generatedId = rs.getString(1);
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return value;
+    return new ItemAssignment(
+        generatedId,
+        value.getItem_id(),
+        value.getEmployee_id(),
+        value.getPost_id(),
+        value.getAssigned_at(),
+        value.getReturned_at(),
+        value.getCondition_on_assignment(),
+        value.getCondition_on_return(),
+        value.getNotes());
   }
 
   @Override
-  public ItemAssignment updateItemAssignment(ItemAssignment value) {
+  public ItemAssignment updateItemAssignment(String id, ItemAssignmentUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_assignment SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -182,12 +167,12 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     }
 
     if (parameters.isEmpty()) {
-      return value;
+      return getItemAssignmentById(id).get();
     }
 
     sql.setLength(sql.length() - 2);
     sql.append(" WHERE id = ?");
-    parameters.add(UUID.fromString(value.getId()));
+    parameters.add(UUID.fromString(id));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
@@ -196,9 +181,9 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
-    return value;
+    return getItemAssignmentById(id).get();
   }
 
   @Override
@@ -211,7 +196,20 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
+  }
+
+  private ItemAssignment mapRowToItemAssignment(ResultSet rs) throws SQLException {
+    return new ItemAssignment(
+        rs.getString("id"),
+        rs.getString("item_id"),
+        rs.getString("employee_id"),
+        rs.getString("post_id"),
+        rs.getTimestamp("assigned_at"),
+        rs.getTimestamp("returned_at"),
+        rs.getString("condition_on_assignment"),
+        rs.getString("condition_on_return"),
+        rs.getString("notes"));
   }
 }
