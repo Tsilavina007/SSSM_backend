@@ -11,6 +11,8 @@ import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountSca
 public interface InventoryCountDAO {
   List<InventoryCountScanResponse> getResults(String id);
 
+  InventoryCountScanResponse createScan(String inventoryCountId, Map<String, Object> body);
+
   List<InventoryCountResponse> list(
       Integer page, Integer size, String search, String where, Object... args);
 

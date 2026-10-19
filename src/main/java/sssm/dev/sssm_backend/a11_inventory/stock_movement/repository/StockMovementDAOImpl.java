@@ -92,25 +92,51 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
   @Override
   public StockMovementResponse createStockMovement(StockMovementCreateRequest value) {
-    String sql =
-        "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS security.movement_type), ?, ?, ?)";
+    // Colonnes requises toujours écrites ; les colonnes nullable sont omises
+    // quand absentes pour laisser s'appliquer les défauts PostgreSQL
+    // (movement_date NOT NULL DEFAULT now()).
+    StringBuilder columns = new StringBuilder("warehouse_id, item_id, movement_type");
+    StringBuilder placeholders = new StringBuilder("?, ?, CAST(? AS security.movement_type)");
+    List<Object> parameters = new ArrayList<>();
     String generatedId = null;
+
+    parameters.add(
+        value.getWarehouse_id() == null ? null : UUID.fromString(value.getWarehouse_id()));
+    parameters.add(value.getItem_id() == null ? null : UUID.fromString(value.getItem_id()));
+    parameters.add(
+        value.getMovement_type() == null
+            ? MovementType.IN.name()
+            : value.getMovement_type().name());
+
+    if (value.getEmployee_id() != null) {
+      columns.append(", employee_id");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(value.getEmployee_id()));
+    }
+    if (value.getReference() != null) {
+      columns.append(", reference");
+      placeholders.append(", ?");
+      parameters.add(value.getReference());
+    }
+    if (value.getMovement_date() != null) {
+      columns.append(", movement_date");
+      placeholders.append(", ?");
+      parameters.add(value.getMovement_date());
+    }
+    if (value.getNotes() != null) {
+      columns.append(", notes");
+      placeholders.append(", ?");
+      parameters.add(value.getNotes());
+    }
+
+    String sql =
+        "INSERT INTO security.stock_movement (" + columns + ") VALUES (" + placeholders + ")";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(
-          1, value.getWarehouse_id() == null ? null : UUID.fromString(value.getWarehouse_id()));
-      stmt.setObject(2, value.getItem_id() == null ? null : UUID.fromString(value.getItem_id()));
-      stmt.setObject(
-          3, value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
-      stmt.setString(
-          4,
-          value.getMovement_type() == null
-              ? MovementType.IN.name()
-              : value.getMovement_type().name());
-      stmt.setString(5, value.getReference());
-      stmt.setTimestamp(6, value.getMovement_date());
-      stmt.setString(7, value.getNotes());
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
       stmt.executeUpdate();
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {

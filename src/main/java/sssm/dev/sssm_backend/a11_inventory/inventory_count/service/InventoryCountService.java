@@ -5,6 +5,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountResponse;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountScanResponse;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.mapper.InventoryCountRestMapper;
@@ -24,13 +25,14 @@ public class InventoryCountService {
     return mapperListScanResponseToRest(inventoryCountDAO.getResults(id));
   }
 
-  public Object scan(String id, Map<String, Object> b) {
-    b.put("inventory_count_id", id);
-    return save(null, b, false);
+  public InventoryCountScanRest scan(String id, Map<String, Object> b) {
+    inventoryCountDAO.one(id).orElseThrow(() -> new NotFoundException("inventory count not found"));
+    return inventoryCountScanRestMapper.toRest(inventoryCountDAO.createScan(id, b));
   }
 
   public Object close(String id, Map<String, Object> b) {
-    return save(id, b == null ? Map.of("status", "CLOSED") : b, true);
+    // Corps absent : COMPLETED, seule valeur fermée acceptée par le CHECK de statut.
+    return save(id, b == null ? Map.of("status", "COMPLETED") : b, true);
   }
 
   public List<InventoryCountRest> list(Integer p, Integer s, String q, String w, Object... a) {

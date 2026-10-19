@@ -92,21 +92,53 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
   @Override
   public ItemAssignmentResponse createItemAssignment(ItemAssignmentCreateRequest value) {
-    String sql =
-        "INSERT INTO security.item_assignment (item_id, employee_id, post_id, assigned_at, returned_at, condition_on_assignment, condition_on_return, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+    // Colonnes requises toujours écrites ; les autres sont omises quand
+    // absentes pour laisser s'appliquer les défauts PostgreSQL
+    // (assigned_at NOT NULL DEFAULT now()).
+    StringBuilder columns = new StringBuilder("item_id, employee_id, post_id");
+    StringBuilder placeholders = new StringBuilder("?, ?, ?");
+    List<Object> parameters = new ArrayList<>();
     String generatedId = null;
+
+    parameters.add(value.getItem_id() == null ? null : UUID.fromString(value.getItem_id()));
+    parameters.add(
+        value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
+    parameters.add(value.getPost_id() == null ? null : UUID.fromString(value.getPost_id()));
+
+    if (value.getAssigned_at() != null) {
+      columns.append(", assigned_at");
+      placeholders.append(", ?");
+      parameters.add(value.getAssigned_at());
+    }
+    if (value.getReturned_at() != null) {
+      columns.append(", returned_at");
+      placeholders.append(", ?");
+      parameters.add(value.getReturned_at());
+    }
+    if (value.getCondition_on_assignment() != null) {
+      columns.append(", condition_on_assignment");
+      placeholders.append(", ?");
+      parameters.add(value.getCondition_on_assignment());
+    }
+    if (value.getCondition_on_return() != null) {
+      columns.append(", condition_on_return");
+      placeholders.append(", ?");
+      parameters.add(value.getCondition_on_return());
+    }
+    if (value.getNotes() != null) {
+      columns.append(", notes");
+      placeholders.append(", ?");
+      parameters.add(value.getNotes());
+    }
+
+    String sql =
+        "INSERT INTO security.item_assignment (" + columns + ") VALUES (" + placeholders + ")";
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, value.getItem_id() == null ? null : UUID.fromString(value.getItem_id()));
-      stmt.setObject(
-          2, value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
-      stmt.setObject(3, value.getPost_id() == null ? null : UUID.fromString(value.getPost_id()));
-      stmt.setTimestamp(4, value.getAssigned_at());
-      stmt.setTimestamp(5, value.getReturned_at());
-      stmt.setString(6, value.getCondition_on_assignment());
-      stmt.setString(7, value.getCondition_on_return());
-      stmt.setString(8, value.getNotes());
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
       stmt.executeUpdate();
 
       try (ResultSet rs = stmt.getGeneratedKeys()) {
