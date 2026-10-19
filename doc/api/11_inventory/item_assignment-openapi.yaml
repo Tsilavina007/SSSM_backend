@@ -1,0 +1,204 @@
+openapi: 3.0.3
+info:
+  title: SSSM Inventory — Item Assignments API
+  version: 1.0.0
+  description: >-
+    API des affectations d'articles (module a11_inventory/item_assignment),
+    dérivée du contrôleur ItemAssignmentController. Attention : ce module est
+    exposé sous /api/item-assignments (hors préfixe /api/inventory), distinct du
+    module assignment exposé sous /api/inventory/assignments (dette
+    d'architecture A/B, non décidée). Toutes les routes exigent un JWT
+    (Authorization: Bearer …). Erreurs : enveloppe {"errors": {message, detail,
+    code}} ; une requête malformée renvoie l'erreur Spring par défaut.
+    Pagination : page=1, pageSize=10 par défaut. Aucune validation Jakarta —
+    les champs marqués « requis » le sont par la base (NOT NULL sans défaut).
+    Le type exposé ne couvre que 9 des 14 colonnes de security.item_assignment
+    (created_at, updated_at, assigned_by, returned_by, expected_return_at non
+    exposés ici).
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Item Assignments
+    description: Affectations d'articles (module typé)
+paths:
+  /api/item-assignments:
+    get:
+      tags: [Item Assignments]
+      summary: Lister les affectations
+      parameters:
+        - {$ref: '#/components/parameters/Search'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste paginée des affectations
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/ItemAssignment'}}
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Item Assignments]
+      summary: Créer une affectation
+      description: >-
+        assigned_at absent → défaut base now() mais la réponse fait écho du
+        corps de la requête : assigned_at y est alors null (comportement voulu,
+        tests de non-régression associés). Un article déjà affecté (contrainte
+        uq_item_assignment_active) provoque une erreur 500.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ItemAssignmentCreate'}}
+      responses:
+        '200':
+          description: Affectation créée
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ItemAssignment'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/item-assignments/{itemAssignmentId}:
+    parameters:
+      - {$ref: '#/components/parameters/ItemAssignmentId'}
+    get:
+      tags: [Item Assignments]
+      summary: Récupérer une affectation par identifiant
+      responses:
+        '200':
+          description: Affectation trouvée
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ItemAssignment'}
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Item Assignments]
+      summary: Mettre à jour partiellement une affectation
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ItemAssignmentUpdate'}}
+      responses:
+        '200':
+          description: Affectation mise à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ItemAssignment'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Item Assignments]
+      summary: Supprimer une affectation
+      description: >-
+        Ne renvoie jamais 404 : la suppression d'un identifiant inexistant
+        renvoie quand même 200, avec un corps vide.
+      responses:
+        '200':
+          description: 200 sans corps
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Search:
+      name: search
+      in: query
+      required: false
+      schema: {type: string}
+      description: Recherche libre (ILIKE) selon la ressource.
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 10}
+    ItemAssignmentId:
+      name: itemAssignmentId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    BadRequest:
+      description: >-
+        Requête malformée (désérialisation JSON) — format d'erreur Spring par
+        défaut, hors enveloppe du module.
+    NotFound:
+      description: Affectation introuvable
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    ServerError:
+      description: >-
+        Erreur serveur — enveloppe {"errors": …} (ServerException, ex. article
+        déjà affecté actif) ou format d'erreur Spring par défaut (UUID malformé).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: {$ref: '#/components/schemas/Error'}
+    Error:
+      type: object
+      properties:
+        message: {type: string, nullable: true}
+        detail: {type: string, nullable: true}
+        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+    ItemAssignment:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        item_id: {type: string, format: uuid}
+        employee_id: {type: string, format: uuid}
+        post_id: {type: string, format: uuid}
+        assigned_at: {type: string, format: date-time, nullable: true}
+        returned_at: {type: string, format: date-time, nullable: true}
+        condition_on_assignment: {type: string, nullable: true}
+        condition_on_return: {type: string, nullable: true}
+        notes: {type: string, nullable: true}
+    ItemAssignmentCreate:
+      type: object
+      description: >-
+        Corps de création. item_id, employee_id et post_id sont NOT NULL sans
+        défaut dans la base : leur omission provoque une erreur 500.
+      required: [item_id, employee_id, post_id]
+      properties:
+        item_id: {type: string, format: uuid}
+        employee_id: {type: string, format: uuid}
+        post_id: {type: string, format: uuid}
+        assigned_at: {type: string, format: date-time, nullable: true}
+        returned_at: {type: string, format: date-time, nullable: true}
+        condition_on_assignment: {type: string, nullable: true}
+        condition_on_return: {type: string, nullable: true}
+        notes: {type: string, nullable: true}
+    ItemAssignmentUpdate:
+      type: object
+      description: Tous les champs sont facultatifs (mise à jour partielle).
+      properties:
+        item_id: {type: string, format: uuid}
+        employee_id: {type: string, format: uuid}
+        post_id: {type: string, format: uuid}
+        assigned_at: {type: string, format: date-time, nullable: true}
+        returned_at: {type: string, format: date-time, nullable: true}
+        condition_on_assignment: {type: string, nullable: true}
+        condition_on_return: {type: string, nullable: true}
+        notes: {type: string, nullable: true}

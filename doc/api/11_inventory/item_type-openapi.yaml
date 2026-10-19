@@ -1,0 +1,281 @@
+openapi: 3.0.3
+info:
+  title: SSSM Inventory — Item Types API
+  version: 1.0.0
+  description: >-
+    API des types d'articles (module a11_inventory/item_type), dérivée du
+    contrôleur ItemTypeController. Toutes les routes exigent un JWT
+    (Authorization: Bearer …). Erreurs : enveloppe {"errors": {message, detail,
+    code}} ; une requête malformée renvoie l'erreur Spring par défaut. Pagination
+    : page=1, pageSize=10 par défaut. Aucune validation Jakarta — les champs
+    marqués « requis » le sont par la base (NOT NULL sans défaut). Les trois
+    routes « stub » (low-stock, items, stocks) ne sont pas implémentées :
+    elles renvoient 200 avec un corps vide (dette D5 connue, non décidée).
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Item Types
+    description: Types d'articles
+paths:
+  /api/inventory/item-types:
+    get:
+      tags: [Item Types]
+      summary: Lister les types d'articles
+      parameters:
+        - {$ref: '#/components/parameters/Search'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste paginée des types
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/ItemType'}}
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Item Types]
+      summary: Créer un type d'article
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ItemTypeCreate'}}
+      responses:
+        '200':
+          description: Type créé
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ItemType'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/item-types/{itemTypeId}:
+    parameters:
+      - {$ref: '#/components/parameters/ItemTypeId'}
+    get:
+      tags: [Item Types]
+      summary: Récupérer un type par identifiant
+      responses:
+        '200':
+          description: Type trouvé
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ItemType'}
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Item Types]
+      summary: Mettre à jour partiellement un type
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ItemTypeUpdate'}}
+      responses:
+        '200':
+          description: Type mis à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ItemType'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Item Types]
+      summary: Supprimer un type
+      description: >-
+        Ne renvoie jamais 404 : la suppression d'un identifiant inexistant
+        renvoie quand même 200 (le DELETE SQL n'affecte aucune ligne).
+      responses:
+        '200':
+          description: Message de confirmation (chaîne JSON)
+          content:
+            application/json:
+              schema: {type: string, example: 'ItemType deleted : 3f0c2f70-0000-4000-8000-000000000001'}
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/item-types/category/{itemCategoryId}:
+    parameters:
+      - {$ref: '#/components/parameters/ItemCategoryId'}
+    get:
+      tags: [Item Types]
+      summary: Lister les types d'une catégorie
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste paginée des types de la catégorie
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/ItemType'}}
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/item-types/low-stock:
+    get:
+      tags: [Item Types]
+      summary: 'Stub — types en stock bas (non implémenté)'
+      description: >-
+        Route présente dans le contrôleur mais la méthode renvoie null : 200
+        sans corps. Comportement préexistant conservé tel quel (dette D5).
+      responses:
+        '200':
+          description: 200 sans corps (stub)
+  /api/inventory/item-types/items/{typeId}:
+    parameters:
+      - name: typeId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      tags: [Item Types]
+      summary: 'Stub — articles d un type (non implémenté)'
+      description: >-
+        Route présente dans le contrôleur mais la méthode renvoie null : 200
+        sans corps. Comportement préexistant conservé tel quel (dette D5).
+      responses:
+        '200':
+          description: 200 sans corps (stub)
+  /api/inventory/item-types/stocks/{typeId}:
+    parameters:
+      - name: typeId
+        in: path
+        required: true
+        schema: {type: string, format: uuid}
+    get:
+      tags: [Item Types]
+      summary: 'Stub — stocks d un type (non implémenté)'
+      description: >-
+        Route présente dans le contrôleur mais la méthode renvoie null : 200
+        sans corps. Comportement préexistant conservé tel quel (dette D5).
+      responses:
+        '200':
+          description: 200 sans corps (stub)
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Search:
+      name: search
+      in: query
+      required: false
+      schema: {type: string}
+      description: Recherche libre (ILIKE) selon la ressource.
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 10}
+    ItemTypeId:
+      name: itemTypeId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    ItemCategoryId:
+      name: itemCategoryId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    BadRequest:
+      description: >-
+        Requête malformée (désérialisation JSON) — format d'erreur Spring par
+        défaut, hors enveloppe du module.
+    NotFound:
+      description: Type d'article introuvable
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    ServerError:
+      description: >-
+        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
+        d'erreur Spring par défaut (identifiant malformé).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: {$ref: '#/components/schemas/Error'}
+    Error:
+      type: object
+      properties:
+        message: {type: string, nullable: true}
+        detail: {type: string, nullable: true}
+        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+    ItemStatus:
+      type: string
+      enum: [AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED]
+    CompanyBrief:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+    ItemCategoryBrief:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        company: {$ref: '#/components/schemas/CompanyBrief'}
+        name: {type: string}
+        description: {type: string, nullable: true}
+    ItemType:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        company: {$ref: '#/components/schemas/CompanyBrief'}
+        category: {$ref: '#/components/schemas/ItemCategoryBrief'}
+        code: {type: string}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        unit: {type: string, nullable: true}
+        quantity_total: {type: number, nullable: true}
+        minimum_stock: {type: number, nullable: true}
+        status: {$ref: '#/components/schemas/ItemStatus'}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    ItemTypeCreate:
+      type: object
+      description: >-
+        Corps de création. Les champs requis le sont par la base (NOT NULL sans
+        défaut) : leur omission provoque une erreur 500. unit, quantity_total,
+        minimum_stock et status ont des valeurs par défaut en base.
+      required: [company_id, code, name]
+      properties:
+        company_id: {type: string, format: uuid}
+        category_id: {type: string, format: uuid, nullable: true}
+        code: {type: string}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        unit: {type: string, nullable: true}
+        quantity_total: {type: number, nullable: true}
+        minimum_stock: {type: number, nullable: true}
+        status: {$ref: '#/components/schemas/ItemStatus'}
+    ItemTypeUpdate:
+      type: object
+      description: Tous les champs sont facultatifs (mise à jour partielle).
+      properties:
+        company_id: {type: string, format: uuid}
+        category_id: {type: string, format: uuid, nullable: true}
+        code: {type: string}
+        name: {type: string}
+        description: {type: string, nullable: true}
+        unit: {type: string, nullable: true}
+        quantity_total: {type: number, nullable: true}
+        minimum_stock: {type: number, nullable: true}
+        status: {$ref: '#/components/schemas/ItemStatus'}

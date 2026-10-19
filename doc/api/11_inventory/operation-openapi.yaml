@@ -1,0 +1,178 @@
+openapi: 3.0.3
+info:
+  title: SSSM Inventory — Operations API
+  version: 1.0.0
+  description: >-
+    API des opérations d'inventaire (module a11_inventory/operation, famille
+    « générique » à corps Map), dérivée du contrôleur OperationController.
+    Toutes les routes exigent un JWT (Authorization: Bearer …). Attention :
+    l'operation_type n'est PAS déduit de la route choisie (dette connue,
+    préexistant) — il doit figurer dans le corps, sinon l'insertion échoue en
+    500 (NOT NULL sans défaut). Corps : objet libre validé par regex puis
+    transmis tel quel au SQL ; clé inconnue → 500. Réponses en 200 : ligne
+    mapée en Operation, ou carte {"error": …} si le corps est vide ou sans
+    colonne writable. Aucune lecture/suppression exposée (routes create only).
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Operations
+    description: Opérations (réception, sortie, transfert)
+paths:
+  /api/inventory/operations/receipt:
+    post:
+      tags: [Operations]
+      summary: Créer une opération de réception
+      description: >-
+        L'operation_type n'est pas renseigné automatiquement : fournir
+        "operation_type": "RECEIPT" dans le corps pour une opération conforme.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/OperationUpsert'}}
+      responses:
+        '200':
+          description: 'Opération créée, ou carte {"error": …} si le corps est vide ou sans colonne writable'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {$ref: '#/components/schemas/Operation'}
+                  - {$ref: '#/components/schemas/FamilyCError'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/operations/issue:
+    post:
+      tags: [Operations]
+      summary: Créer une opération de sortie
+      description: >-
+        L'operation_type n'est pas renseigné automatiquement : fournir
+        "operation_type": "ISSUE" dans le corps pour une opération conforme.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/OperationUpsert'}}
+      responses:
+        '200':
+          description: 'Opération créée, ou carte {"error": …}'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {$ref: '#/components/schemas/Operation'}
+                  - {$ref: '#/components/schemas/FamilyCError'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/operations/transfer:
+    post:
+      tags: [Operations]
+      summary: Créer une opération de transfert
+      description: >-
+        L'operation_type n'est pas renseigné automatiquement : fournir
+        "operation_type": "TRANSFER" dans le corps pour une opération conforme.
+        Contrainte base : source_warehouse_id ≠ destination_warehouse_id (sinon
+        500).
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/OperationUpsert'}}
+      responses:
+        '200':
+          description: 'Opération créée, ou carte {"error": …}'
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {$ref: '#/components/schemas/Operation'}
+                  - {$ref: '#/components/schemas/FamilyCError'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters: {}
+  responses:
+    BadRequest:
+      description: >-
+        Requête malformée (désérialisation JSON) — format d'erreur Spring par
+        défaut, hors enveloppe du module.
+    ServerError:
+      description: >-
+        Erreur serveur — enveloppe {"errors": …} (ServerException, ex. clé
+        inconnue, operation_type/status hors CHECK, contrainte NOT NULL) ou
+        format d'erreur Spring par défaut.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: {$ref: '#/components/schemas/Error'}
+    Error:
+      type: object
+      properties:
+        message: {type: string, nullable: true}
+        detail: {type: string, nullable: true}
+        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+    FamilyCError:
+      type: object
+      description: Carte d'erreur douce renvoyée en 200 par les opérations de cette famille.
+      properties:
+        error: {type: string, examples: ['request body is required', 'no writable fields']}
+    OperationType:
+      type: string
+      enum: [RECEIPT, ISSUE, TRANSFER, ASSIGNMENT, RETURN, ADJUSTMENT]
+    OperationStatus:
+      type: string
+      enum: [PENDING, COMPLETED, CANCELLED, FAILED]
+    Operation:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        company_id: {type: string, format: uuid}
+        operation_type: {$ref: '#/components/schemas/OperationType'}
+        status: {$ref: '#/components/schemas/OperationStatus'}
+        reference: {type: string, nullable: true}
+        idempotency_key: {type: string, nullable: true}
+        source_warehouse_id: {type: string, format: uuid, nullable: true}
+        destination_warehouse_id: {type: string, format: uuid, nullable: true}
+        employee_id: {type: string, format: uuid, nullable: true}
+        post_id: {type: string, format: uuid, nullable: true}
+        performed_by: {type: string, format: uuid, nullable: true}
+        notes: {type: string, nullable: true}
+        created_at: {type: string, format: date-time}
+        completed_at: {type: string, format: date-time, nullable: true}
+    OperationUpsert:
+      type: object
+      description: >-
+        Corps Map générique (famille C). Clés validées par regex puis transmises
+        au SQL : toute colonne de inventory_operation sauf id est acceptée
+        (dette de masse d'affectation, options A/B/C non décidées). company_id et
+        operation_type sont NOT NULL sans défaut : leur omission provoque une
+        erreur 500 (et non 400). status a pour défaut PENDING.
+      required: [company_id, operation_type]
+      additionalProperties: true
+      properties:
+        company_id: {type: string, format: uuid}
+        operation_type: {$ref: '#/components/schemas/OperationType'}
+        status: {$ref: '#/components/schemas/OperationStatus'}
+        reference: {type: string, nullable: true}
+        idempotency_key: {type: string, nullable: true}
+        source_warehouse_id: {type: string, format: uuid, nullable: true}
+        destination_warehouse_id: {type: string, format: uuid, nullable: true}
+        employee_id: {type: string, format: uuid, nullable: true}
+        post_id: {type: string, format: uuid, nullable: true}
+        performed_by: {type: string, format: uuid, nullable: true}
+        notes: {type: string, nullable: true}
+        completed_at: {type: string, format: date-time, nullable: true}

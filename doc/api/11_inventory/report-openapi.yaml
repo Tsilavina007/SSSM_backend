@@ -1,0 +1,88 @@
+openapi: 3.0.3
+info:
+  title: SSSM Inventory — Reports API
+  version: 1.0.0
+  description: >-
+    API des rapports d'inventaire (module a11_inventory/report), dérivée du
+    contrôleur ReportController. Toutes les routes exigent un JWT
+    (Authorization: Bearer …). Lecture seule. Pagination : page=1, pageSize=50
+    (max 500).
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Reports
+    description: Rapports (lecture seule)
+paths:
+  /api/inventory/reports/movements:
+    get:
+      tags: [Reports]
+      summary: Rapport des mouvements de stock
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste paginée des mouvements enrichis (colonnes brutes de stock_movement)
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/ReportMovement'}}
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 500, default: 50}
+  responses:
+    ServerError:
+      description: >-
+        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
+        d'erreur Spring par défaut.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: {$ref: '#/components/schemas/Error'}
+    Error:
+      type: object
+      properties:
+        message: {type: string, nullable: true}
+        detail: {type: string, nullable: true}
+        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+    MovementType:
+      type: string
+      enum: [IN, OUT, TRANSFER, RETURN, ADJUSTMENT]
+    ReportMovement:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        warehouse_id: {type: string, format: uuid, nullable: true}
+        item_id: {type: string, format: uuid, nullable: true}
+        employee_id: {type: string, format: uuid, nullable: true}
+        movement_type: {$ref: '#/components/schemas/MovementType'}
+        reference: {type: string, nullable: true}
+        movement_date: {type: string, format: date-time, nullable: true}
+        notes: {type: string, nullable: true}
+        source_warehouse_id: {type: string, format: uuid, nullable: true}
+        destination_warehouse_id: {type: string, format: uuid, nullable: true}
+        operation_id: {type: string, format: uuid, nullable: true}
+        quantity: {type: number, nullable: true}
+        performed_by: {type: string, format: uuid, nullable: true}
+        created_at: {type: string, format: date-time, nullable: true}

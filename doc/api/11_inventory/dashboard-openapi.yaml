@@ -1,0 +1,95 @@
+openapi: 3.0.3
+info:
+  title: SSSM Inventory — Dashboard API
+  version: 1.0.0
+  description: >-
+    API du tableau de bord inventaire (module a11_inventory/dashboard), dérivée
+    du contrôleur DashboardController. Toutes les routes exigent un JWT
+    (Authorization: Bearer …). Lecture seule ; les deux routes renvoient des
+    tableaux (agrégats par entreprise).
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Dashboard
+    description: Tableau de bord et alertes
+paths:
+  /api/inventory/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Synthèse du tableau de bord
+      responses:
+        '200':
+          description: >-
+            Tableau d'agrégats (un objet par entreprise) : compteurs d'articles,
+            d'entrepôts et d'opérations.
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/DashboardSummary'}}
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/alerts/low-stock:
+    get:
+      tags: [Dashboard]
+      summary: Alertes de stock bas
+      responses:
+        '200':
+          description: Tableau des articles sous le seuil minimum
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/DashboardLowStock'}}
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters: {}
+  responses:
+    ServerError:
+      description: >-
+        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
+        d'erreur Spring par défaut.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: {$ref: '#/components/schemas/Error'}
+    Error:
+      type: object
+      properties:
+        message: {type: string, nullable: true}
+        detail: {type: string, nullable: true}
+        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+    ItemStatus:
+      type: string
+      enum: [AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED]
+    DashboardSummary:
+      type: object
+      properties:
+        items: {type: integer, format: int64, nullable: true}
+        warehouses: {type: integer, format: int64, nullable: true}
+        operations: {type: integer, format: int64, nullable: true}
+    DashboardLowStock:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        company_id: {type: string, format: uuid, nullable: true}
+        category_id: {type: string, format: uuid, nullable: true}
+        code: {type: string, nullable: true}
+        name: {type: string, nullable: true}
+        description: {type: string, nullable: true}
+        unit: {type: string, nullable: true}
+        quantity_total: {type: number, nullable: true}
+        minimum_stock: {type: number, nullable: true}
+        status: {$ref: '#/components/schemas/ItemStatus'}
+        created_at: {type: string, format: date-time, nullable: true}
+        updated_at: {type: string, format: date-time, nullable: true}
+        archived_at: {type: string, format: date-time, nullable: true}
+        stock_quantity: {type: integer, format: int64, nullable: true}
