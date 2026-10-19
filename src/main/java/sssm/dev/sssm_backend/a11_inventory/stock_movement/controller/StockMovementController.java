@@ -21,7 +21,7 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementUpdateRequest;
-import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.rest.StockMovementRest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.service.StockMovementService;
 
 @RestController
@@ -39,7 +39,8 @@ public class StockMovementController {
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
     try {
-      List<StockMovement> stockMovements = stockMovementService.getStockMovements(search, page, pageSize);
+      List<StockMovementRest> stockMovements =
+          stockMovementService.getStockMovements(search, page, pageSize);
       return ResponseEntity.ok().body(stockMovements);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
@@ -54,7 +55,7 @@ public class StockMovementController {
   @GetMapping("/{stockMovementId}")
   public ResponseEntity<Object> getStockMovementById(@PathVariable String stockMovementId) {
     try {
-      Optional<StockMovement> stockMovement =
+      Optional<StockMovementRest> stockMovement =
           stockMovementService.getStockMovementById(stockMovementId);
       return ResponseEntity.ok().body(stockMovement);
     } catch (ClientException e) {
@@ -71,7 +72,7 @@ public class StockMovementController {
   public ResponseEntity<Object> createStockMovement(
       @RequestBody StockMovementCreateRequest stockMovement) {
     try {
-      StockMovement stockMovementRes = stockMovementService.createStockMovement(stockMovement);
+      StockMovementRest stockMovementRes = stockMovementService.createStockMovement(stockMovement);
       return ResponseEntity.ok().body(stockMovementRes);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
@@ -88,7 +89,7 @@ public class StockMovementController {
       @PathVariable String stockMovementId,
       @RequestBody StockMovementUpdateRequest updatedStockMovement) {
     try {
-      StockMovement stockMovementRes =
+      StockMovementRest stockMovementRes =
           stockMovementService.updateStockMovement(stockMovementId, updatedStockMovement);
       return ResponseEntity.ok().body(stockMovementRes);
     } catch (ClientException e) {

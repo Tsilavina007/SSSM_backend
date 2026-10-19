@@ -72,8 +72,7 @@ public class AssignmentController {
   }
 
   @PatchMapping("/assignments/{id}")
-  public ResponseEntity<Object> patch(
-      @PathVariable String id, @RequestBody Map<String, Object> b) {
+  public ResponseEntity<Object> patch(@PathVariable String id, @RequestBody Map<String, Object> b) {
     try {
       return ResponseEntity.ok().body(assignmentService.save(id, b, true));
     } catch (ClientException e) {

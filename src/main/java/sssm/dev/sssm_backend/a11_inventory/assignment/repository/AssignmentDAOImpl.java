@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentResponse;
 
 /** JDBC DAO for the inventory assignment module. */
 @Repository
@@ -19,6 +20,24 @@ public class AssignmentDAOImpl implements AssignmentDAO {
     return m;
   }
 
+  private AssignmentResponse mapRowToAssignment(ResultSet r) throws SQLException {
+    return new AssignmentResponse(
+        r.getString("id"),
+        r.getString("item_id"),
+        r.getString("employee_id"),
+        r.getString("post_id"),
+        r.getTimestamp("assigned_at"),
+        r.getTimestamp("returned_at"),
+        r.getString("condition_on_assignment"),
+        r.getString("condition_on_return"),
+        r.getString("notes"),
+        r.getTimestamp("created_at"),
+        r.getTimestamp("updated_at"),
+        r.getString("assigned_by"),
+        r.getString("returned_by"),
+        r.getTimestamp("expected_return_at"));
+  }
+
   private Object id(Object x) {
     try {
       return x == null ? null : UUID.fromString(String.valueOf(x));
@@ -27,21 +46,21 @@ public class AssignmentDAOImpl implements AssignmentDAO {
     }
   }
 
-  public List<Map<String, Object>> listActive(Integer page, Integer size) {
+  public List<AssignmentResponse> listActive(Integer page, Integer size) {
     return list(page, size, null, "returned_at IS NULL");
   }
 
-  public List<Map<String, Object>> listByEmployee(String id) {
+  public List<AssignmentResponse> listByEmployee(String id) {
     return list(1, 500, null, "employee_id=?", id);
   }
 
-  public List<Map<String, Object>> listByPost(String id) {
+  public List<AssignmentResponse> listByPost(String id) {
     return list(1, 500, null, "post_id=?", id);
   }
 
-  public List<Map<String, Object>> list(
+  public List<AssignmentResponse> list(
       Integer page, Integer size, String search, String where, Object... a) {
-    List<Map<String, Object>> o = new ArrayList<>();
+    List<AssignmentResponse> o = new ArrayList<>();
     int p = page == null ? 1 : Math.max(1, page),
         s = size == null ? 50 : Math.min(500, Math.max(1, size));
     String q =
@@ -61,7 +80,7 @@ public class AssignmentDAOImpl implements AssignmentDAO {
       z.setInt(n++, s);
       z.setInt(n, (p - 1) * s);
       try (ResultSet r = z.executeQuery()) {
-        while (r.next()) o.add(row(r));
+        while (r.next()) o.add(mapRowToAssignment(r));
       }
     } catch (SQLException e) {
       throw new ServerException(e);
@@ -69,20 +88,20 @@ public class AssignmentDAOImpl implements AssignmentDAO {
     return o;
   }
 
-  public Map<String, Object> one(String v) {
+  public Optional<AssignmentResponse> one(String v) {
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p =
             c.prepareStatement("SELECT * FROM " + item_assignment + " WHERE id=?")) {
       p.setObject(1, id(v));
       try (ResultSet r = p.executeQuery()) {
-        return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
+        return r.next() ? Optional.of(mapRowToAssignment(r)) : Optional.empty();
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
   }
 
-  public Map<String, Object> save(String v, Map<String, Object> b, boolean u) {
+  public Object save(String v, Map<String, Object> b, boolean u) {
     try (Connection c = DatabaseConnection.getConnection()) {
       if (b == null || b.isEmpty()) return Map.of("error", "request body is required");
       List<String> cs = new ArrayList<>();
@@ -115,7 +134,8 @@ public class AssignmentDAOImpl implements AssignmentDAO {
             if (r.next()) v = String.valueOf(r.getObject(1));
           }
       }
-      return one(v);
+      AssignmentResponse r = one(v).orElse(null);
+      return r != null ? r : Map.of("error", "Not found", "id", v);
     } catch (SQLException e) {
       throw new ServerException(e);
     }

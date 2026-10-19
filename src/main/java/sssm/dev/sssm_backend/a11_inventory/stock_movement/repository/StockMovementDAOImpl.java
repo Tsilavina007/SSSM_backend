@@ -15,16 +15,16 @@ import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementResponse;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementUpdateRequest;
-import sssm.dev.sssm_backend.a11_inventory.stock_movement.entity.StockMovement;
 
 @Repository
 public class StockMovementDAOImpl implements StockMovementDAO {
 
   @Override
-  public List<StockMovement> getAllStockMovements(int page, int pageSize) {
+  public List<StockMovementResponse> getAllStockMovements(int page, int pageSize) {
     String sql = "SELECT * FROM security.stock_movement ORDER BY id LIMIT ? OFFSET ?";
-    List<StockMovement> values = new ArrayList<>();
+    List<StockMovementResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -34,7 +34,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(mapRowToStockMovement(rs));
+          values.add(mapRowToStockMovementResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -44,10 +44,11 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public List<StockMovement> searchStockMovementsByName(String value, int page, int pageSize) {
+  public List<StockMovementResponse> searchStockMovementsByName(
+      String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.stock_movement WHERE reference ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
-    List<StockMovement> values = new ArrayList<>();
+    List<StockMovementResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -60,7 +61,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(mapRowToStockMovement(rs));
+          values.add(mapRowToStockMovementResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -70,7 +71,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public Optional<StockMovement> getStockMovementById(String id) {
+  public Optional<StockMovementResponse> getStockMovementById(String id) {
     String sql = "SELECT * FROM security.stock_movement WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -80,7 +81,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(mapRowToStockMovement(rs));
+          return Optional.of(mapRowToStockMovementResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -90,7 +91,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public StockMovement createStockMovement(StockMovementCreateRequest value) {
+  public StockMovementResponse createStockMovement(StockMovementCreateRequest value) {
     String sql =
         "INSERT INTO security.stock_movement (warehouse_id, item_id, employee_id, movement_type, reference, movement_date, notes) VALUES (?, ?, ?, CAST(? AS security.movement_type), ?, ?, ?)";
     String generatedId = null;
@@ -120,7 +121,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return new StockMovement(
+    return new StockMovementResponse(
         generatedId,
         value.getWarehouse_id(),
         value.getItem_id(),
@@ -132,7 +133,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
-  public StockMovement updateStockMovement(String id, StockMovementUpdateRequest value) {
+  public StockMovementResponse updateStockMovement(String id, StockMovementUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.stock_movement SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -199,8 +200,8 @@ public class StockMovementDAOImpl implements StockMovementDAO {
     }
   }
 
-  private StockMovement mapRowToStockMovement(ResultSet rs) throws SQLException {
-    return new StockMovement(
+  private StockMovementResponse mapRowToStockMovementResponse(ResultSet rs) throws SQLException {
+    return new StockMovementResponse(
         rs.getString("id"),
         rs.getString("warehouse_id"),
         rs.getString("item_id"),

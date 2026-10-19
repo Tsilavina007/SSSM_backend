@@ -21,7 +21,7 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
-import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
 
 @RestController
@@ -39,7 +39,7 @@ public class ItemAssignmentController {
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
     try {
-      List<ItemAssignment> itemAssignments =
+      List<ItemAssignmentRest> itemAssignments =
           itemAssignmentService.getItemAssignments(search, page, pageSize);
       return ResponseEntity.ok().body(itemAssignments);
     } catch (ClientException e) {
@@ -55,7 +55,7 @@ public class ItemAssignmentController {
   @GetMapping("/{itemAssignmentId}")
   public ResponseEntity<Object> getItemAssignmentById(@PathVariable String itemAssignmentId) {
     try {
-      Optional<ItemAssignment> itemAssignment =
+      Optional<ItemAssignmentRest> itemAssignment =
           itemAssignmentService.getItemAssignmentById(itemAssignmentId);
       return ResponseEntity.ok().body(itemAssignment);
     } catch (ClientException e) {
@@ -72,7 +72,8 @@ public class ItemAssignmentController {
   public ResponseEntity<Object> createItemAssignment(
       @RequestBody ItemAssignmentCreateRequest itemAssignment) {
     try {
-      ItemAssignment itemAssignmentRes = itemAssignmentService.createItemAssignment(itemAssignment);
+      ItemAssignmentRest itemAssignmentRes =
+          itemAssignmentService.createItemAssignment(itemAssignment);
       return ResponseEntity.ok().body(itemAssignmentRes);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
@@ -89,7 +90,7 @@ public class ItemAssignmentController {
       @PathVariable String itemAssignmentId,
       @RequestBody ItemAssignmentUpdateRequest updatedItemAssignment) {
     try {
-      ItemAssignment itemAssignmentRes =
+      ItemAssignmentRest itemAssignmentRes =
           itemAssignmentService.updateItemAssignment(itemAssignmentId, updatedItemAssignment);
       return ResponseEntity.ok().body(itemAssignmentRes);
     } catch (ClientException e) {

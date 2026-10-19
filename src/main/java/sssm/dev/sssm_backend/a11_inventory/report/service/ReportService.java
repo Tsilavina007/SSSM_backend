@@ -5,15 +5,19 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import sssm.dev.sssm_backend.a11_inventory.report.dto.ReportMovementResponse;
+import sssm.dev.sssm_backend.a11_inventory.report.dto.mapper.ReportMovementRestMapper;
+import sssm.dev.sssm_backend.a11_inventory.report.dto.rest.ReportMovementRest;
 import sssm.dev.sssm_backend.a11_inventory.report.repository.ReportDAO;
 
 @Service
 @RequiredArgsConstructor
 public class ReportService {
   private final ReportDAO reportDAO;
+  private final ReportMovementRestMapper reportMovementRestMapper;
 
-  public List<Map<String, Object>> list(Integer p, Integer s, String q, String w, Object... a) {
-    return reportDAO.list(p, s, q, w, a);
+  public List<ReportMovementRest> list(Integer p, Integer s, String q, String w, Object... a) {
+    return mapperListResponseToRest(reportDAO.list(p, s, q, w, a));
   }
 
   public Map<String, Object> one(String id) {
@@ -30,5 +34,14 @@ public class ReportService {
 
   public List<Map<String, Object>> query(String q, Object... a) {
     return reportDAO.query(q, a);
+  }
+
+  private List<ReportMovementRest> mapperListResponseToRest(List<ReportMovementResponse> items) {
+    return items.stream()
+        .map(
+            item -> {
+              return reportMovementRestMapper.toRest(item);
+            })
+        .toList();
   }
 }

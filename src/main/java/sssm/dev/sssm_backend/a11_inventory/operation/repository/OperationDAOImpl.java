@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a11_inventory.operation.dto.OperationResponse;
 
 /** JDBC DAO for the inventory operation module. */
 @Repository
@@ -17,6 +18,24 @@ public class OperationDAOImpl implements OperationDAO {
     ResultSetMetaData d = r.getMetaData();
     for (int i = 1; i <= d.getColumnCount(); i++) m.put(d.getColumnLabel(i), r.getObject(i));
     return m;
+  }
+
+  private OperationResponse mapRowToOperation(ResultSet r) throws SQLException {
+    return new OperationResponse(
+        r.getString("id"),
+        r.getString("company_id"),
+        r.getString("operation_type"),
+        r.getString("status"),
+        r.getString("reference"),
+        r.getString("idempotency_key"),
+        r.getString("source_warehouse_id"),
+        r.getString("destination_warehouse_id"),
+        r.getString("employee_id"),
+        r.getString("post_id"),
+        r.getString("performed_by"),
+        r.getString("notes"),
+        r.getTimestamp("created_at"),
+        r.getTimestamp("completed_at"));
   }
 
   private Object id(Object x) {
@@ -57,20 +76,20 @@ public class OperationDAOImpl implements OperationDAO {
     return o;
   }
 
-  public Map<String, Object> one(String v) {
+  public Optional<OperationResponse> one(String v) {
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p =
             c.prepareStatement("SELECT * FROM " + inventory_operation + " WHERE id=?")) {
       p.setObject(1, id(v));
       try (ResultSet r = p.executeQuery()) {
-        return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
+        return r.next() ? Optional.of(mapRowToOperation(r)) : Optional.empty();
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
   }
 
-  public Map<String, Object> save(String v, Map<String, Object> b, boolean u) {
+  public Object save(String v, Map<String, Object> b, boolean u) {
     try (Connection c = DatabaseConnection.getConnection()) {
       if (b == null || b.isEmpty()) return Map.of("error", "request body is required");
       List<String> cs = new ArrayList<>();
@@ -103,7 +122,8 @@ public class OperationDAOImpl implements OperationDAO {
             if (r.next()) v = String.valueOf(r.getObject(1));
           }
       }
-      return one(v);
+      OperationResponse r = one(v).orElse(null);
+      return r != null ? r : Map.of("error", "Not found", "id", v);
     } catch (SQLException e) {
       throw new ServerException(e);
     }

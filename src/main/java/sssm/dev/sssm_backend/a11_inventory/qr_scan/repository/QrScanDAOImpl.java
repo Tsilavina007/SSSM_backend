@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.QrScanItemResponse;
 
 /** JDBC DAO for the inventory qr scan module. */
 @Repository
@@ -27,13 +28,30 @@ public class QrScanDAOImpl implements QrScanDAO {
     }
   }
 
-  public List<Map<String, Object>> resolveQrCode(String qrCode) {
-    List<Map<String, Object>> o = new ArrayList<>();
+  private QrScanItemResponse mapRowToQrScanItem(ResultSet r) throws SQLException {
+    return new QrScanItemResponse(
+        r.getString("id"),
+        r.getString("company_id"),
+        r.getString("category_id"),
+        r.getString("item_type_id"),
+        r.getString("qr_code"),
+        r.getString("description"),
+        r.getString("status"),
+        r.getString("current_warehouse_id"),
+        r.getTimestamp("created_at"),
+        r.getTimestamp("updated_at"),
+        r.getTimestamp("archived_at"),
+        r.getString("archived_by"),
+        r.getTimestamp("last_inventory_at"));
+  }
+
+  public List<QrScanItemResponse> resolveQrCode(String qrCode) {
+    List<QrScanItemResponse> o = new ArrayList<>();
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p = c.prepareStatement("SELECT * FROM security.item WHERE qr_code=?")) {
       p.setObject(1, id(qrCode));
       try (ResultSet r = p.executeQuery()) {
-        while (r.next()) o.add(row(r));
+        while (r.next()) o.add(mapRowToQrScanItem(r));
       }
     } catch (SQLException e) {
       throw new ServerException(e);

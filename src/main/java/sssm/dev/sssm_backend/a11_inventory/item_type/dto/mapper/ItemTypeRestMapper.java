@@ -1,8 +1,8 @@
 package sssm.dev.sssm_backend.a11_inventory.item_type.dto.mapper;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.company.dto.mapper.CompanyRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;

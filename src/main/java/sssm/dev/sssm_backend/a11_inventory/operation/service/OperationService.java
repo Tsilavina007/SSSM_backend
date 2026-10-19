@@ -5,23 +5,28 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import sssm.dev.sssm_backend.a11_inventory.operation.dto.OperationResponse;
+import sssm.dev.sssm_backend.a11_inventory.operation.dto.mapper.OperationRestMapper;
 import sssm.dev.sssm_backend.a11_inventory.operation.repository.OperationDAO;
 
 @Service
 @RequiredArgsConstructor
 public class OperationService {
   private final OperationDAO operationDAO;
+  private final OperationRestMapper operationRestMapper;
 
   public List<Map<String, Object>> list(Integer p, Integer s, String q, String w, Object... a) {
     return operationDAO.list(p, s, q, w, a);
   }
 
-  public Map<String, Object> one(String id) {
-    return operationDAO.one(id);
+  public Object one(String id) {
+    OperationResponse r = operationDAO.one(id).orElse(null);
+    return r != null ? operationRestMapper.toRest(r) : Map.of("error", "Not found", "id", id);
   }
 
-  public Map<String, Object> save(String id, Map<String, Object> b, boolean u) {
-    return operationDAO.save(id, b, u);
+  public Object save(String id, Map<String, Object> b, boolean u) {
+    Object r = operationDAO.save(id, b, u);
+    return r instanceof OperationResponse rs ? operationRestMapper.toRest(rs) : r;
   }
 
   public Map<String, Object> delete(String id) {

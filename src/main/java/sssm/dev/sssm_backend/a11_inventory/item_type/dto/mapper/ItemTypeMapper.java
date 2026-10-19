@@ -1,8 +1,8 @@
 package sssm.dev.sssm_backend.a11_inventory.item_type.dto.mapper;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.company.dto.mapper.CompanyRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;
@@ -13,7 +13,7 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
 
 @Component
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
 public class ItemTypeMapper {
   private final CompanyDAOImpl companyDAOImpl;
   private final ItemCategoryDAOImpl itemCategoryDAOImpl;

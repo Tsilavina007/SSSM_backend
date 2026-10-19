@@ -7,46 +7,61 @@ import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
-import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.mapper.ItemAssignmentRestMapper;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.repository.ItemAssignmentDAO;
 
 @Service
 @RequiredArgsConstructor
 public class ItemAssignmentService {
   private final ItemAssignmentDAO itemAssignmentDAO;
+  private final ItemAssignmentRestMapper itemAssignmentRestMapper;
 
-  public List<ItemAssignment> getItemAssignments(
+  public List<ItemAssignmentRest> getItemAssignments(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return search.isPresent()
-        ? itemAssignmentDAO.searchItemAssignmentsByName(search.get(), pageNumber, pageSizeNumber)
-        : itemAssignmentDAO.getAllItemAssignments(pageNumber, pageSizeNumber);
+    return mapperListResponseToRest(
+        search.isPresent()
+            ? itemAssignmentDAO.searchItemAssignmentsByName(
+                search.get(), pageNumber, pageSizeNumber)
+            : itemAssignmentDAO.getAllItemAssignments(pageNumber, pageSizeNumber));
   }
 
-  public Optional<ItemAssignment> getItemAssignmentById(String itemAssignmentId) {
-    Optional<ItemAssignment> itemAssignment =
+  public Optional<ItemAssignmentRest> getItemAssignmentById(String itemAssignmentId) {
+    Optional<ItemAssignmentResponse> itemAssignment =
         itemAssignmentDAO.getItemAssignmentById(itemAssignmentId);
     if (itemAssignment.isEmpty()) {
       throw new NotFoundException("ItemAssignment not found with ID: " + itemAssignmentId);
     }
-    return Optional.of(itemAssignment.get());
+    return Optional.of(itemAssignmentRestMapper.toRest(itemAssignment.get()));
   }
 
-  public ItemAssignment createItemAssignment(ItemAssignmentCreateRequest itemAssignment) {
-    return itemAssignmentDAO.createItemAssignment(itemAssignment);
+  public ItemAssignmentRest createItemAssignment(ItemAssignmentCreateRequest itemAssignment) {
+    return itemAssignmentRestMapper.toRest(itemAssignmentDAO.createItemAssignment(itemAssignment));
   }
 
-  public ItemAssignment updateItemAssignment(
+  public ItemAssignmentRest updateItemAssignment(
       String itemAssignmentId, ItemAssignmentUpdateRequest updatedItemAssignment) {
     if (itemAssignmentDAO.getItemAssignmentById(itemAssignmentId).isEmpty()) {
       throw new NotFoundException("ItemAssignment not found with ID: " + itemAssignmentId);
     }
-    return itemAssignmentDAO.updateItemAssignment(itemAssignmentId, updatedItemAssignment);
+    return itemAssignmentRestMapper.toRest(
+        itemAssignmentDAO.updateItemAssignment(itemAssignmentId, updatedItemAssignment));
   }
 
   public void deleteItemAssignment(String itemAssignmentId) {
     itemAssignmentDAO.deleteItemAssignment(itemAssignmentId);
+  }
+
+  private List<ItemAssignmentRest> mapperListResponseToRest(List<ItemAssignmentResponse> items) {
+    return items.stream()
+        .map(
+            item -> {
+              return itemAssignmentRestMapper.toRest(item);
+            })
+        .toList();
   }
 }

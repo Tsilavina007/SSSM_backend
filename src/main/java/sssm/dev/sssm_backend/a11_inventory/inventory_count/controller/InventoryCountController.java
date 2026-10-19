@@ -57,8 +57,7 @@ public class InventoryCountController {
   }
 
   @PostMapping("/{id}/scans")
-  public ResponseEntity<Object> scan(
-      @PathVariable String id, @RequestBody Map<String, Object> b) {
+  public ResponseEntity<Object> scan(@PathVariable String id, @RequestBody Map<String, Object> b) {
     try {
       return ResponseEntity.ok().body(inventoryCountService.scan(id, b));
     } catch (ClientException e) {

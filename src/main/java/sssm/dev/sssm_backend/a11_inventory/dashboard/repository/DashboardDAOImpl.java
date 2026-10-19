@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a11_inventory.dashboard.dto.DashboardLowStockResponse;
+import sssm.dev.sssm_backend.a11_inventory.dashboard.dto.DashboardSummaryResponse;
 
 /** JDBC DAO for the inventory dashboard module. */
 @Repository
@@ -27,14 +29,55 @@ public class DashboardDAOImpl implements DashboardDAO {
     }
   }
 
-  public List<Map<String, Object>> getSummary() {
-    return query(
-        "SELECT (SELECT count(*) FROM security.item) AS items,(SELECT count(*) FROM security.warehouse) AS warehouses,(SELECT count(*) FROM security.inventory_operation) AS operations");
+  public List<DashboardSummaryResponse> getSummary() {
+    List<DashboardSummaryResponse> o = new ArrayList<>();
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement p =
+            c.prepareStatement(
+                "SELECT (SELECT count(*) FROM security.item) AS items,(SELECT count(*) FROM security.warehouse) AS warehouses,(SELECT count(*) FROM security.inventory_operation) AS operations")) {
+      try (ResultSet r = p.executeQuery()) {
+        while (r.next())
+          o.add(
+              new DashboardSummaryResponse(
+                  r.getLong("items"), r.getLong("warehouses"), r.getLong("operations")));
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return o;
   }
 
-  public List<Map<String, Object>> getLowStock() {
-    return query(
-        "SELECT t.*,count(i.id) AS stock_quantity FROM security.item_type t LEFT JOIN security.item i ON i.item_type_id=t.id GROUP BY t.id HAVING count(i.id)<t.minimum_stock");
+  public List<DashboardLowStockResponse> getLowStock() {
+    List<DashboardLowStockResponse> o = new ArrayList<>();
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement p =
+            c.prepareStatement(
+                "SELECT t.*,count(i.id) AS stock_quantity FROM security.item_type t LEFT JOIN security.item i ON i.item_type_id=t.id GROUP BY t.id HAVING count(i.id)<t.minimum_stock")) {
+      try (ResultSet r = p.executeQuery()) {
+        while (r.next()) o.add(mapRowToDashboardLowStock(r));
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return o;
+  }
+
+  private DashboardLowStockResponse mapRowToDashboardLowStock(ResultSet r) throws SQLException {
+    return new DashboardLowStockResponse(
+        r.getString("id"),
+        r.getString("company_id"),
+        r.getString("category_id"),
+        r.getString("code"),
+        r.getString("name"),
+        r.getString("description"),
+        r.getString("unit"),
+        r.getBigDecimal("quantity_total"),
+        r.getBigDecimal("minimum_stock"),
+        r.getString("status"),
+        r.getTimestamp("created_at"),
+        r.getTimestamp("updated_at"),
+        r.getTimestamp("archived_at"),
+        r.getLong("stock_quantity"));
   }
 
   public List<Map<String, Object>> list(

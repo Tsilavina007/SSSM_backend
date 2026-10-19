@@ -14,16 +14,16 @@ import org.springframework.stereotype.Repository;
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
-import sssm.dev.sssm_backend.a11_inventory.item_assignment.entity.ItemAssignment;
 
 @Repository
 public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
   @Override
-  public List<ItemAssignment> getAllItemAssignments(int page, int pageSize) {
+  public List<ItemAssignmentResponse> getAllItemAssignments(int page, int pageSize) {
     String sql = "SELECT * FROM security.item_assignment ORDER BY id LIMIT ? OFFSET ?";
-    List<ItemAssignment> values = new ArrayList<>();
+    List<ItemAssignmentResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -33,7 +33,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(mapRowToItemAssignment(rs));
+          values.add(mapRowToItemAssignmentResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -43,10 +43,11 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public List<ItemAssignment> searchItemAssignmentsByName(String value, int page, int pageSize) {
+  public List<ItemAssignmentResponse> searchItemAssignmentsByName(
+      String value, int page, int pageSize) {
     String sql =
         "SELECT * FROM security.item_assignment WHERE condition_on_assignment ILIKE ? OR condition_on_return ILIKE ? OR notes ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
-    List<ItemAssignment> values = new ArrayList<>();
+    List<ItemAssignmentResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
@@ -60,7 +61,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
-          values.add(mapRowToItemAssignment(rs));
+          values.add(mapRowToItemAssignmentResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -70,7 +71,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public Optional<ItemAssignment> getItemAssignmentById(String id) {
+  public Optional<ItemAssignmentResponse> getItemAssignmentById(String id) {
     String sql = "SELECT * FROM security.item_assignment WHERE id = ?";
     UUID uuid = UUID.fromString(id);
 
@@ -80,7 +81,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
 
       try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(mapRowToItemAssignment(rs));
+          return Optional.of(mapRowToItemAssignmentResponse(rs));
         }
       }
     } catch (SQLException e) {
@@ -90,7 +91,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public ItemAssignment createItemAssignment(ItemAssignmentCreateRequest value) {
+  public ItemAssignmentResponse createItemAssignment(ItemAssignmentCreateRequest value) {
     String sql =
         "INSERT INTO security.item_assignment (item_id, employee_id, post_id, assigned_at, returned_at, condition_on_assignment, condition_on_return, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     String generatedId = null;
@@ -116,7 +117,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return new ItemAssignment(
+    return new ItemAssignmentResponse(
         generatedId,
         value.getItem_id(),
         value.getEmployee_id(),
@@ -129,7 +130,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
-  public ItemAssignment updateItemAssignment(String id, ItemAssignmentUpdateRequest value) {
+  public ItemAssignmentResponse updateItemAssignment(String id, ItemAssignmentUpdateRequest value) {
     StringBuilder sql = new StringBuilder("UPDATE security.item_assignment SET ");
     List<Object> parameters = new ArrayList<>();
 
@@ -200,8 +201,8 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     }
   }
 
-  private ItemAssignment mapRowToItemAssignment(ResultSet rs) throws SQLException {
-    return new ItemAssignment(
+  private ItemAssignmentResponse mapRowToItemAssignmentResponse(ResultSet rs) throws SQLException {
+    return new ItemAssignmentResponse(
         rs.getString("id"),
         rs.getString("item_id"),
         rs.getString("employee_id"),

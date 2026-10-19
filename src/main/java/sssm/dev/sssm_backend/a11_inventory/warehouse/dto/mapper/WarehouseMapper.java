@@ -1,8 +1,8 @@
 package sssm.dev.sssm_backend.a11_inventory.warehouse.dto.mapper;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.mapper.BranchRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAOImpl;
@@ -13,7 +13,7 @@ import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
 
 @Component
-@RequiredArgsConstructor 
+@RequiredArgsConstructor
 public class WarehouseMapper {
   private final CompanyDAOImpl companyDAOImpl;
   private final CompanyRestMapper companyRestMapper;

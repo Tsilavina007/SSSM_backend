@@ -3,11 +3,14 @@ package sssm.dev.sssm_backend.a11_inventory.dashboard.repository;
 import java.util.List;
 import java.util.Map;
 
+import sssm.dev.sssm_backend.a11_inventory.dashboard.dto.DashboardLowStockResponse;
+import sssm.dev.sssm_backend.a11_inventory.dashboard.dto.DashboardSummaryResponse;
+
 /** Typed persistence boundary for the inventory dashboard module. */
 public interface DashboardDAO {
-  List<Map<String, Object>> getSummary();
+  List<DashboardSummaryResponse> getSummary();
 
-  List<Map<String, Object>> getLowStock();
+  List<DashboardLowStockResponse> getLowStock();
 
   List<Map<String, Object>> list(
       Integer page, Integer size, String search, String where, Object... args);

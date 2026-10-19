@@ -3,9 +3,11 @@ package sssm.dev.sssm_backend.a11_inventory.qr_scan.repository;
 import java.util.List;
 import java.util.Map;
 
+import sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.QrScanItemResponse;
+
 /** Typed persistence boundary for the inventory qr scan module. */
 public interface QrScanDAO {
-  List<Map<String, Object>> resolveQrCode(String qrCode);
+  List<QrScanItemResponse> resolveQrCode(String qrCode);
 
   List<Map<String, Object>> list(
       Integer page, Integer size, String search, String where, Object... args);

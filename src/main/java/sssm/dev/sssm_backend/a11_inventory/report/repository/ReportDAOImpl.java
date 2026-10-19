@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a11_inventory.report.dto.ReportMovementResponse;
 
 /** JDBC DAO for the inventory report module. */
 @Repository
@@ -19,6 +20,24 @@ public class ReportDAOImpl implements ReportDAO {
     return m;
   }
 
+  private ReportMovementResponse mapRowToReportMovement(ResultSet r) throws SQLException {
+    return new ReportMovementResponse(
+        r.getString("id"),
+        r.getString("warehouse_id"),
+        r.getString("item_id"),
+        r.getString("employee_id"),
+        r.getString("movement_type"),
+        r.getString("reference"),
+        r.getTimestamp("movement_date"),
+        r.getString("notes"),
+        r.getString("source_warehouse_id"),
+        r.getString("destination_warehouse_id"),
+        r.getString("operation_id"),
+        r.getBigDecimal("quantity"),
+        r.getString("performed_by"),
+        r.getTimestamp("created_at"));
+  }
+
   private Object id(Object x) {
     try {
       return x == null ? null : UUID.fromString(String.valueOf(x));
@@ -27,9 +46,9 @@ public class ReportDAOImpl implements ReportDAO {
     }
   }
 
-  public List<Map<String, Object>> list(
+  public List<ReportMovementResponse> list(
       Integer page, Integer size, String search, String where, Object... a) {
-    List<Map<String, Object>> o = new ArrayList<>();
+    List<ReportMovementResponse> o = new ArrayList<>();
     int p = page == null ? 1 : Math.max(1, page),
         s = size == null ? 50 : Math.min(500, Math.max(1, size));
     String q =
@@ -49,7 +68,7 @@ public class ReportDAOImpl implements ReportDAO {
       z.setInt(n++, s);
       z.setInt(n, (p - 1) * s);
       try (ResultSet r = z.executeQuery()) {
-        while (r.next()) o.add(row(r));
+        while (r.next()) o.add(mapRowToReportMovement(r));
       }
     } catch (SQLException e) {
       throw new ServerException(e);

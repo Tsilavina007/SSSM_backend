@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountResponse;
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountScanResponse;
 
 /** JDBC DAO for the inventory inventory count module. */
 @Repository
@@ -27,15 +29,53 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
     }
   }
 
-  public List<Map<String, Object>> getResults(String id) {
-    return query(
-        "SELECT s.*,i.qr_code FROM security.inventory_count_scan s JOIN security.item i ON i.id=s.item_id WHERE s.inventory_count_id=?",
-        id);
+  private InventoryCountResponse mapRowToInventoryCount(ResultSet r) throws SQLException {
+    return new InventoryCountResponse(
+        r.getString("id"),
+        r.getString("company_id"),
+        r.getString("warehouse_id"),
+        r.getString("reference"),
+        r.getString("status"),
+        r.getString("started_by"),
+        r.getString("completed_by"),
+        r.getTimestamp("started_at"),
+        r.getTimestamp("completed_at"),
+        r.getString("notes"));
   }
 
-  public List<Map<String, Object>> list(
+  private InventoryCountScanResponse mapRowToInventoryCountScan(ResultSet r) throws SQLException {
+    return new InventoryCountScanResponse(
+        r.getString("id"),
+        r.getString("inventory_count_id"),
+        r.getString("item_id"),
+        r.getString("scanned_by"),
+        r.getTimestamp("scanned_at"),
+        r.getString("expected_warehouse_id"),
+        r.getString("actual_warehouse_id"),
+        r.getString("discrepancy_type"),
+        r.getString("notes"),
+        r.getString("qr_code"));
+  }
+
+  public List<InventoryCountScanResponse> getResults(String id) {
+    List<InventoryCountScanResponse> o = new ArrayList<>();
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement p =
+            c.prepareStatement(
+                "SELECT s.*,i.qr_code FROM security.inventory_count_scan s JOIN security.item i ON i.id=s.item_id WHERE s.inventory_count_id=?")) {
+      p.setObject(1, this.id(id));
+      try (ResultSet r = p.executeQuery()) {
+        while (r.next()) o.add(mapRowToInventoryCountScan(r));
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return o;
+  }
+
+  public List<InventoryCountResponse> list(
       Integer page, Integer size, String search, String where, Object... a) {
-    List<Map<String, Object>> o = new ArrayList<>();
+    List<InventoryCountResponse> o = new ArrayList<>();
     int p = page == null ? 1 : Math.max(1, page),
         s = size == null ? 50 : Math.min(500, Math.max(1, size));
     String q =
@@ -55,7 +95,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
       z.setInt(n++, s);
       z.setInt(n, (p - 1) * s);
       try (ResultSet r = z.executeQuery()) {
-        while (r.next()) o.add(row(r));
+        while (r.next()) o.add(mapRowToInventoryCount(r));
       }
     } catch (SQLException e) {
       throw new ServerException(e);
@@ -63,20 +103,20 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
     return o;
   }
 
-  public Map<String, Object> one(String v) {
+  public Optional<InventoryCountResponse> one(String v) {
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p =
             c.prepareStatement("SELECT * FROM " + inventory_count + " WHERE id=?")) {
       p.setObject(1, id(v));
       try (ResultSet r = p.executeQuery()) {
-        return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
+        return r.next() ? Optional.of(mapRowToInventoryCount(r)) : Optional.empty();
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
   }
 
-  public Map<String, Object> save(String v, Map<String, Object> b, boolean u) {
+  public Object save(String v, Map<String, Object> b, boolean u) {
     try (Connection c = DatabaseConnection.getConnection()) {
       if (b == null || b.isEmpty()) return Map.of("error", "request body is required");
       List<String> cs = new ArrayList<>();
@@ -109,7 +149,8 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
             if (r.next()) v = String.valueOf(r.getObject(1));
           }
       }
-      return one(v);
+      InventoryCountResponse r = one(v).orElse(null);
+      return r != null ? r : Map.of("error", "Not found", "id", v);
     } catch (SQLException e) {
       throw new ServerException(e);
     }

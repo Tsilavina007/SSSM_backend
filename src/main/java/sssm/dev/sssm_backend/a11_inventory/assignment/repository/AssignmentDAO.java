@@ -2,21 +2,24 @@ package sssm.dev.sssm_backend.a11_inventory.assignment.repository;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
+import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentResponse;
 
 /** Typed persistence boundary for the inventory assignment module. */
 public interface AssignmentDAO {
-  List<Map<String, Object>> listActive(Integer page, Integer size);
+  List<AssignmentResponse> listActive(Integer page, Integer size);
 
-  List<Map<String, Object>> listByEmployee(String id);
+  List<AssignmentResponse> listByEmployee(String id);
 
-  List<Map<String, Object>> listByPost(String id);
+  List<AssignmentResponse> listByPost(String id);
 
-  List<Map<String, Object>> list(
+  List<AssignmentResponse> list(
       Integer page, Integer size, String search, String where, Object... args);
 
-  Map<String, Object> one(String id);
+  Optional<AssignmentResponse> one(String id);
 
-  Map<String, Object> save(String id, Map<String, Object> body, boolean update);
+  Object save(String id, Map<String, Object> body, boolean update);
 
   Map<String, Object> delete(String id);
 
