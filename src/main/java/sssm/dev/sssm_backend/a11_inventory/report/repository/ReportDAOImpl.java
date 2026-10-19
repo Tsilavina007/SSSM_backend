@@ -2,10 +2,13 @@ package sssm.dev.sssm_backend.a11_inventory.report.repository;
 
 import java.sql.*;
 import java.util.*;
+import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 
 /** JDBC DAO for the inventory report module. */
+@Repository
 public class ReportDAOImpl implements ReportDAO {
   private static final String stock_movement = "security.stock_movement";
 
@@ -49,7 +52,7 @@ public class ReportDAOImpl implements ReportDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }
@@ -63,7 +66,7 @@ public class ReportDAOImpl implements ReportDAO {
         return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
       }
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -102,7 +105,7 @@ public class ReportDAOImpl implements ReportDAO {
       }
       return one(v);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -112,7 +115,7 @@ public class ReportDAOImpl implements ReportDAO {
       p.setObject(1, id(v));
       return Map.of("id", v, "deleted", p.executeUpdate() > 0);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -125,7 +128,7 @@ public class ReportDAOImpl implements ReportDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }

@@ -5,6 +5,8 @@ import java.util.Map;
 
 /** Typed persistence boundary for the inventory qr scan module. */
 public interface QrScanDAO {
+  List<Map<String, Object>> resolveQrCode(String qrCode);
+
   List<Map<String, Object>> list(
       Integer page, Integer size, String search, String where, Object... args);
 

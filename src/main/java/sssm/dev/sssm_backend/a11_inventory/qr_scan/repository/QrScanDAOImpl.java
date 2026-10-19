@@ -2,10 +2,13 @@ package sssm.dev.sssm_backend.a11_inventory.qr_scan.repository;
 
 import java.sql.*;
 import java.util.*;
+import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 
 /** JDBC DAO for the inventory qr scan module. */
+@Repository
 public class QrScanDAOImpl implements QrScanDAO {
   private static final String item = "security.item";
 
@@ -22,6 +25,20 @@ public class QrScanDAOImpl implements QrScanDAO {
     } catch (Exception e) {
       return x;
     }
+  }
+
+  public List<Map<String, Object>> resolveQrCode(String qrCode) {
+    List<Map<String, Object>> o = new ArrayList<>();
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement p = c.prepareStatement("SELECT * FROM security.item WHERE qr_code=?")) {
+      p.setObject(1, id(qrCode));
+      try (ResultSet r = p.executeQuery()) {
+        while (r.next()) o.add(row(r));
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return o;
   }
 
   public List<Map<String, Object>> list(
@@ -49,7 +66,7 @@ public class QrScanDAOImpl implements QrScanDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }
@@ -62,7 +79,7 @@ public class QrScanDAOImpl implements QrScanDAO {
         return r.next() ? row(r) : Map.of("error", "Not found", "id", v);
       }
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -101,7 +118,7 @@ public class QrScanDAOImpl implements QrScanDAO {
       }
       return one(v);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -111,7 +128,7 @@ public class QrScanDAOImpl implements QrScanDAO {
       p.setObject(1, id(v));
       return Map.of("id", v, "deleted", p.executeUpdate() > 0);
     } catch (SQLException e) {
-      return Map.of("error", e.getMessage());
+      throw new ServerException(e);
     }
   }
 
@@ -124,7 +141,7 @@ public class QrScanDAOImpl implements QrScanDAO {
         while (r.next()) o.add(row(r));
       }
     } catch (SQLException e) {
-      o.add(Map.of("error", e.getMessage()));
+      throw new ServerException(e);
     }
     return o;
   }

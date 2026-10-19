@@ -1,34 +1,34 @@
 package sssm.dev.sssm_backend.a11_inventory.report.service;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a11_inventory.report.repository.ReportDAO;
-import sssm.dev.sssm_backend.a11_inventory.report.repository.ReportDAOImpl;
 
+@Service
+@RequiredArgsConstructor
 public class ReportService {
-  private final ReportDAO dao;
-
-  public ReportService() {
-    this.dao = new ReportDAOImpl();
-  }
+  private final ReportDAO reportDAO;
 
   public List<Map<String, Object>> list(Integer p, Integer s, String q, String w, Object... a) {
-    return dao.list(p, s, q, w, a);
+    return reportDAO.list(p, s, q, w, a);
   }
 
   public Map<String, Object> one(String id) {
-    return dao.one(id);
+    return reportDAO.one(id);
   }
 
   public Map<String, Object> save(String id, Map<String, Object> b, boolean u) {
-    return dao.save(id, b, u);
+    return reportDAO.save(id, b, u);
   }
 
   public Map<String, Object> delete(String id) {
-    return dao.delete(id);
+    return reportDAO.delete(id);
   }
 
   public List<Map<String, Object>> query(String q, Object... a) {
-    return dao.query(q, a);
+    return reportDAO.query(q, a);
   }
 }
