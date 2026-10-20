@@ -1,0 +1,169 @@
+﻿openapi: 3.0.3
+info:
+  title: SSSM Sites — Security Posts API
+  version: 1.0.0
+  description: >-
+    API des postes de sécurité (module a06_sites/security_post), dérivée du
+    contrôleur SecurityPostController. Toutes les routes exigent un JWT. Pas
+    de gestion d'exception : les erreurs suivent le format Spring par défaut
+    (hors enveloppe). Le DAO capture les SQLException (listes vides, création
+    silencieusement en échec avec 200). La liste par site n'est pas paginée.
+    required_agents et status ont une valeur par défaut appliquée par le DAO.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: SecurityPosts
+    description: Postes de sécurité d'un site
+paths:
+  /api/security-posts/site/{siteId}:
+    parameters:
+      - {$ref: '#/components/parameters/SiteId'}
+    get:
+      tags: [SecurityPosts]
+      summary: Lister les postes d'un site
+      description: Retourne tous les postes du site, triés par name, sans pagination.
+      responses:
+        '200':
+          description: Liste des postes
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/SecurityPost'}}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/security-posts:
+    post:
+      tags: [SecurityPosts]
+      summary: Créer un poste de sécurité
+      description: >-
+        required_agents vaut 1 et status vaut ACTIVE si les champs sont omis.
+        Une erreur SQL est capturée par le DAO : la réponse reste 200 et peut
+        contenir un objet sans id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/SecurityPost'}}
+      responses:
+        '200':
+          description: Poste créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SecurityPost'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/security-posts/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/PostId'}
+    get:
+      tags: [SecurityPosts]
+      summary: Récupérer un poste par identifiant
+      description: >-
+        Un identifiant inexistant renvoie 200 avec un corps null (Optional
+        sérialisé), jamais 404.
+      responses:
+        '200':
+          description: Poste trouvé, ou null si absent
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SecurityPost'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [SecurityPosts]
+      summary: Mettre à jour partiellement un poste
+      description: >-
+        Seuls les champs non null sont écrits. Un identifiant inconnu lève
+        IllegalArgumentException → 500 au format Spring par défaut. La réponse
+        est l'objet envoyé complété de l'id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/SecurityPost'}}
+      responses:
+        '200':
+          description: Poste mis à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SecurityPost'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [SecurityPosts]
+      summary: Supprimer un poste
+      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      responses:
+        '200':
+          description: Suppression effectuée (corps vide)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    SiteId:
+      name: siteId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    PostId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Unauthorized:
+      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
+    ServerError:
+      description: Erreur Spring par défaut hors enveloppe.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/SpringError'}
+  schemas:
+    SpringError:
+      type: object
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        path: {type: string}
+    PostStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    SecurityPost:
+      type: object
+      required: [site_id, name]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        site_id: {type: string, format: uuid}
+        name: {type: string, maxLength: 180}
+        code: {type: string, maxLength: 80, nullable: true}
+        description: {type: string, nullable: true}
+        required_agents: {type: integer, minimum: 1, default: 1}
+        start_time:
+          type: string
+          nullable: true
+          pattern: '^[0-9]{2}:[0-9]{2}:[0-9]{2}$'
+          example: '08:00:00'
+          description: Heure au format HH:mm:ss (java.sql.Time).
+        end_time:
+          type: string
+          nullable: true
+          pattern: '^[0-9]{2}:[0-9]{2}:[0-9]{2}$'
+          example: '18:00:00'
+          description: Heure au format HH:mm:ss (java.sql.Time).
+        status: {$ref: '#/components/schemas/PostStatus'}
+        created_at: {type: string, format: date-time, readOnly: true}

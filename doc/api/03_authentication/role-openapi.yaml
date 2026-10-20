@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: SSSM Authentication — Roles API
+  version: 1.0.0
+  description: >-
+    API des rôles (module a03_authentication/role), dérivée du contrôleur
+    RoleController. Toutes les routes exigent le rôle ADMIN. Le contrôleur
+    n'a pas de gestion d'exception : les erreurs suivent le format Spring par
+    défaut (hors enveloppe). Le DAO capture les SQLException : les listes
+    peuvent être vides et une création en échec peut renvoyer 200 avec un
+    objet sans id. Pagination : page=1, pageSize=10 par défaut. Attention :
+    RoleDAO.create appelle UUID.fromString(company_id) sans garde ; un
+    company_id null (rôle global) provoque une erreur 500.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Roles
+    description: Rôles et permissions associées (ADMIN)
+paths:
+  /api/roles:
+    get:
+      tags: [Roles]
+      summary: Lister les rôles
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste paginée des rôles
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Role'}}
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Roles]
+      summary: Créer un rôle
+      description: >-
+        company_id est obligatoire en pratique (UUID.fromString sans garde).
+        Une erreur SQL est capturée : la réponse reste 200 et peut contenir un
+        objet sans id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/Role'}}
+      responses:
+        '200':
+          description: Rôle créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Role'}
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/roles/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/RoleId'}
+    get:
+      tags: [Roles]
+      summary: Récupérer un rôle par identifiant
+      description: >-
+        Un identifiant inexistant renvoie 200 avec un corps null (Optional
+        sérialisé), jamais 404.
+      responses:
+        '200':
+          description: Rôle trouvé, ou null si absent
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Role'}
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Roles]
+      summary: Mettre à jour partiellement un rôle
+      description: >-
+        Seuls les champs non null sont écrits. Un identifiant inconnu lève
+        IllegalArgumentException → 500 au format Spring par défaut. La réponse
+        est l'objet envoyé complété de l'id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/Role'}}
+      responses:
+        '200':
+          description: Rôle mis à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Role'}
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Roles]
+      summary: Supprimer un rôle
+      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      responses:
+        '200':
+          description: Suppression effectuée (corps vide)
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/roles/{roleId}/permissions/{permissionId}:
+    parameters:
+      - {$ref: '#/components/parameters/RoleIdPath'}
+      - {$ref: '#/components/parameters/PermissionId'}
+    post:
+      tags: [Roles]
+      summary: Attribuer une permission à un rôle
+      description: Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 200 avec corps vide.
+      responses:
+        '200':
+          description: Permission attribuée (corps vide)
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Roles]
+      summary: Retirer une permission à un rôle
+      description: Réponse 200 avec corps vide, même si l'association n'existe pas.
+      responses:
+        '200':
+          description: Permission retirée (corps vide)
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 10}
+    RoleId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    RoleIdPath:
+      name: roleId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    PermissionId:
+      name: permissionId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Forbidden:
+      description: JWT absent ou rôle ADMIN manquant (403 Spring Security).
+    ServerError:
+      description: Erreur Spring par défaut hors enveloppe.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/SpringError'}
+  schemas:
+    SpringError:
+      type: object
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        path: {type: string}
+    Role:
+      type: object
+      required: [name]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        company_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Obligatoire en pratique à la création (UUID.fromString sans garde).
+        name: {type: string, maxLength: 100}
+        description: {type: string, nullable: true}

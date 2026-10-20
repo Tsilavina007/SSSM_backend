@@ -1,0 +1,170 @@
+openapi: 3.0.3
+info:
+  title: SSSM Authentication — Auth API
+  version: 1.0.0
+  description: >-
+    API d'inscription et de connexion (module a03_authentication/auth), dérivée
+    du contrôleur AuthController. Ces deux routes sont publiques (permitAll) :
+    aucun JWT n'est requis. Erreurs : les exceptions métier renvoient
+    l'enveloppe {"errors": {message, detail, code}}. À l'inscription, les
+    erreurs de validation Jakarta renvoient 400 avec une carte
+    {"errors": {champ: {message, detail, code}}}. À la connexion, l'absence de
+    BindingResult fait remonter MethodArgumentNotValidException au format
+    Spring par défaut (hors enveloppe).
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Auth
+    description: Inscription et connexion
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Créer un compte utilisateur
+      description: >-
+        Crée un utilisateur ACTIVE, lui attribue le rôle global configuré
+        (app.auth.default-role, USER par défaut) s'il existe, puis renvoie un
+        AuthResponse dont le token est null. Le username et l'email doivent
+        être uniques. Un email ou un username absent est refusé côté service
+        (400).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/RegisterRequest'}}
+      responses:
+        '201':
+          description: Compte créé
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthResponse'}
+        '400':
+          description: >-
+            Validation en échec (carte errors par champ), doublon
+            username/email ou champ requis absent côté service (enveloppe).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {$ref: '#/components/schemas/ValidationErrors'}
+                  - {$ref: '#/components/schemas/ErrorEnvelope'}
+        '404':
+          description: Ressource liée introuvable (enveloppe d'erreur).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '500':
+          description: Erreur serveur (enveloppe d'erreur).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Se connecter
+      description: >-
+        Authentifie par username ou email (insensible à la casse pour l'email).
+        Le compte doit être ACTIVE et le mot de passe correspondre au hash
+        BCrypt. Met à jour last_login_at et renvoie un JWT signé (1 heure par
+        défaut).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/LoginRequest'}}
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthResponse'}
+        '400':
+          description: >-
+            Identifiants invalides ou compte inactif (enveloppe), ou validation
+            Jakarta en échec (format Spring par défaut, hors enveloppe).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '404':
+          description: Ressource liée introuvable (enveloppe d'erreur).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '500':
+          description: Erreur serveur (enveloppe d'erreur).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+components:
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: {$ref: '#/components/schemas/Error'}
+    ValidationErrors:
+      type: object
+      description: Carte des erreurs de validation, indexée par nom de champ.
+      properties:
+        errors:
+          type: object
+          additionalProperties: {$ref: '#/components/schemas/Error'}
+    Error:
+      type: object
+      properties:
+        message: {type: string, nullable: true}
+        detail: {type: string, nullable: true}
+        code: {type: string, nullable: true}
+    RegisterRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          maxLength: 100
+          description: Obligatoire. Unique.
+        email:
+          type: string
+          format: email
+          maxLength: 180
+          description: >-
+            Validé par @Email mais non requis par Jakarta ; le service exige
+            toutefois une valeur non nulle (400 sinon).
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Obligatoire, entre 8 et 128 caractères.
+        firstName: {type: string, maxLength: 100}
+        lastName: {type: string, maxLength: 100}
+        phone: {type: string, maxLength: 50}
+    LoginRequest:
+      type: object
+      required: [login, password]
+      properties:
+        login:
+          type: string
+          description: Username ou email.
+        password:
+          type: string
+          format: password
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          nullable: true
+          description: JWT signé. null à l'inscription, renseigné à la connexion.
+        tokenType: {type: string, example: Bearer}
+        user: {$ref: '#/components/schemas/AuthUser'}
+    AuthUser:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        username: {type: string}
+        email: {type: string, nullable: true}
+        firstName: {type: string, nullable: true}
+        lastName: {type: string, nullable: true}
+        roles:
+          type: array
+          items: {type: string}

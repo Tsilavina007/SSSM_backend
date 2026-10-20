@@ -1,0 +1,178 @@
+﻿openapi: 3.0.3
+info:
+  title: SSSM Organisation — Agencies API
+  version: 1.0.0
+  description: >-
+    API des agences (module a02_organisation/agency), dérivée du contrôleur
+    AgencyController. Toutes les routes exigent un JWT (Authorization:
+    Bearer …). Ce contrôleur ne possède pas de gestion d'exception : les
+    erreurs Spring par défaut sont renvoyées hors enveloppe (UUID malformé,
+    IllegalArgumentException sur mise à jour inexistante → 500). Le DAO
+    capture en revanche les SQLException : une création en échec peut donc
+    renvoyer 200 avec un objet sans id (échec silencieux), et les listes
+    renvoient un tableau vide. Pagination : page=1, pageSize=10 par défaut.
+    Aucune validation Jakarta.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Agencies
+    description: Agences
+paths:
+  /api/agency:
+    get:
+      tags: [Agencies]
+      summary: Lister les agences
+      description: Recherche libre sur name et code (ILIKE).
+      parameters:
+        - {$ref: '#/components/parameters/Search'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste paginée des agences
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Agency'}}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Agencies]
+      summary: Créer une agence
+      description: >-
+        Une erreur SQL (contrainte, UUID invalide côté SQL) est capturée par
+        le DAO : la réponse reste 200 et peut contenir un objet sans id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/Agency'}}
+      responses:
+        '200':
+          description: Agence créée (ou objet d'entrée si l'insertion a échoué silencieusement)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Agency'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/agency/{agencyId}:
+    parameters:
+      - {$ref: '#/components/parameters/AgencyId'}
+    get:
+      tags: [Agencies]
+      summary: Récupérer une agence par identifiant
+      description: >-
+        Un identifiant inexistant renvoie 200 avec un corps null (Optional
+        sérialisé), jamais 404.
+      responses:
+        '200':
+          description: Agence trouvée, ou null si absente
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Agency'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Agencies]
+      summary: Mettre à jour partiellement une agence
+      description: >-
+        Mise à jour partielle (seuls les champs non null sont écrits). Un
+        identifiant inconnu lève IllegalArgumentException → 500 au format
+        Spring par défaut. La réponse est l'objet envoyé complété de l'id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/Agency'}}
+      responses:
+        '200':
+          description: Agence mise à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Agency'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Agencies]
+      summary: Supprimer une agence
+      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      responses:
+        '200':
+          description: Suppression effectuée (corps vide)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Search:
+      name: search
+      in: query
+      required: false
+      schema: {type: string}
+      description: Recherche libre (ILIKE) sur name et code.
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 10}
+    AgencyId:
+      name: agencyId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Unauthorized:
+      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
+    ServerError:
+      description: >-
+        Erreur Spring par défaut hors enveloppe (identifiant malformé,
+        IllegalArgumentException sur mise à jour inexistante).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/SpringError'}
+  schemas:
+    SpringError:
+      type: object
+      description: Format d'erreur Spring Boot par défaut.
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        path: {type: string}
+    Agency:
+      type: object
+      description: >-
+        Agence sérialisée telle quelle (entité Agency). id et horodatages sont
+        générés par la base. La base exige company_id et name ; le DAO envoie
+        active tel quel, donc null provoque un échec d'insertion silencieux.
+      required: [company_id, name]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        company_id: {type: string, format: uuid}
+        name: {type: string, maxLength: 180}
+        code: {type: string, maxLength: 50, nullable: true}
+        address: {type: string, nullable: true}
+        city: {type: string, maxLength: 100, nullable: true}
+        phone: {type: string, maxLength: 50, nullable: true}
+        email: {type: string, format: email, maxLength: 180, nullable: true}
+        tax_number: {type: string, maxLength: 100, nullable: true}
+        registration_number: {type: string, maxLength: 100, nullable: true}
+        active: {type: boolean, default: true}
+        created_at: {type: string, format: date, readOnly: true}
+        updated_at: {type: string, format: date, readOnly: true}

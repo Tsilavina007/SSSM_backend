@@ -1,0 +1,154 @@
+﻿openapi: 3.0.3
+info:
+  title: SSSM Clients — Client Contacts API
+  version: 1.0.0
+  description: >-
+    API des contacts clients (module a05_clients/client_contact), dérivée du
+    contrôleur ClientContactController. Toutes les routes exigent un JWT. Pas
+    de gestion d'exception : les erreurs suivent le format Spring par défaut
+    (hors enveloppe). Le DAO capture les SQLException (listes vides, création
+    silencieusement en échec avec 200). La liste par client n'est pas paginée.
+    is_primary est envoyé explicitement par le DAO et doit donc être fourni à
+    la création.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: ClientContacts
+    description: Contacts rattachés aux clients
+paths:
+  /api/client-contacts/client/{clientId}:
+    parameters:
+      - {$ref: '#/components/parameters/ClientId'}
+    get:
+      tags: [ClientContacts]
+      summary: Lister les contacts d'un client
+      description: Retourne tous les contacts du client, sans pagination.
+      responses:
+        '200':
+          description: Liste des contacts
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/ClientContact'}}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/client-contacts:
+    post:
+      tags: [ClientContacts]
+      summary: Créer un contact client
+      description: >-
+        Une erreur SQL est capturée par le DAO : la réponse reste 200 et peut
+        contenir un objet sans id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ClientContact'}}
+      responses:
+        '200':
+          description: Contact créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ClientContact'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/client-contacts/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/ContactId'}
+    get:
+      tags: [ClientContacts]
+      summary: Récupérer un contact par identifiant
+      description: >-
+        Un identifiant inexistant renvoie 200 avec un corps null (Optional
+        sérialisé), jamais 404.
+      responses:
+        '200':
+          description: Contact trouvé, ou null si absent
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ClientContact'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [ClientContacts]
+      summary: Mettre à jour partiellement un contact
+      description: >-
+        Seuls les champs non null sont écrits. Un identifiant inconnu lève
+        IllegalArgumentException → 500 au format Spring par défaut. La réponse
+        est l'objet envoyé complété de l'id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ClientContact'}}
+      responses:
+        '200':
+          description: Contact mis à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ClientContact'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [ClientContacts]
+      summary: Supprimer un contact
+      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      responses:
+        '200':
+          description: Suppression effectuée (corps vide)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ClientId:
+      name: clientId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    ContactId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Unauthorized:
+      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
+    ServerError:
+      description: Erreur Spring par défaut hors enveloppe.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/SpringError'}
+  schemas:
+    SpringError:
+      type: object
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        path: {type: string}
+    ClientContact:
+      type: object
+      required: [client_id, first_name, last_name, is_primary]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        client_id: {type: string, format: uuid}
+        first_name: {type: string, maxLength: 100}
+        last_name: {type: string, maxLength: 100}
+        function: {type: string, maxLength: 100, nullable: true}
+        email: {type: string, format: email, maxLength: 180, nullable: true}
+        phone: {type: string, maxLength: 50, nullable: true}
+        is_primary: {type: boolean, default: false}

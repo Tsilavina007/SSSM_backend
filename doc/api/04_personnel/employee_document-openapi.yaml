@@ -1,0 +1,154 @@
+﻿openapi: 3.0.3
+info:
+  title: SSSM Personnel — Employee Documents API
+  version: 1.0.0
+  description: >-
+    API des documents d'employés (module a04_personnel/employee_document),
+    dérivée du contrôleur EmployeeDocumentController. Toutes les routes
+    exigent un JWT. Pas de gestion d'exception : les erreurs suivent le format
+    Spring par défaut (hors enveloppe). Le DAO capture les SQLException
+    (listes vides, création silencieusement en échec avec 200). La liste par
+    employé n'est pas paginée.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: EmployeeDocuments
+    description: Documents administratifs des employés
+paths:
+  /api/employee-documents/employee/{employeeId}:
+    parameters:
+      - {$ref: '#/components/parameters/EmployeeId'}
+    get:
+      tags: [EmployeeDocuments]
+      summary: Lister les documents d'un employé
+      description: Retourne tous les documents de l'employé, sans pagination.
+      responses:
+        '200':
+          description: Liste des documents
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/EmployeeDocument'}}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/employee-documents:
+    post:
+      tags: [EmployeeDocuments]
+      summary: Créer un document d'employé
+      description: >-
+        Une erreur SQL est capturée par le DAO : la réponse reste 200 et peut
+        contenir un objet sans id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/EmployeeDocument'}}
+      responses:
+        '200':
+          description: Document créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EmployeeDocument'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/employee-documents/{id}:
+    parameters:
+      - {$ref: '#/components/parameters/DocumentId'}
+    get:
+      tags: [EmployeeDocuments]
+      summary: Récupérer un document par identifiant
+      description: >-
+        Un identifiant inexistant renvoie 200 avec un corps null (Optional
+        sérialisé), jamais 404.
+      responses:
+        '200':
+          description: Document trouvé, ou null si absent
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EmployeeDocument'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [EmployeeDocuments]
+      summary: Mettre à jour partiellement un document
+      description: >-
+        Seuls les champs non null sont écrits. Un identifiant inconnu lève
+        IllegalArgumentException → 500 au format Spring par défaut. La réponse
+        est l'objet envoyé complété de l'id.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/EmployeeDocument'}}
+      responses:
+        '200':
+          description: Document mis à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EmployeeDocument'}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [EmployeeDocuments]
+      summary: Supprimer un document
+      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      responses:
+        '200':
+          description: Suppression effectuée (corps vide)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    EmployeeId:
+      name: employeeId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    DocumentId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    Unauthorized:
+      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
+    ServerError:
+      description: Erreur Spring par défaut hors enveloppe.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/SpringError'}
+  schemas:
+    SpringError:
+      type: object
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        path: {type: string}
+    EmployeeDocument:
+      type: object
+      required: [employee_id, document_type]
+      properties:
+        id: {type: string, format: uuid, readOnly: true}
+        employee_id: {type: string, format: uuid}
+        document_type: {type: string, maxLength: 100}
+        document_number: {type: string, maxLength: 150, nullable: true}
+        issue_date: {type: string, format: date, nullable: true}
+        expiry_date: {type: string, format: date, nullable: true}
+        file_url: {type: string, nullable: true}
+        notes: {type: string, nullable: true}
+        created_at: {type: string, format: date-time, readOnly: true}

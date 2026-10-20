@@ -1,0 +1,249 @@
+openapi: 3.0.3
+info:
+  title: SSSM Organisation — Branches API
+  version: 1.0.0
+  description: >-
+    API des succursales (module a02_organisation/branch), dérivée du
+    contrôleur BranchController. Toutes les routes exigent un JWT
+    (Authorization: Bearer …). Erreurs : enveloppe {"errors": {message,
+    detail, code}} pour ClientException (400), NotFoundException (404) et
+    ServerException (500) ; les autres erreurs (UUID malformé, paramètre
+    absent, branche inexistante en lecture) suivent le format Spring par
+    défaut. Pagination : page=1, pageSize=10 par défaut. Aucune validation
+    Jakarta : company_id, agence_id, name et status sont requis par la base
+    et par le DAO (status est envoyé explicitement, sans valeur par défaut).
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Branches
+    description: Succursales
+paths:
+  /api/branch:
+    get:
+      tags: [Branches]
+      summary: Lister les succursales
+      description: Recherche libre sur name et code (ILIKE).
+      parameters:
+        - {$ref: '#/components/parameters/Search'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PageSize'}
+      responses:
+        '200':
+          description: Liste paginée des succursales
+          content:
+            application/json:
+              schema: {type: array, items: {$ref: '#/components/schemas/Branch'}}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Branches]
+      summary: Créer une succursale
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/BranchCreate'}}
+      responses:
+        '200':
+          description: Succursale créée
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Branch'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/branch/{branchId}:
+    parameters:
+      - {$ref: '#/components/parameters/BranchId'}
+    get:
+      tags: [Branches]
+      summary: Récupérer une succursale par identifiant
+      description: >-
+        Un identifiant inexistant provoque une NoSuchElementException → 500
+        au format Spring par défaut (pas de 404). La réponse inclut l'agence
+        complète dans le champ agence.
+      responses:
+        '200':
+          description: Succursale trouvée
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Branch'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Branches]
+      summary: Mettre à jour partiellement une succursale
+      description: >-
+        Seuls les champs non null sont écrits. Un identifiant inconnu renvoie
+        404 avec l'enveloppe d'erreur.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/BranchUpdate'}}
+      responses:
+        '200':
+          description: Succursale mise à jour
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Branch'}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Branches]
+      summary: Supprimer une succursale
+      description: >-
+        Réponse 200 avec un message de confirmation (le texte mentionne
+        « Company deleted » par copier-coller). Aucune erreur si l'identifiant
+        est inconnu.
+      responses:
+        '200':
+          description: Message de confirmation
+          content:
+            application/json:
+              schema:
+                type: string
+                example: 'Company deleted : 3f0c2f70-0000-4000-8000-000000000001'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Search:
+      name: search
+      in: query
+      required: false
+      schema: {type: string}
+      description: Recherche libre (ILIKE) sur name et code.
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 1}
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, default: 10}
+    BranchId:
+      name: branchId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  responses:
+    BadRequest:
+      description: >-
+        Requête malformée (JSON) au format Spring par défaut, ou ClientException
+        (enveloppe).
+    NotFound:
+      description: Succursale introuvable (enveloppe d'erreur).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+    ServerError:
+      description: >-
+        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
+        Spring par défaut (UUID malformé, agence/identifiant absent).
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: {$ref: '#/components/schemas/Error'}
+    Error:
+      type: object
+      properties:
+        message: {type: string, nullable: true}
+        detail: {type: string, nullable: true}
+        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+    SiteStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    Agency:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        company_id: {type: string, format: uuid}
+        name: {type: string}
+        code: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        city: {type: string, nullable: true}
+        phone: {type: string, nullable: true}
+        email: {type: string, nullable: true}
+        tax_number: {type: string, nullable: true}
+        registration_number: {type: string, nullable: true}
+        active: {type: boolean}
+        created_at: {type: string, format: date}
+        updated_at: {type: string, format: date}
+    Branch:
+      type: object
+      description: >-
+        Succursale sérialisée avec son agence complète. La base exige
+        company_id, agence_id et name.
+      properties:
+        id: {type: string, format: uuid}
+        company_id: {type: string, format: uuid}
+        agence: {$ref: '#/components/schemas/Agency'}
+        name: {type: string}
+        code: {type: string, nullable: true}
+        address: {type: string, nullable: true}
+        city: {type: string, nullable: true}
+        phone: {type: string, nullable: true}
+        email: {type: string, nullable: true}
+        status: {$ref: '#/components/schemas/SiteStatus'}
+        created_at: {type: string, format: date}
+        updated_at: {type: string, format: date}
+    BranchCreate:
+      type: object
+      description: >-
+        Corps de création (BranchCreateRequest). Tous les champs sont requis
+        par la base ou le DAO, status compris (aucun défaut appliqué).
+      required: [company_id, agence_id, name, status]
+      properties:
+        company_id: {type: string, format: uuid}
+        agence_id: {type: string, format: uuid}
+        name: {type: string, maxLength: 150}
+        code: {type: string, maxLength: 50, nullable: true}
+        address: {type: string, nullable: true}
+        city: {type: string, maxLength: 100, nullable: true}
+        phone: {type: string, maxLength: 50, nullable: true}
+        email: {type: string, format: email, maxLength: 180, nullable: true}
+        status: {$ref: '#/components/schemas/SiteStatus'}
+    BranchUpdate:
+      type: object
+      description: Tous les champs sont facultatifs (mise à jour partielle).
+      properties:
+        company_id: {type: string, format: uuid}
+        agence_id: {type: string, format: uuid}
+        name: {type: string, maxLength: 150}
+        code: {type: string, maxLength: 50}
+        address: {type: string}
+        city: {type: string, maxLength: 100}
+        phone: {type: string, maxLength: 50}
+        email: {type: string, format: email, maxLength: 180}
+        status: {$ref: '#/components/schemas/SiteStatus'}
