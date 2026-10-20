@@ -10,6 +10,8 @@ public interface AppUserDAO {
 
   Optional<AppUser> findById(String id);
 
+  Optional<AppUser> findByUsername(String username);
+
   Optional<AppUser> findByUsernameOrEmail(String login);
 
   List<String> findRoleNames(String userId);

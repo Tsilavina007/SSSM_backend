@@ -3,13 +3,15 @@ info:
   title: SSSM Authentication — Auth API
   version: 1.0.0
   description: >-
-    API d'inscription et de connexion (module a03_authentication/auth), dérivée
-    du contrôleur AuthController. Ces deux routes sont publiques (permitAll) :
-    aucun JWT n'est requis. Toutes les erreurs renvoient l'enveloppe
-    {"errors": {message, detail, code}} : 400 (validation Jakarta, corps
-    illisible, identifiants invalides ou compte inactif), 404 (ressource liée
-    introuvable), 500 (erreur serveur). Les erreurs de validation sont
-    concaténées dans detail (par exemple « username: … ; password: … »).
+    API d'inscription, de connexion et d'identité courante (module
+    a03_authentication/auth), dérivée du contrôleur AuthController. Les routes
+    register et login sont publiques ; whoami exige un JWT valide. Toutes les
+    erreurs renvoient l'enveloppe {"errors": {message, detail, code}} : 400
+    (validation Jakarta, corps illisible, identifiants invalides ou compte
+    inactif), 401 (JWT absent, invalide ou expiré pour whoami), 404 (utilisateur
+    du jeton introuvable ou ressource liée), 500 (erreur serveur). Les erreurs
+    de validation sont concaténées dans detail (par exemple « username: … ;
+    password: … »).
 servers:
   - url: http://localhost:8080
 tags:
@@ -91,6 +93,40 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  /api/auth/whoami:
+    get:
+      tags: [Auth]
+      summary: Obtenir l'utilisateur connecté
+      description: >-
+        Retourne l'utilisateur associé au JWT : le nom d'utilisateur est lu dans
+        le sujet du jeton, puis les informations et les rôles sont rechargés
+        depuis la base. Un jeton absent, invalide ou expiré renvoie 401 ; un
+        jeton valide dont l'utilisateur n'existe plus renvoie 404.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Utilisateur courant
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthUser'}
+        '401':
+          description: JWT absent, invalide ou expiré — enveloppe ItemError.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '404':
+          description: >-
+            Utilisateur du jeton introuvable — enveloppe ItemError avec un
+            message explicite.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '500':
+          description: Erreur serveur ou SQL (enveloppe d'erreur).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
 components:
   schemas:
     ErrorEnvelope:
@@ -168,3 +204,8 @@ components:
         roles:
           type: array
           items: {type: string}
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
@@ -43,6 +44,21 @@ public class AuthController {
     try {
       AuthResponse response = service.login(request);
       return ResponseEntity.ok().body(response);
+    } catch (ClientException e) {
+      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
+    } catch (NotFoundException e) {
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
+    } catch (ServerException e) {
+      return ResponseEntity.internalServerError()
+          .body(Map.of("errors", ErrorMapper.toItemError(e)));
+    }
+  }
+
+  @GetMapping("/whoami")
+  public ResponseEntity<Object> whoAmI(Authentication authentication) {
+    try {
+      return ResponseEntity.ok().body(service.whoAmI(authentication.getName()));
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {

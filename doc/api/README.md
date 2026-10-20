@@ -9,12 +9,12 @@ dans Swagger Editor, Postman, Insomnia ou Redoc.
 | Module | Dossier | Spécifications | Opérations |
 |---|---|---|---|
 | `a02_organisation` | [`02_organisation/`](02_organisation/) | company, agency, branch | 15 |
-| `a03_authentication` | [`03_authentication/`](03_authentication/) | auth, user, role, permission | 21 |
+| `a03_authentication` | [`03_authentication/`](03_authentication/) | auth, user, role, permission | 22 |
 | `a04_personnel` | [`04_personnel/`](04_personnel/) | employee, employee_document | 10 |
 | `a05_clients` | [`05_clients/`](05_clients/) | client, client_contact | 10 |
 | `a06_sites` | [`06_sites/`](06_sites/) | site, security_post, post_requirement | 15 |
 | `a11_inventory` | [`11_inventory/`](11_inventory/) | 12 ressources (voir ci-dessous) | 55 |
-| **Total** | | **26 fichiers** | **126** |
+| **Total** | | **26 fichiers** | **127** |
 
 ### Détail des fichiers
 
@@ -23,7 +23,7 @@ dans Swagger Editor, Postman, Insomnia ou Redoc.
   - `agency-openapi.yaml` — `/api/agency`
   - `branch-openapi.yaml` — `/api/branch`
 - **03_authentication**
-  - `auth-openapi.yaml` — `/api/auth` (public)
+  - `auth-openapi.yaml` — `/api/auth` (register/login publics, whoami authentifié)
   - `user-openapi.yaml` — `/api/users` (ADMIN)
   - `role-openapi.yaml` — `/api/roles` (ADMIN)
   - `permission-openapi.yaml` — `/api/permissions` (ADMIN)
@@ -52,8 +52,10 @@ Aucune spécification n'est fournie pour `a00_infrastructure`, `a01_common` et
 
 - Base URL : `http://localhost:8080`.
 - Toutes les routes exigent `Authorization: Bearer <JWT>`, sauf :
-  - `/`, `/ping`, `/error` et `/api/auth/**` (publics) ;
-  - les routes protégées restent soumises au filtre JWT.
+  - `/`, `/ping`, `/error`, `POST /api/auth/register` et `POST /api/auth/login`
+    (publics) ;
+  - `GET /api/auth/whoami` et toutes les autres routes protégées restent
+    soumises au filtre JWT.
 - JWT obtenu via `POST /api/auth/login` (durée par défaut : 1 heure).
 - `/api/users/**`, `/api/roles/**` et `/api/permissions/**` exigent en plus le
   rôle `ADMIN`.
@@ -142,7 +144,7 @@ fichier précise les codes réellement produits par ses routes.
 ## Vérification
 
 Les 26 fichiers ont été validés (parsing YAML, résolution des `$ref`, paramètres
-de chemin) et les 126 opérations documentées correspondent exactement aux
+de chemin) et les 127 opérations documentées correspondent exactement aux
 annotations des contrôleurs. Le lint Redocly ne remonte aucune erreur ; les
 avertissements restants concernent uniquement les `operationId` absents, la
 licence et l'URL `localhost`.

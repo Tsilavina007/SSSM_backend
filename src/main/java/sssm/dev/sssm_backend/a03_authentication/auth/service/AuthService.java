@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
@@ -91,6 +92,21 @@ public class AuthService {
         jwt.createToken(user.getId(), user.getUsername(), roleNames),
         "Bearer",
         toResponse(user, roleNames));
+  }
+
+  public AuthResponse.UserResponse whoAmI(String username) {
+    AppUser user =
+        users
+            .findByUsername(username)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Utilisateur authentifié introuvable",
+                        "Aucun utilisateur ne correspond au nom d'utilisateur '"
+                            + username
+                            + "' contenu dans le jeton.",
+                        "NOT_FOUND"));
+    return toResponse(user, users.findRoleNames(user.getId()));
   }
 
   private AuthResponse registerResponse(AppUser user, List<String> roles) {

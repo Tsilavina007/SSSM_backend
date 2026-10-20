@@ -59,6 +59,21 @@ public class AppUserDAOImpl implements AppUserDAO {
   }
 
   @Override
+  public Optional<AppUser> findByUsername(String username) {
+    String sql = "SELECT * FROM security.app_user WHERE username = ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, username);
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (rs.next()) return Optional.of(mapRowToAppUser(rs));
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return Optional.empty();
+  }
+
+  @Override
   public Optional<AppUser> findByUsernameOrEmail(String login) {
     String sql = "SELECT * FROM security.app_user WHERE username = ? OR lower(email) = lower(?)";
     try (Connection conn = DatabaseConnection.getConnection();
