@@ -101,8 +101,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     String generatedId = null;
 
     parameters.add(value.getItem_id() == null ? null : UUID.fromString(value.getItem_id()));
-    parameters.add(
-        value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
+    parameters.add(value.getEmployee_id() == null ? null : UUID.fromString(value.getEmployee_id()));
     parameters.add(value.getPost_id() == null ? null : UUID.fromString(value.getPost_id()));
 
     if (value.getAssigned_at() != null) {
