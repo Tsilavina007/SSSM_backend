@@ -17,7 +17,7 @@ tags:
 paths:
   /api/inventory/dashboard/summary:
     get:
-      tags: [Dashboard]
+      tags: [ Dashboard ]
       summary: Synthèse du tableau de bord
       responses:
         '200':
@@ -26,21 +26,29 @@ paths:
             d'entrepôts et d'opérations.
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/DashboardSummary'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/DashboardSummary' } }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/alerts/low-stock:
     get:
-      tags: [Dashboard]
+      tags: [ Dashboard ]
       summary: Alertes de stock bas
       responses:
         '200':
           description: Tableau des articles sous le seuil minimum
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/DashboardLowStock'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/DashboardLowStock' } }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -49,47 +57,64 @@ components:
       bearerFormat: JWT
   parameters: {}
   responses:
-    ServerError:
-      description: >-
-        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
-        d'erreur Spring par défaut.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
     ErrorEnvelope:
       type: object
       properties:
-        errors: {$ref: '#/components/schemas/Error'}
-    Error:
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
       type: object
       properties:
-        message: {type: string, nullable: true}
-        detail: {type: string, nullable: true}
-        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     ItemStatus:
       type: string
-      enum: [AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED]
+      enum: [ AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED ]
     DashboardSummary:
       type: object
       properties:
-        items: {type: integer, format: int64, nullable: true}
-        warehouses: {type: integer, format: int64, nullable: true}
-        operations: {type: integer, format: int64, nullable: true}
+        items: { type: integer, format: int64, nullable: true }
+        warehouses: { type: integer, format: int64, nullable: true }
+        operations: { type: integer, format: int64, nullable: true }
     DashboardLowStock:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company_id: {type: string, format: uuid, nullable: true}
-        category_id: {type: string, format: uuid, nullable: true}
-        code: {type: string, nullable: true}
-        name: {type: string, nullable: true}
-        description: {type: string, nullable: true}
-        unit: {type: string, nullable: true}
-        quantity_total: {type: number, nullable: true}
-        minimum_stock: {type: number, nullable: true}
-        status: {$ref: '#/components/schemas/ItemStatus'}
-        created_at: {type: string, format: date-time, nullable: true}
-        updated_at: {type: string, format: date-time, nullable: true}
-        archived_at: {type: string, format: date-time, nullable: true}
-        stock_quantity: {type: integer, format: int64, nullable: true}
+        id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid, nullable: true }
+        category_id: { type: string, format: uuid, nullable: true }
+        code: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        unit: { type: string, nullable: true }
+        quantity_total: { type: number, nullable: true }
+        minimum_stock: { type: number, nullable: true }
+        status: { $ref: '#/components/schemas/ItemStatus' }
+        created_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        archived_at: { type: string, format: date-time, nullable: true }
+        stock_quantity: { type: integer, format: int64, nullable: true }

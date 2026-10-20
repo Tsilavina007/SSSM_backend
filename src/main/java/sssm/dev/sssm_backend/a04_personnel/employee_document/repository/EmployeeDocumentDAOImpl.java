@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a04_personnel.employee_document.entity.EmployeeDocument;
 
 public class EmployeeDocumentDAOImpl implements EmployeeDocumentDAO {
@@ -28,7 +28,7 @@ public class EmployeeDocumentDAOImpl implements EmployeeDocumentDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return documents;
   }
@@ -48,7 +48,7 @@ public class EmployeeDocumentDAOImpl implements EmployeeDocumentDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -76,7 +76,7 @@ public class EmployeeDocumentDAOImpl implements EmployeeDocumentDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return document;
   }
@@ -130,7 +130,7 @@ public class EmployeeDocumentDAOImpl implements EmployeeDocumentDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return document;
   }
@@ -145,7 +145,7 @@ public class EmployeeDocumentDAOImpl implements EmployeeDocumentDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 

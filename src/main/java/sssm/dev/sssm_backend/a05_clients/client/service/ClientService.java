@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a05_clients.client.service;
 
 import java.util.*;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a05_clients.client.entity.Client;
 import sssm.dev.sssm_backend.a05_clients.client.repository.*;
 
@@ -23,8 +23,7 @@ public class ClientService {
   }
 
   public Client update(String id, Client client) {
-    if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("Client not found with ID: " + id);
+    if (dao.findById(id).isEmpty()) throw new NotFoundException("Client not found with ID: " + id);
     client.setId(id);
     return dao.update(client);
   }

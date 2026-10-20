@@ -1,15 +1,15 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Clients — Client Contacts API
   version: 1.0.0
   description: >-
     API des contacts clients (module a05_clients/client_contact), dérivée du
-    contrôleur ClientContactController. Toutes les routes exigent un JWT. Pas
-    de gestion d'exception : les erreurs suivent le format Spring par défaut
-    (hors enveloppe). Le DAO capture les SQLException (listes vides, création
-    silencieusement en échec avec 200). La liste par client n'est pas paginée.
-    is_primary est envoyé explicitement par le DAO et doit donc être fourni à
-    la création.
+    contrôleur ClientContactController. Toutes les routes exigent un JWT. Toutes
+    les erreurs renvoient l'enveloppe {"errors": {message, detail, code}} : 400
+    (requête invalide, JSON illisible ou UUID malformé), 401 (JWT absent,
+    invalide ou expiré), 404 (contact introuvable lors d'une mise à jour), 500
+    (erreur serveur ou SQL). La liste par client n'est pas paginée. is_primary
+    est envoyé explicitement par le DAO et doit donc être fourni à la création.
 servers:
   - url: http://localhost:8080
 security:
@@ -20,9 +20,9 @@ tags:
 paths:
   /api/client-contacts/client/{clientId}:
     parameters:
-      - {$ref: '#/components/parameters/ClientId'}
+      - { $ref: '#/components/parameters/ClientId' }
     get:
-      tags: [ClientContacts]
+      tags: [ ClientContacts ]
       summary: Lister les contacts d'un client
       description: Retourne tous les contacts du client, sans pagination.
       responses:
@@ -30,37 +30,40 @@ paths:
           description: Liste des contacts
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/ClientContact'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/ClientContact' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/client-contacts:
     post:
-      tags: [ClientContacts]
+      tags: [ ClientContacts ]
       summary: Créer un contact client
       description: >-
-        Une erreur SQL est capturée par le DAO : la réponse reste 200 et peut
-        contenir un objet sans id.
+        Une erreur SQL renvoie 500 avec une enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/ClientContact'}}
+          application/json: { schema: { $ref: '#/components/schemas/ClientContact' } }
       responses:
         '200':
-          description: Contact créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Contact créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ClientContact'}
+              schema: { $ref: '#/components/schemas/ClientContact' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/client-contacts/{id}:
     parameters:
-      - {$ref: '#/components/parameters/ContactId'}
+      - { $ref: '#/components/parameters/ContactId' }
     get:
-      tags: [ClientContacts]
+      tags: [ ClientContacts ]
       summary: Récupérer un contact par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -70,34 +73,40 @@ paths:
           description: Contact trouvé, ou null si absent
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ClientContact'}
+              schema: { $ref: '#/components/schemas/ClientContact' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [ClientContacts]
+      tags: [ ClientContacts ]
       summary: Mettre à jour partiellement un contact
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        IllegalArgumentException → 500 au format Spring par défaut. La réponse
-        est l'objet envoyé complété de l'id.
+        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/ClientContact'}}
+          application/json: { schema: { $ref: '#/components/schemas/ClientContact' } }
       responses:
         '200':
           description: Contact mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ClientContact'}
+              schema: { $ref: '#/components/schemas/ClientContact' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [ClientContacts]
+      tags: [ ClientContacts ]
       summary: Supprimer un contact
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -107,6 +116,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -118,37 +129,62 @@ components:
       name: clientId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     ContactId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     ClientContact:
       type: object
-      required: [client_id, first_name, last_name, is_primary]
+      required: [ client_id, first_name, last_name, is_primary ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        client_id: {type: string, format: uuid}
-        first_name: {type: string, maxLength: 100}
-        last_name: {type: string, maxLength: 100}
-        function: {type: string, maxLength: 100, nullable: true}
-        email: {type: string, format: email, maxLength: 180, nullable: true}
-        phone: {type: string, maxLength: 50, nullable: true}
-        is_primary: {type: boolean, default: false}
+        id: { type: string, format: uuid, readOnly: true }
+        client_id: { type: string, format: uuid }
+        first_name: { type: string, maxLength: 100 }
+        last_name: { type: string, maxLength: 100 }
+        function: { type: string, maxLength: 100, nullable: true }
+        email: { type: string, format: email, maxLength: 180, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        is_primary: { type: boolean, default: false }

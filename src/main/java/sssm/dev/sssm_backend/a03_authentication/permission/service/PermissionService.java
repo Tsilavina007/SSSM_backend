@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a03_authentication.permission.service;
 
 import java.util.*;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a03_authentication.permission.entity.Permission;
 import sssm.dev.sssm_backend.a03_authentication.permission.repository.*;
 
@@ -22,7 +22,7 @@ public class PermissionService {
 
   public Permission update(String id, Permission permission) {
     if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("Permission not found with ID: " + id);
+      throw new NotFoundException("Permission not found with ID: " + id);
     permission.setId(id);
     return dao.update(permission);
   }

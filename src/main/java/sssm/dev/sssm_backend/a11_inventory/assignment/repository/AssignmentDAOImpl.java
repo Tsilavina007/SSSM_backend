@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentResponse;
 
 /** JDBC DAO for the inventory assignment module. */
@@ -103,7 +104,9 @@ public class AssignmentDAOImpl implements AssignmentDAO {
 
   public Object save(String v, Map<String, Object> b, boolean u) {
     try (Connection c = DatabaseConnection.getConnection()) {
-      if (b == null || b.isEmpty()) return Map.of("error", "request body is required");
+      if (b == null || b.isEmpty())
+        return Map.of(
+            "errors", new ItemError("Request body is required", null, "BAD_REQUEST"));
       List<String> cs = new ArrayList<>();
       List<Object> vs = new ArrayList<>();
       for (var e : b.entrySet())
@@ -111,7 +114,9 @@ public class AssignmentDAOImpl implements AssignmentDAO {
           cs.add(e.getKey());
           vs.add(id(e.getValue()));
         }
-      if (cs.isEmpty()) return Map.of("error", "no writable fields");
+      if (cs.isEmpty())
+        return Map.of(
+            "errors", new ItemError("No writable fields", null, "BAD_REQUEST"));
       StringJoiner set = new StringJoiner(","),
           cols = new StringJoiner(","),
           qs = new StringJoiner(",");
@@ -135,7 +140,10 @@ public class AssignmentDAOImpl implements AssignmentDAO {
           }
       }
       AssignmentResponse r = one(v).orElse(null);
-      return r != null ? r : Map.of("error", "Not found", "id", v);
+      return r != null
+          ? r
+          : Map.of(
+              "errors", new ItemError("Not found", "id: " + v, "NOT_FOUND"));
     } catch (SQLException e) {
       throw new ServerException(e);
     }

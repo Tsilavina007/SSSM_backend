@@ -11,9 +11,9 @@ info:
     par regex puis transmises telles quelles au SQL — seules les colonnes de
     security.item_assignment (sauf id) sont acceptées, le reste produit une
     erreur 500. Réponses en 200 : ligne mapée en AssignmentRest, ou carte
-    {"error": …} en cas d'échec doux (corps vide, aucune colonne writable,
-    introuvable) — l'identifiant inexistant ne renvoie jamais 404 ici (dette
-    connue). Pagination : page=1, pageSize=50 (max 500).
+    {"errors": ItemError} en cas d'échec doux (corps vide, aucune colonne
+    writable, introuvable) — l'identifiant inexistant ne renvoie jamais 404 ici
+    (dette connue). Pagination : page=1, pageSize=50 (max 500).
 servers:
   - url: http://localhost:8080
 security:
@@ -24,138 +24,163 @@ tags:
 paths:
   /api/inventory/assignments:
     get:
-      tags: [Assignments]
+      tags: [ Assignments ]
       summary: Lister les affectations actives
       parameters:
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des affectations
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Assignment'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Assignment' } }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [Assignments]
+      tags: [ Assignments ]
       summary: Créer une affectation
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/AssignmentUpsert'}}
+          application/json: { schema: { $ref: '#/components/schemas/AssignmentUpsert' } }
       responses:
         '200':
-          description: 'Affectation créée, ou carte {"error": …} si le corps est vide ou sans colonne writable'
+          description: 'Affectation créée, ou enveloppe {"errors": ItemError} si le corps
+            est vide ou sans colonne writable'
           content:
             application/json:
               schema:
                 oneOf:
-                  - {$ref: '#/components/schemas/Assignment'}
-                  - {$ref: '#/components/schemas/FamilyCError'}
+                  - { $ref: '#/components/schemas/Assignment' }
+                  - { $ref: '#/components/schemas/FamilyCError' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/assignments/{id}:
     parameters:
-      - {$ref: '#/components/parameters/AssignmentId'}
+      - { $ref: '#/components/parameters/AssignmentId' }
     get:
-      tags: [Assignments]
+      tags: [ Assignments ]
       summary: Récupérer une affectation
-      description: 'Identifiant inexistant → 200 {"error": "Not found", "id": …} (jamais 404).'
+      description: 'Identifiant inexistant → 200 {"errors": ItemError} (code
+        NOT_FOUND, detail id) (jamais 404).'
       responses:
         '200':
-          description: 'Affectation trouvée, ou carte {"error": …} si introuvable'
+          description: 'Affectation trouvée, ou enveloppe {"errors": ItemError} si
+            introuvable'
           content:
             application/json:
               schema:
                 oneOf:
-                  - {$ref: '#/components/schemas/Assignment'}
-                  - {$ref: '#/components/schemas/FamilyCError'}
+                  - { $ref: '#/components/schemas/Assignment' }
+                  - { $ref: '#/components/schemas/FamilyCError' }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     patch:
-      tags: [Assignments]
+      tags: [ Assignments ]
       summary: Mettre à jour partiellement une affectation
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/AssignmentUpsert'}}
+          application/json: { schema: { $ref: '#/components/schemas/AssignmentUpsert' } }
       responses:
         '200':
-          description: 'Affectation mise à jour, ou carte {"error": …}'
+          description: 'Affectation mise à jour, ou enveloppe {"errors": ItemError}'
           content:
             application/json:
               schema:
                 oneOf:
-                  - {$ref: '#/components/schemas/Assignment'}
-                  - {$ref: '#/components/schemas/FamilyCError'}
+                  - { $ref: '#/components/schemas/Assignment' }
+                  - { $ref: '#/components/schemas/FamilyCError' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/assignments/{id}/return:
     parameters:
-      - {$ref: '#/components/parameters/AssignmentId'}
+      - { $ref: '#/components/parameters/AssignmentId' }
     post:
-      tags: [Assignments]
+      tags: [ Assignments ]
       summary: Enregistrer le retour d une affectation
       description: >-
         Même mécanique que PATCH : corps Map (typiquement returned_at,
         condition_on_return, returned_by). Identifiant inexistant → 200 carte
-        {"error": …}.
+        {"errors": ItemError}.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/AssignmentUpsert'}}
+          application/json: { schema: { $ref: '#/components/schemas/AssignmentUpsert' } }
       responses:
         '200':
-          description: 'Affectation mise à jour, ou carte {"error": …}'
+          description: 'Affectation mise à jour, ou enveloppe {"errors": ItemError}'
           content:
             application/json:
               schema:
                 oneOf:
-                  - {$ref: '#/components/schemas/Assignment'}
-                  - {$ref: '#/components/schemas/FamilyCError'}
+                  - { $ref: '#/components/schemas/Assignment' }
+                  - { $ref: '#/components/schemas/FamilyCError' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/employees/{employeeId}/assignments:
     parameters:
       - name: employeeId
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema: { type: string, format: uuid }
     get:
-      tags: [Assignments]
+      tags: [ Assignments ]
       summary: Lister les affectations d un employé
       responses:
         '200':
           description: Liste des affectations de l'employé
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Assignment'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Assignment' } }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/security-posts/{postId}/assignments:
     parameters:
       - name: postId
         in: path
         required: true
-        schema: {type: string, format: uuid}
+        schema: { type: string, format: uuid }
     get:
-      tags: [Assignments]
+      tags: [ Assignments ]
       summary: Lister les affectations d un poste de sécurité
       responses:
         '200':
           description: Liste des affectations du poste
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Assignment'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Assignment' } }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -167,64 +192,77 @@ components:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, maximum: 500, default: 50}
+      schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
     AssignmentId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
     BadRequest:
-      description: >-
-        Requête malformée (désérialisation JSON) — format d'erreur Spring par
-        défaut, hors enveloppe du module.
-    ServerError:
-      description: >-
-        Erreur serveur — enveloppe {"errors": …} (ServerException, ex. clé
-        inconnue, contrainte NOT NULL, UUID malformé côté SQL) ou format
-        d'erreur Spring par défaut.
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
     ErrorEnvelope:
       type: object
       properties:
-        errors: {$ref: '#/components/schemas/Error'}
-    Error:
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
       type: object
       properties:
-        message: {type: string, nullable: true}
-        detail: {type: string, nullable: true}
-        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     FamilyCError:
       type: object
-      description: Carte d'erreur douce renvoyée en 200 par les opérations de cette famille.
+      description: >-
+        Erreur douce renvoyée en 200 par les opérations de cette famille
+        (enveloppe ItemError, code NOT_FOUND ou BAD_REQUEST).
       properties:
-        error: {type: string, examples: ['request body is required', 'no writable fields', 'Not found']}
-        id: {type: string, format: uuid, description: Présente uniquement pour « Not found » (lecture).}
+        errors: { $ref: '#/components/schemas/ItemError' }
     Assignment:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        item_id: {type: string, format: uuid}
-        employee_id: {type: string, format: uuid}
-        post_id: {type: string, format: uuid}
-        assigned_at: {type: string, format: date-time, nullable: true}
-        returned_at: {type: string, format: date-time, nullable: true}
-        condition_on_assignment: {type: string, nullable: true}
-        condition_on_return: {type: string, nullable: true}
-        notes: {type: string, nullable: true}
-        created_at: {type: string, format: date-time, nullable: true}
-        updated_at: {type: string, format: date-time, nullable: true}
-        assigned_by: {type: string, format: uuid, nullable: true}
-        returned_by: {type: string, format: uuid, nullable: true}
-        expected_return_at: {type: string, format: date-time, nullable: true}
+        id: { type: string, format: uuid }
+        item_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        post_id: { type: string, format: uuid }
+        assigned_at: { type: string, format: date-time, nullable: true }
+        returned_at: { type: string, format: date-time, nullable: true }
+        condition_on_assignment: { type: string, nullable: true }
+        condition_on_return: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        assigned_by: { type: string, format: uuid, nullable: true }
+        returned_by: { type: string, format: uuid, nullable: true }
+        expected_return_at: { type: string, format: date-time, nullable: true }
     AssignmentUpsert:
       type: object
       description: >-
@@ -235,19 +273,19 @@ components:
         d'affectation, options A/B/C non décidées). Colonnes NOT NULL sans
         défaut : item_id, employee_id, post_id — leur omission provoque une
         erreur 500 (et non 400).
-      required: [item_id, employee_id, post_id]
+      required: [ item_id, employee_id, post_id ]
       additionalProperties: true
       properties:
-        item_id: {type: string, format: uuid}
-        employee_id: {type: string, format: uuid}
-        post_id: {type: string, format: uuid}
-        assigned_at: {type: string, format: date-time, nullable: true}
-        returned_at: {type: string, format: date-time, nullable: true}
-        condition_on_assignment: {type: string, nullable: true}
-        condition_on_return: {type: string, nullable: true}
-        notes: {type: string, nullable: true}
-        created_at: {type: string, format: date-time, nullable: true}
-        updated_at: {type: string, format: date-time, nullable: true}
-        assigned_by: {type: string, format: uuid, nullable: true}
-        returned_by: {type: string, format: uuid, nullable: true}
-        expected_return_at: {type: string, format: date-time, nullable: true}
+        item_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        post_id: { type: string, format: uuid }
+        assigned_at: { type: string, format: date-time, nullable: true }
+        returned_at: { type: string, format: date-time, nullable: true }
+        condition_on_assignment: { type: string, nullable: true }
+        condition_on_return: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+        updated_at: { type: string, format: date-time, nullable: true }
+        assigned_by: { type: string, format: uuid, nullable: true }
+        returned_by: { type: string, format: uuid, nullable: true }
+        expected_return_at: { type: string, format: date-time, nullable: true }

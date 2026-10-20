@@ -1,14 +1,15 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Sites — Post Requirements API
   version: 1.0.0
   description: >-
     API des exigences de poste (module a06_sites/post_requirement), dérivée du
     contrôleur PostRequirementController. Toutes les routes exigent un JWT.
-    Pas de gestion d'exception : les erreurs suivent le format Spring par
-    défaut (hors enveloppe). Le DAO capture les SQLException (listes vides,
-    création silencieusement en échec avec 200). La liste par poste n'est pas
-    paginée et est triée par requirement.
+    Toutes les erreurs renvoient l'enveloppe {"errors": {message, detail, code}}
+    : 400 (requête invalide, JSON illisible ou UUID malformé), 401 (JWT absent,
+    invalide ou expiré), 404 (exigence introuvable lors d'une mise à jour), 500
+    (erreur serveur ou SQL). La liste par poste n'est pas paginée et est triée
+    par requirement.
 servers:
   - url: http://localhost:8080
 security:
@@ -19,9 +20,9 @@ tags:
 paths:
   /api/post-requirements/post/{postId}:
     parameters:
-      - {$ref: '#/components/parameters/PostId'}
+      - { $ref: '#/components/parameters/PostId' }
     get:
-      tags: [PostRequirements]
+      tags: [ PostRequirements ]
       summary: Lister les exigences d'un poste
       description: Retourne toutes les exigences du poste, triées par requirement.
       responses:
@@ -29,37 +30,40 @@ paths:
           description: Liste des exigences
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/PostRequirement'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/PostRequirement' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/post-requirements:
     post:
-      tags: [PostRequirements]
+      tags: [ PostRequirements ]
       summary: Créer une exigence de poste
       description: >-
-        Une erreur SQL est capturée par le DAO : la réponse reste 200 et peut
-        contenir un objet sans id.
+        Une erreur SQL renvoie 500 avec une enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/PostRequirement'}}
+          application/json: { schema: { $ref: '#/components/schemas/PostRequirement' } }
       responses:
         '200':
-          description: Exigence créée (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Exigence créée
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PostRequirement'}
+              schema: { $ref: '#/components/schemas/PostRequirement' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/post-requirements/{id}:
     parameters:
-      - {$ref: '#/components/parameters/RequirementId'}
+      - { $ref: '#/components/parameters/RequirementId' }
     get:
-      tags: [PostRequirements]
+      tags: [ PostRequirements ]
       summary: Récupérer une exigence par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -69,34 +73,40 @@ paths:
           description: Exigence trouvée, ou null si absente
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PostRequirement'}
+              schema: { $ref: '#/components/schemas/PostRequirement' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [PostRequirements]
+      tags: [ PostRequirements ]
       summary: Mettre à jour partiellement une exigence
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        IllegalArgumentException → 500 au format Spring par défaut. La réponse
-        est l'objet envoyé complété de l'id.
+        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/PostRequirement'}}
+          application/json: { schema: { $ref: '#/components/schemas/PostRequirement' } }
       responses:
         '200':
           description: Exigence mise à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PostRequirement'}
+              schema: { $ref: '#/components/schemas/PostRequirement' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [PostRequirements]
+      tags: [ PostRequirements ]
       summary: Supprimer une exigence
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -106,6 +116,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -117,32 +129,57 @@ components:
       name: postId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     RequirementId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     PostRequirement:
       type: object
-      required: [post_id, requirement]
+      required: [ post_id, requirement ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        post_id: {type: string, format: uuid}
-        requirement: {type: string, maxLength: 180}
+        id: { type: string, format: uuid, readOnly: true }
+        post_id: { type: string, format: uuid }
+        requirement: { type: string, maxLength: 180 }

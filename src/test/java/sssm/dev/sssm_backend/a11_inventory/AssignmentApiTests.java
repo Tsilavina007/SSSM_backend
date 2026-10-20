@@ -37,7 +37,7 @@ import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 
 /**
  * Routes du module assignment (famille générique à corps Map, sous /api/inventory/assignments).
- * Les erreurs douces de cette famille répondent en 200 avec {"error": …} et jamais 404 sur
+ * Les erreurs douces de cette famille répondent en 200 avec {"errors": ItemError} et jamais 404 sur
  * les écritures — comportements vérifiés tels quels ici.
  */
 @SpringBootTest
@@ -159,7 +159,8 @@ class AssignmentApiTests {
             get("/api/inventory/assignments/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.error").value("Not found"));
+        .andExpect(jsonPath("$.errors.message").value("Not found"))
+        .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
   }
 
   @Test
@@ -171,7 +172,8 @@ class AssignmentApiTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.error").value("request body is required"));
+        .andExpect(jsonPath("$.errors.message").value("Request body is required"))
+        .andExpect(jsonPath("$.errors.code").value("BAD_REQUEST"));
   }
 
   @Test

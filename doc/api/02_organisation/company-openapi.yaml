@@ -4,17 +4,18 @@ info:
   version: 1.0.0
   description: >-
     API des sociétés (module a02_organisation/company), dérivée du contrôleur
-    CompanyController. Toutes les routes exigent un JWT (Authorization:
-    Bearer …). Erreurs : enveloppe {"errors": {message, detail, code}} pour les
-    exceptions métier du module (ClientException → 400, NotFoundException →
-    404, ServerException → 500) ; une requête malformée (JSON/UUID invalide)
-    renvoie l'erreur Spring par défaut, hors enveloppe. Pagination : page=1,
-    pageSize=10 par défaut (aucun maximum). Aucune validation Jakarta : les
-    champs marqués « requis » le sont par la base (NOT NULL sans défaut).
-    Remarque : PATCH et DELETE sont déclarés sur /{CompanyId} dans le
-    contrôleur alors que le paramètre lié s'appelle companyId ; cette
-    incohérence de casse peut empêcher la résolution du paramètre. Le chemin
-    est documenté ici sous sa forme fonctionnelle /{companyId}.
+    CompanyController. Toutes les routes exigent un JWT (Authorization: Bearer
+    …). Toutes les erreurs renvoient l'enveloppe {"errors": {message, detail,
+    code}} : 400 (requête invalide, JSON illisible ou UUID malformé), 401 (JWT
+    absent, invalide ou expiré), 404 (société introuvable lors d'une mise à
+    jour), 500 (erreur serveur ou SQL). La lecture d'un identifiant absent
+    renvoie encore 200 null. Pagination : page=1, pageSize=10 par défaut (aucun
+    maximum). Aucune validation Jakarta : les champs marqués « requis » le sont
+    par la base (NOT NULL sans défaut). Remarque : PATCH et DELETE sont déclarés
+    sur /{CompanyId} dans le contrôleur alors que le paramètre lié s'appelle
+    companyId ; cette incohérence de casse peut empêcher la résolution du
+    paramètre. Le chemin est documenté ici sous sa forme fonctionnelle
+    /{companyId}.
 servers:
   - url: http://localhost:8080
 security:
@@ -25,51 +26,55 @@ tags:
 paths:
   /api/company:
     get:
-      tags: [Companies]
+      tags: [ Companies ]
       summary: Lister les sociétés
       description: >-
         Recherche libre sur name et legal_name (ILIKE). Sans search, retourne
         toutes les sociétés paginées.
       parameters:
-        - {$ref: '#/components/parameters/Search'}
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des sociétés
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Company'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Company' } }
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [Companies]
+      tags: [ Companies ]
       summary: Créer une société
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Company'}}
+          application/json: { schema: { $ref: '#/components/schemas/Company' } }
       responses:
         '200':
           description: Société créée
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Company'}
+              schema: { $ref: '#/components/schemas/Company' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/company/{companyId}:
     parameters:
-      - {$ref: '#/components/parameters/CompanyId'}
+      - { $ref: '#/components/parameters/CompanyId' }
     get:
-      tags: [Companies]
+      tags: [ Companies ]
       summary: Récupérer une société par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -79,15 +84,17 @@ paths:
           description: Société trouvée, ou null si absente
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Company'}
+              schema: { $ref: '#/components/schemas/Company' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     patch:
-      tags: [Companies]
+      tags: [ Companies ]
       summary: Mettre à jour partiellement une société
       description: >-
         Mise à jour partielle : seuls les champs non null sont écrits. Un
@@ -96,25 +103,27 @@ paths:
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Company'}}
+          application/json: { schema: { $ref: '#/components/schemas/Company' } }
       responses:
         '200':
           description: Société mise à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Company'}
+              schema: { $ref: '#/components/schemas/Company' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     delete:
-      tags: [Companies]
+      tags: [ Companies ]
       summary: Supprimer une société
       description: >-
-        Ne renvoie jamais 404 : un identifiant inexistant renvoie quand même
-        200 (le DELETE SQL n'affecte aucune ligne).
+        Ne renvoie jamais 404 : un identifiant inexistant renvoie quand même 200
+        (le DELETE SQL n'affecte aucune ligne).
       responses:
         '200':
           description: Message de confirmation
@@ -129,6 +138,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -140,69 +151,82 @@ components:
       name: search
       in: query
       required: false
-      schema: {type: string}
+      schema: { type: string }
       description: Recherche libre (ILIKE) sur name et legal_name.
     Page:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     CompanyId:
       name: companyId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
     BadRequest:
-      description: >-
-        Requête malformée (désérialisation JSON) — format d'erreur Spring par
-        défaut, hors enveloppe ; ou erreur métier ClientException (enveloppe).
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     NotFound:
-      description: Société introuvable (enveloppe d'erreur).
+      description: Ressource introuvable (404) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
-      description: >-
-        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
-        d'erreur Spring par défaut (UUID malformé, erreur inattendue).
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
     ErrorEnvelope:
       type: object
       properties:
-        errors: {$ref: '#/components/schemas/Error'}
-    Error:
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
       type: object
       properties:
-        message: {type: string, nullable: true}
-        detail: {type: string, nullable: true}
-        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     Company:
       type: object
       description: >-
         Société sérialisée telle quelle (entité Company). id et les horodatages
         sont générés par la base et ignorés à la création/mise à jour.
-      required: [name]
+      required: [ name ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        name: {type: string, maxLength: 180}
-        legal_name: {type: string, maxLength: 255, nullable: true}
-        registration_number: {type: string, maxLength: 100, nullable: true}
-        tax_number: {type: string, maxLength: 100, nullable: true}
-        email: {type: string, format: email, maxLength: 180, nullable: true}
-        phone: {type: string, maxLength: 50, nullable: true}
-        address: {type: string, nullable: true}
-        city: {type: string, maxLength: 100, nullable: true}
-        country: {type: string, maxLength: 100, nullable: true, default: Madagascar}
-        logo_url: {type: string, nullable: true}
-        currency_code: {type: string, minLength: 3, maxLength: 3, default: MGA}
-        created_at: {type: string, format: date, readOnly: true}
-        updated_at: {type: string, format: date, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
+        name: { type: string, maxLength: 180 }
+        legal_name: { type: string, maxLength: 255, nullable: true }
+        registration_number: { type: string, maxLength: 100, nullable: true }
+        tax_number: { type: string, maxLength: 100, nullable: true }
+        email: { type: string, format: email, maxLength: 180, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        address: { type: string, nullable: true }
+        city: { type: string, maxLength: 100, nullable: true }
+        country: { type: string, maxLength: 100, nullable: true, default: Madagascar }
+        logo_url: { type: string, nullable: true }
+        currency_code: { type: string, minLength: 3, maxLength: 3, default: MGA }
+        created_at: { type: string, format: date, readOnly: true }
+        updated_at: { type: string, format: date, readOnly: true }

@@ -1,16 +1,17 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Personnel — Employees API
   version: 1.0.0
   description: >-
     API des employés (module a04_personnel/employee), dérivée du contrôleur
-    EmployeeController. Toutes les routes exigent un JWT. Pas de gestion
-    d'exception : les erreurs suivent le format Spring par défaut (hors
-    enveloppe). Le DAO capture les SQLException : les listes peuvent être
-    vides et une création en échec peut renvoyer 200 avec un objet sans id.
+    EmployeeController. Toutes les routes exigent un JWT. Toutes les erreurs
+    renvoient l'enveloppe {"errors": {message, detail, code}} : 400 (requête
+    invalide, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
+    expiré), 404 (employé introuvable lors d'une mise à jour), 500 (erreur
+    serveur ou SQL). La lecture d'un identifiant absent renvoie encore 200 null.
     Pagination : page=1, pageSize=10 par défaut. La colonne status est envoyée
-    explicitement par le DAO : null provoque une violation NOT NULL, donc
-    status est requis en pratique.
+    explicitement par le DAO : null provoque une violation NOT NULL, donc status
+    est requis en pratique.
 servers:
   - url: http://localhost:8080
 security:
@@ -21,46 +22,52 @@ tags:
 paths:
   /api/employees:
     get:
-      tags: [Employees]
+      tags: [ Employees ]
       summary: Lister les employés
       description: Recherche libre sur first_name, last_name et employee_number (ILIKE).
       parameters:
-        - {$ref: '#/components/parameters/Search'}
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des employés
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Employee'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Employee' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
     post:
-      tags: [Employees]
+      tags: [ Employees ]
       summary: Créer un employé
       description: >-
-        Une erreur SQL (contrainte, UUID invalide côté SQL) est capturée par le
-        DAO : la réponse reste 200 et peut contenir un objet sans id.
+        Une erreur SQL (contrainte, UUID invalide côté SQL) renvoie 500 avec une
+        enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Employee'}}
+          application/json: { schema: { $ref: '#/components/schemas/Employee' } }
       responses:
         '200':
-          description: Employé créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Employé créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Employee'}
+              schema: { $ref: '#/components/schemas/Employee' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/employees/{id}:
     parameters:
-      - {$ref: '#/components/parameters/EmployeeId'}
+      - { $ref: '#/components/parameters/EmployeeId' }
     get:
-      tags: [Employees]
+      tags: [ Employees ]
       summary: Récupérer un employé par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -70,34 +77,40 @@ paths:
           description: Employé trouvé, ou null si absent
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Employee'}
+              schema: { $ref: '#/components/schemas/Employee' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [Employees]
+      tags: [ Employees ]
       summary: Mettre à jour partiellement un employé
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        IllegalArgumentException → 500 au format Spring par défaut. La réponse
-        est l'objet envoyé complété de l'id, et non la ligne relue.
+        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        envoyé complété de l'id, et non la ligne relue.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Employee'}}
+          application/json: { schema: { $ref: '#/components/schemas/Employee' } }
       responses:
         '200':
           description: Employé mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Employee'}
+              schema: { $ref: '#/components/schemas/Employee' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [Employees]
+      tags: [ Employees ]
       summary: Supprimer un employé
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -107,6 +120,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -118,66 +133,91 @@ components:
       name: search
       in: query
       required: false
-      schema: {type: string}
+      schema: { type: string }
       description: Recherche libre (ILIKE) sur first_name, last_name et employee_number.
     Page:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     EmployeeId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     EmployeeStatus:
       type: string
-      enum: [ACTIVE, INACTIVE, SUSPENDED, LEFT]
+      enum: [ ACTIVE, INACTIVE, SUSPENDED, LEFT ]
     Employee:
       type: object
-      required: [company_id, employee_number, first_name, last_name, status]
+      required: [ company_id, employee_number, first_name, last_name, status ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        company_id: {type: string, format: uuid}
-        agency_id: {type: string, format: uuid, nullable: true}
-        user_id: {type: string, format: uuid, nullable: true}
-        employee_number: {type: string, maxLength: 80}
-        first_name: {type: string, maxLength: 100}
-        last_name: {type: string, maxLength: 100}
-        gender: {type: string, maxLength: 30, nullable: true}
-        date_of_birth: {type: string, format: date, nullable: true}
-        phone: {type: string, maxLength: 50, nullable: true}
-        email: {type: string, format: email, maxLength: 180, nullable: true}
-        address: {type: string, nullable: true}
-        national_id: {type: string, maxLength: 100, nullable: true}
-        hire_date: {type: string, format: date, nullable: true}
-        end_date: {type: string, format: date, nullable: true}
-        position: {type: string, maxLength: 100, nullable: true}
-        status: {$ref: '#/components/schemas/EmployeeStatus'}
-        photo_url: {type: string, nullable: true}
-        emergency_contact_name: {type: string, maxLength: 180, nullable: true}
-        emergency_contact_phone: {type: string, maxLength: 50, nullable: true}
-        notes: {type: string, nullable: true}
-        created_at: {type: string, format: date-time, readOnly: true}
-        updated_at: {type: string, format: date-time, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
+        company_id: { type: string, format: uuid }
+        agency_id: { type: string, format: uuid, nullable: true }
+        user_id: { type: string, format: uuid, nullable: true }
+        employee_number: { type: string, maxLength: 80 }
+        first_name: { type: string, maxLength: 100 }
+        last_name: { type: string, maxLength: 100 }
+        gender: { type: string, maxLength: 30, nullable: true }
+        date_of_birth: { type: string, format: date, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        email: { type: string, format: email, maxLength: 180, nullable: true }
+        address: { type: string, nullable: true }
+        national_id: { type: string, maxLength: 100, nullable: true }
+        hire_date: { type: string, format: date, nullable: true }
+        end_date: { type: string, format: date, nullable: true }
+        position: { type: string, maxLength: 100, nullable: true }
+        status: { $ref: '#/components/schemas/EmployeeStatus' }
+        photo_url: { type: string, nullable: true }
+        emergency_contact_name: { type: string, maxLength: 180, nullable: true }
+        emergency_contact_phone: { type: string, maxLength: 50, nullable: true }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }

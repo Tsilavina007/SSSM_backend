@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a03_authentication.role.service;
 
 import java.util.*;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
 
@@ -21,8 +21,7 @@ public class RoleService {
   }
 
   public Role update(String id, Role role) {
-    if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("Role not found with ID: " + id);
+    if (dao.findById(id).isEmpty()) throw new NotFoundException("Role not found with ID: " + id);
     role.setId(id);
     return dao.update(role);
   }

@@ -7,9 +7,9 @@ info:
     ItemController. Toutes les routes exigent un JWT (Authorization: Bearer …).
     Erreurs : enveloppe {"errors": {message, detail, code}} pour les exceptions
     métier du module ; une requête malformée (JSON/UUID invalide) renvoie
-    l'erreur Spring par défaut, hors enveloppe. Pagination : page=1,
-    pageSize=10 par défaut. Aucune validation Jakarta sur ce module — les
-    champs marqués « requis » le sont par la base (NOT NULL sans défaut).
+    l'erreur enveloppe ItemError. Pagination : page=1, pageSize=10 par défaut.
+    Aucune validation Jakarta sur ce module — les champs marqués « requis » le
+    sont par la base (NOT NULL sans défaut).
 servers:
   - url: http://localhost:8080
 security:
@@ -20,40 +20,46 @@ tags:
 paths:
   /api/inventory/items:
     get:
-      tags: [Items]
+      tags: [ Items ]
       summary: Lister les articles
       parameters:
-        - {$ref: '#/components/parameters/Search'}
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des articles
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Item'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Item' } }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [Items]
+      tags: [ Items ]
       summary: Créer un article
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/ItemCreate'}}
+          application/json: { schema: { $ref: '#/components/schemas/ItemCreate' } }
       responses:
         '200':
           description: Article créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Item'}
+              schema: { $ref: '#/components/schemas/Item' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/items/bulk:
     post:
-      tags: [Items]
+      tags: [ Items ]
       summary: Créer plusieurs articles (partiellement atomique)
       description: >-
         Chaque article est inséré indépendamment : les échecs sont regroupés
@@ -62,54 +68,62 @@ paths:
         required: true
         content:
           application/json:
-            schema: {type: array, items: {$ref: '#/components/schemas/ItemCreate'}}
+            schema: { type: array, items: { $ref: '#/components/schemas/ItemCreate' } }
       responses:
         '200':
           description: Résultats du lot
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ItemBulkResult'}
+              schema: { $ref: '#/components/schemas/ItemBulkResult' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/items/{itemId}:
     parameters:
-      - {$ref: '#/components/parameters/ItemId'}
+      - { $ref: '#/components/parameters/ItemId' }
     get:
-      tags: [Items]
+      tags: [ Items ]
       summary: Récupérer un article par identifiant
       responses:
         '200':
           description: Article trouvé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Item'}
+              schema: { $ref: '#/components/schemas/Item' }
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     patch:
-      tags: [Items]
+      tags: [ Items ]
       summary: Mettre à jour partiellement un article
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/ItemUpdate'}}
+          application/json: { schema: { $ref: '#/components/schemas/ItemUpdate' } }
       responses:
         '200':
           description: Article mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Item'}
+              schema: { $ref: '#/components/schemas/Item' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     delete:
-      tags: [Items]
+      tags: [ Items ]
       summary: Supprimer un article
       description: >-
         Ne renvoie jamais 404 : la suppression d'un identifiant inexistant
@@ -119,25 +133,37 @@ paths:
           description: Message de confirmation (chaîne JSON)
           content:
             application/json:
-              schema: {type: string, example: 'Item deleted : 3f0c2f70-0000-4000-8000-000000000001'}
+              schema:
+                {
+                  type: string,
+                  example: 'Item deleted : 3f0c2f70-0000-4000-8000-000000000001'
+                }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/items/{itemId}/qr-code:
     parameters:
-      - {$ref: '#/components/parameters/ItemId'}
+      - { $ref: '#/components/parameters/ItemId' }
     get:
-      tags: [Items]
+      tags: [ Items ]
       summary: Récupérer le QR code d'un article
       responses:
         '200':
           description: QR code de l'article
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ItemQrCode'}
+              schema: { $ref: '#/components/schemas/ItemQrCode' }
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -149,158 +175,171 @@ components:
       name: search
       in: query
       required: false
-      schema: {type: string}
+      schema: { type: string }
       description: Recherche libre (ILIKE) selon la ressource.
     Page:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     ItemId:
       name: itemId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
     BadRequest:
-      description: >-
-        Requête malformée (désérialisation JSON) — format d'erreur Spring par
-        défaut, hors enveloppe du module.
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     NotFound:
-      description: Article introuvable
+      description: Ressource introuvable (404) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
-      description: >-
-        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
-        d'erreur Spring par défaut (identifiant malformé).
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
     ErrorEnvelope:
       type: object
       properties:
-        errors: {$ref: '#/components/schemas/Error'}
-    Error:
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
       type: object
       properties:
-        message: {type: string, nullable: true}
-        detail: {type: string, nullable: true}
-        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     ItemStatus:
       type: string
-      enum: [AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED]
+      enum: [ AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED ]
     CompanyBrief:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        name: {type: string}
+        id: { type: string, format: uuid }
+        name: { type: string }
     AgencyBrief:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company_id: {type: string, format: uuid}
-        name: {type: string}
+        id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid }
+        name: { type: string }
     BranchBrief:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company_id: {type: string, format: uuid}
-        agence: {$ref: '#/components/schemas/AgencyBrief'}
-        name: {type: string}
+        id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid }
+        agence: { $ref: '#/components/schemas/AgencyBrief' }
+        name: { type: string }
     ItemCategoryBrief:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company: {$ref: '#/components/schemas/CompanyBrief'}
-        name: {type: string}
-        description: {type: string, nullable: true}
+        id: { type: string, format: uuid }
+        company: { $ref: '#/components/schemas/CompanyBrief' }
+        name: { type: string }
+        description: { type: string, nullable: true }
     ItemTypeBrief:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company: {$ref: '#/components/schemas/CompanyBrief'}
-        category: {$ref: '#/components/schemas/ItemCategoryBrief'}
-        code: {type: string}
-        name: {type: string}
-        description: {type: string, nullable: true}
+        id: { type: string, format: uuid }
+        company: { $ref: '#/components/schemas/CompanyBrief' }
+        category: { $ref: '#/components/schemas/ItemCategoryBrief' }
+        code: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
     WarehouseBrief:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company_id: {$ref: '#/components/schemas/CompanyBrief'}
-        branch: {$ref: '#/components/schemas/BranchBrief'}
-        name: {type: string}
+        id: { type: string, format: uuid }
+        company_id: { $ref: '#/components/schemas/CompanyBrief' }
+        branch: { $ref: '#/components/schemas/BranchBrief' }
+        name: { type: string }
     Item:
       type: object
       description: >-
         Article sérialisé sous forme d'entité, avec objets imbriqués (company,
         category, item_type, current_warehouse).
       properties:
-        id: {type: string, format: uuid}
-        company: {$ref: '#/components/schemas/CompanyBrief'}
-        category: {$ref: '#/components/schemas/ItemCategoryBrief'}
-        item_type: {$ref: '#/components/schemas/ItemTypeBrief'}
-        current_warehouse: {$ref: '#/components/schemas/WarehouseBrief'}
-        qr_code: {type: string}
-        description: {type: string, nullable: true}
-        status: {$ref: '#/components/schemas/ItemStatus'}
-        created_at: {type: string, format: date-time}
-        updated_at: {type: string, format: date-time}
-        archived_at: {type: string, format: date-time, nullable: true}
-        archived_by: {type: string, format: uuid, nullable: true}
-        last_inventory_at: {type: string, format: date-time, nullable: true}
+        id: { type: string, format: uuid }
+        company: { $ref: '#/components/schemas/CompanyBrief' }
+        category: { $ref: '#/components/schemas/ItemCategoryBrief' }
+        item_type: { $ref: '#/components/schemas/ItemTypeBrief' }
+        current_warehouse: { $ref: '#/components/schemas/WarehouseBrief' }
+        qr_code: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ItemStatus' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        archived_at: { type: string, format: date-time, nullable: true }
+        archived_by: { type: string, format: uuid, nullable: true }
+        last_inventory_at: { type: string, format: date-time, nullable: true }
     ItemQrCode:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company_id: {type: string, format: uuid}
-        category_id: {type: string, format: uuid, nullable: true}
-        item_type_id: {type: string, format: uuid}
-        current_warehouse_id: {type: string, format: uuid, nullable: true}
-        qr_code: {type: string}
+        id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid, nullable: true }
+        item_type_id: { type: string, format: uuid }
+        current_warehouse_id: { type: string, format: uuid, nullable: true }
+        qr_code: { type: string }
     ItemCreate:
       type: object
       description: >-
         Corps de création. Les champs requis le sont par la base (NOT NULL sans
         défaut) : leur omission provoque une erreur 500.
-      required: [company_id, item_type_id, qr_code]
+      required: [ company_id, item_type_id, qr_code ]
       properties:
-        company_id: {type: string, format: uuid}
-        category_id: {type: string, format: uuid, nullable: true}
-        item_type_id: {type: string, format: uuid}
-        qr_code: {type: string}
-        description: {type: string, nullable: true}
-        status: {$ref: '#/components/schemas/ItemStatus'}
-        current_warehouse_id: {type: string, format: uuid, nullable: true}
+        company_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid, nullable: true }
+        item_type_id: { type: string, format: uuid }
+        qr_code: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ItemStatus' }
+        current_warehouse_id: { type: string, format: uuid, nullable: true }
     ItemUpdate:
       type: object
       description: Tous les champs sont facultatifs (mise à jour partielle).
       properties:
-        company_id: {type: string, format: uuid}
-        category_id: {type: string, format: uuid, nullable: true}
-        item_type_id: {type: string, format: uuid}
-        qr_code: {type: string}
-        description: {type: string, nullable: true}
-        status: {$ref: '#/components/schemas/ItemStatus'}
-        current_warehouse_id: {type: string, format: uuid, nullable: true}
+        company_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid, nullable: true }
+        item_type_id: { type: string, format: uuid }
+        qr_code: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ItemStatus' }
+        current_warehouse_id: { type: string, format: uuid, nullable: true }
     ItemBulkResult:
       type: object
       properties:
         createdItems:
           type: array
-          items: {$ref: '#/components/schemas/Item'}
+          items: { $ref: '#/components/schemas/Item' }
         failedItems:
           type: array
           items:
             type: object
             properties:
-              item: {$ref: '#/components/schemas/ItemCreate'}
-              errors: {$ref: '#/components/schemas/Error'}
+              item: { $ref: '#/components/schemas/ItemCreate' }
+              errors: { $ref: '#/components/schemas/ItemError' }

@@ -57,8 +57,8 @@ Aucune spécification n'est fournie pour `a00_infrastructure`, `a01_common` et
 - JWT obtenu via `POST /api/auth/login` (durée par défaut : 1 heure).
 - `/api/users/**`, `/api/roles/**` et `/api/permissions/**` exigent en plus le
   rôle `ADMIN`.
-- Un JWT invalide ou expiré renvoie `401` avec l'enveloppe d'erreur ; un JWT
-  absent est refusé par Spring Security (`403`).
+- Un JWT absent, invalide ou expiré renvoie `401` avec l'enveloppe
+  `ItemError`. Un JWT valide sans le rôle requis renvoie `403`.
 
 ### Pagination et recherche
 
@@ -84,24 +84,42 @@ Aucune spécification n'est fournie pour `a00_infrastructure`, `a01_common` et
 
 ### Format des erreurs
 
-Deux conventions coexistent, fidèlement aux contrôleurs :
+Toutes les erreurs — exceptions métier, validation, JSON illisible, UUID
+malformé, route inconnue, méthode non autorisée, erreur SQL ou erreur Spring
+Security — renvoient la même enveloppe :
 
-1. **Enveloppe métier** : `{"errors": {"message": "...", "detail": "...", "code": "23505"}}`
-   pour les contrôleurs qui capturent `ClientException`, `NotFoundException` et
-   `ServerException` (company, branch, auth, users, ainsi que l'inventaire).
-2. **Erreur Spring par défaut** : `{"timestamp", "status", "error", "path"}`
-   pour les contrôleurs sans gestion d'exception (agency, roles, permissions,
-   employees, clients, sites, etc.).
+```json
+{
+  "errors": {
+    "message": "duplicate key value violates unique constraint \"uq_company_code\"",
+    "detail": "Key (code)=(ACME) already exists.",
+    "code": "23505"
+  }
+}
+```
 
-Chaque fichier précise les codes réellement produits par ses routes.
+- `message` : message lisible de l'erreur.
+- `detail` : précision éventuelle (détail PostgreSQL, liste des champs de
+  validation, cause de l'échec). Peut être `null` lorsqu'il n'y a pas de détail.
+- `code` : code applicatif (`BAD_REQUEST`, `VALIDATION_ERROR`,
+  `INVALID_REQUEST_BODY`, `NOT_FOUND`, `CLIENT_ERROR`, `SERVER_ERROR`,
+  `UNAUTHORIZED`, `FORBIDDEN`, `METHOD_NOT_ALLOWED`,
+  `UNSUPPORTED_MEDIA_TYPE`, `INTERNAL_ERROR`) ou SQLState PostgreSQL
+  (par exemple `23505` pour une violation d'unicité).
+
+Le gestionnaire global `GlobalExceptionHandler` et le contrôleur d'erreur
+`ItemErrorController` garantissent ce format pour toutes les routes. Les codes
+HTTP utilisés sont `400`, `401`, `403`, `404`, `405`, `415` et `500`. Chaque
+fichier précise les codes réellement produits par ses routes.
 
 ## Points d'attention connus
 
-- **Suppressions silencieuses** : plusieurs DAO capturent les `SQLException`
-  (`printStackTrace`) et renvoient l'objet d'entrée ou une liste vide. Une
-  création invalide peut donc répondre `200` avec un objet sans `id`.
+- **Erreurs SQL** : les DAO ne masquent plus les `SQLException`. Une contrainte
+  violée, un UUID invalide côté SQL ou une colonne `NOT NULL` omise renvoie
+  désormais `500` avec le message, le détail et le SQLState PostgreSQL.
 - **Réponses `null`** : les contrôleurs retournant `Optional<T>` renvoient
-  `200 null` pour un identifiant absent (et non `404`).
+  encore `200 null` pour un identifiant absent (et non `404`). Les mises à jour
+  d'un identifiant inexistant renvoient en revanche `404`.
 - **Company** : `PATCH` et `DELETE` sont mappés sur `/{CompanyId}` alors que le
   paramètre lié s'appelle `companyId` ; cette incohérence de casse est signalée
   dans `company-openapi.yaml`.
@@ -111,14 +129,17 @@ Chaque fichier précise les codes réellement produits par ses routes.
 - **Roles** : `RoleDAO.create` convertit `company_id` sans garde ; un rôle
   global (`company_id = null`) échoue en `500`.
 - **Inventory (11)** : plusieurs ressources utilisent un corps `Map` générique
-  et des échecs doux (`200 {"error": ...}`) ; ces comportements sont détaillés
-  dans les fichiers concernés.
+  et des échecs doux en `200` avec la même enveloppe `{"errors": ItemError}`
+  (code `NOT_FOUND` ou `BAD_REQUEST`) ; ces comportements sont détaillés dans
+  les fichiers concernés.
 
 ## Vérification
 
 Les 26 fichiers ont été validés (parsing YAML, résolution des `$ref`, paramètres
 de chemin) et les 126 opérations documentées correspondent exactement aux
-annotations des contrôleurs.
+annotations des contrôleurs. Le lint Redocly ne remonte aucune erreur ; les
+avertissements restants concernent uniquement les `operationId` absents, la
+licence et l'URL `localhost`.
 
 Pour linter ou prévisualiser les spécifications :
 

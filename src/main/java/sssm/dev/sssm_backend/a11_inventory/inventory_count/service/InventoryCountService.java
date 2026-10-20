@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountResponse;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountScanResponse;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.mapper.InventoryCountRestMapper;
@@ -41,7 +42,10 @@ public class InventoryCountService {
 
   public Object one(String id) {
     InventoryCountResponse r = inventoryCountDAO.one(id).orElse(null);
-    return r != null ? inventoryCountRestMapper.toRest(r) : Map.of("error", "Not found", "id", id);
+    return r != null
+        ? inventoryCountRestMapper.toRest(r)
+        : Map.of(
+            "errors", new ItemError("Not found", "id: " + id, "NOT_FOUND"));
   }
 
   public Object save(String id, Map<String, Object> b, boolean u) {

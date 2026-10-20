@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
@@ -45,7 +44,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getAllItemCategories : " + e);
+      throw new ServerException(e);
     }
     return values;
   }
@@ -72,7 +71,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when searchItemCategoriesByName : " + e);
+      throw new ServerException(e);
     }
     return values;
   }
@@ -92,7 +91,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getItemCategoryById : " + e);
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -116,7 +115,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when createItemCategory : " + e);
+      throw new ServerException(e);
     }
     return null;
   }
@@ -154,7 +153,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when updateItemCategory : " + e);
+      throw new ServerException(e);
     }
     return getItemCategoryById(id).get();
   }
@@ -169,7 +168,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when deleteItemCategory : " + e);
+      throw new ServerException(e);
     }
   }
 

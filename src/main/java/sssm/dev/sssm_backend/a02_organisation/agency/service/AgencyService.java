@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 import sssm.dev.sssm_backend.a02_organisation.agency.repository.AgencyDAO;
 
@@ -31,7 +31,7 @@ public class AgencyService {
 
   public Agency updateAgency(String id, Agency agency) {
     if (agencyDAO.getAgencyById(id).isEmpty())
-      throw new IllegalArgumentException("Agency not found with ID: " + id);
+      throw new NotFoundException("Agency not found with ID: " + id);
     agency.setId(id);
     return agencyDAO.updateAgency(agency);
   }

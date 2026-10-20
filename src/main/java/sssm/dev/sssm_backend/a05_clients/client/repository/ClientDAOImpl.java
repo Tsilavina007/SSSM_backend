@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a05_clients.client.entity.Client;
 
 public class ClientDAOImpl implements ClientDAO {
@@ -35,7 +35,7 @@ public class ClientDAOImpl implements ClientDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return clients;
   }
@@ -58,7 +58,7 @@ public class ClientDAOImpl implements ClientDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return clients;
   }
@@ -78,7 +78,7 @@ public class ClientDAOImpl implements ClientDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -116,7 +116,7 @@ public class ClientDAOImpl implements ClientDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return client;
   }
@@ -202,7 +202,7 @@ public class ClientDAOImpl implements ClientDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return client;
   }
@@ -217,7 +217,7 @@ public class ClientDAOImpl implements ClientDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 

@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
@@ -37,7 +36,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getAllWarehouses : " + e);
+      throw new ServerException(e);
     }
     return values;
   }
@@ -63,7 +62,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when searchWarehousesByName : " + e);
+      throw new ServerException(e);
     }
     return values;
   }
@@ -83,7 +82,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getWarehouseById : " + e);
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -110,7 +109,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when createWarehouse : " + e);
+      throw new ServerException(e);
     }
     return null;
   }
@@ -156,7 +155,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when updateWarehouse : " + e);
+      throw new ServerException(e);
     }
     return getWarehouseById(id).get();
   }
@@ -171,7 +170,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when deleteWarehouse : " + e);
+      throw new ServerException(e);
     }
   }
 

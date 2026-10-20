@@ -1,14 +1,15 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Personnel — Employee Documents API
   version: 1.0.0
   description: >-
     API des documents d'employés (module a04_personnel/employee_document),
-    dérivée du contrôleur EmployeeDocumentController. Toutes les routes
-    exigent un JWT. Pas de gestion d'exception : les erreurs suivent le format
-    Spring par défaut (hors enveloppe). Le DAO capture les SQLException
-    (listes vides, création silencieusement en échec avec 200). La liste par
-    employé n'est pas paginée.
+    dérivée du contrôleur EmployeeDocumentController. Toutes les routes exigent
+    un JWT. Toutes les erreurs renvoient l'enveloppe {"errors": {message,
+    detail, code}} : 400 (requête invalide, JSON illisible ou UUID malformé),
+    401 (JWT absent, invalide ou expiré), 404 (document introuvable lors d'une
+    mise à jour), 500 (erreur serveur ou SQL). La liste par employé n'est pas
+    paginée.
 servers:
   - url: http://localhost:8080
 security:
@@ -19,9 +20,9 @@ tags:
 paths:
   /api/employee-documents/employee/{employeeId}:
     parameters:
-      - {$ref: '#/components/parameters/EmployeeId'}
+      - { $ref: '#/components/parameters/EmployeeId' }
     get:
-      tags: [EmployeeDocuments]
+      tags: [ EmployeeDocuments ]
       summary: Lister les documents d'un employé
       description: Retourne tous les documents de l'employé, sans pagination.
       responses:
@@ -29,37 +30,40 @@ paths:
           description: Liste des documents
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/EmployeeDocument'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/EmployeeDocument' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/employee-documents:
     post:
-      tags: [EmployeeDocuments]
+      tags: [ EmployeeDocuments ]
       summary: Créer un document d'employé
       description: >-
-        Une erreur SQL est capturée par le DAO : la réponse reste 200 et peut
-        contenir un objet sans id.
+        Une erreur SQL renvoie 500 avec une enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/EmployeeDocument'}}
+          application/json: { schema: { $ref: '#/components/schemas/EmployeeDocument' } }
       responses:
         '200':
-          description: Document créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Document créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/EmployeeDocument'}
+              schema: { $ref: '#/components/schemas/EmployeeDocument' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/employee-documents/{id}:
     parameters:
-      - {$ref: '#/components/parameters/DocumentId'}
+      - { $ref: '#/components/parameters/DocumentId' }
     get:
-      tags: [EmployeeDocuments]
+      tags: [ EmployeeDocuments ]
       summary: Récupérer un document par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -69,34 +73,40 @@ paths:
           description: Document trouvé, ou null si absent
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/EmployeeDocument'}
+              schema: { $ref: '#/components/schemas/EmployeeDocument' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [EmployeeDocuments]
+      tags: [ EmployeeDocuments ]
       summary: Mettre à jour partiellement un document
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        IllegalArgumentException → 500 au format Spring par défaut. La réponse
-        est l'objet envoyé complété de l'id.
+        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/EmployeeDocument'}}
+          application/json: { schema: { $ref: '#/components/schemas/EmployeeDocument' } }
       responses:
         '200':
           description: Document mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/EmployeeDocument'}
+              schema: { $ref: '#/components/schemas/EmployeeDocument' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [EmployeeDocuments]
+      tags: [ EmployeeDocuments ]
       summary: Supprimer un document
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -106,6 +116,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -117,38 +129,63 @@ components:
       name: employeeId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     DocumentId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     EmployeeDocument:
       type: object
-      required: [employee_id, document_type]
+      required: [ employee_id, document_type ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        employee_id: {type: string, format: uuid}
-        document_type: {type: string, maxLength: 100}
-        document_number: {type: string, maxLength: 150, nullable: true}
-        issue_date: {type: string, format: date, nullable: true}
-        expiry_date: {type: string, format: date, nullable: true}
-        file_url: {type: string, nullable: true}
-        notes: {type: string, nullable: true}
-        created_at: {type: string, format: date-time, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
+        employee_id: { type: string, format: uuid }
+        document_type: { type: string, maxLength: 100 }
+        document_number: { type: string, maxLength: 150, nullable: true }
+        issue_date: { type: string, format: date, nullable: true }
+        expiry_date: { type: string, format: date, nullable: true }
+        file_url: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time, readOnly: true }

@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a04_personnel.employee_document.service;
 
 import java.util.*;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a04_personnel.employee_document.entity.EmployeeDocument;
 import sssm.dev.sssm_backend.a04_personnel.employee_document.repository.*;
 
@@ -22,7 +22,7 @@ public class EmployeeDocumentService {
 
   public EmployeeDocument update(String id, EmployeeDocument document) {
     if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("Employee document not found with ID: " + id);
+      throw new NotFoundException("Employee document not found with ID: " + id);
     document.setId(id);
     return dao.update(document);
   }

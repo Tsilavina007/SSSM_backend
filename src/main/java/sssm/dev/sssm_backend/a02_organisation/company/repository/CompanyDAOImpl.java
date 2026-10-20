@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
@@ -38,7 +37,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when searchCompaniesByName : " + e);
+      throw new ServerException(e);
     }
     return companies;
   }
@@ -62,7 +61,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getAllCompanies : " + e);
+      throw new ServerException(e);
     }
     return companies;
   }
@@ -82,7 +81,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getCompanyById : " + e);
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -115,7 +114,7 @@ public class CompanyDAOImpl implements CompanyDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when createCompany : " + e);
+      throw new ServerException(e);
     }
     return null;
   }
@@ -185,7 +184,7 @@ public class CompanyDAOImpl implements CompanyDAO {
       }
       statement.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when updateCompany : " + e);
+      throw new ServerException(e);
     }
     return company;
   }
@@ -200,7 +199,7 @@ public class CompanyDAOImpl implements CompanyDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when deleteCompany : " + e);
+      throw new ServerException(e);
     }
   }
 

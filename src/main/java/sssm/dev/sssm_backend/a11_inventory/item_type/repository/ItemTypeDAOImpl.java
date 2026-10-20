@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
@@ -51,7 +50,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getAllItemTypes : " + e);
+      throw new ServerException(e);
     }
     return values;
   }
@@ -77,7 +76,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getAllItemTypesByItemCategoryId : " + e);
+      throw new ServerException(e);
     }
     return values;
   }
@@ -104,7 +103,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when searchItemTypesByName : " + e);
+      throw new ServerException(e);
     }
     return values;
   }
@@ -124,7 +123,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getItemTypeById : " + e);
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -156,7 +155,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when createItemType : " + e);
+      throw new ServerException(e);
     }
     return null;
   }
@@ -218,7 +217,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when updateItemType : " + e);
+      throw new ServerException(e);
     }
     return getItemTypeById(id).get();
   }
@@ -233,7 +232,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
       stmt.setObject(1, uuid);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when deleteItemType : " + e);
+      throw new ServerException(e);
     }
   }
 

@@ -1,7 +1,7 @@
 package sssm.dev.sssm_backend.a04_personnel.employee.service;
 
 import java.util.*;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a04_personnel.employee.entity.Employee;
 import sssm.dev.sssm_backend.a04_personnel.employee.repository.*;
 
@@ -24,7 +24,7 @@ public class EmployeeService {
 
   public Employee update(String id, Employee employee) {
     if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("Employee not found with ID: " + id);
+      throw new NotFoundException("Employee not found with ID: " + id);
     employee.setId(id);
     return dao.update(employee);
   }

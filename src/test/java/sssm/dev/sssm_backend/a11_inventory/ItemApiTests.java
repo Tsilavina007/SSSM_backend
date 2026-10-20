@@ -3,7 +3,6 @@ package sssm.dev.sssm_backend.a11_inventory;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -14,7 +13,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.Filter;
-import jakarta.servlet.ServletException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -263,12 +261,13 @@ class ItemApiTests {
   }
 
   @Test
-  void createWithoutOptionalFailsWithMapperNpe() {
+  void createWithoutOptionalFailsWithMapperNpe() throws Exception {
     // DETTE PRÉEXISTANTE (découverte par ces tests, module item = référence seule) :
     // ItemMapper.toRest() appelle UUID.fromString() sans null-check sur category_id ET
-    // current_warehouse_id (lignes 35-39) → NPE non enveloppée → 500 brut, alors que ces
-    // colonnes sont facultatives en base. Même défaut côté ItemTypeMapper (category_id) et
-    // WarehouseMapper (branch_id). Si un null-check est ajouté, supprimer ce test.
+    // current_warehouse_id (lignes 35-39) → NPE, désormais convertie par le gestionnaire
+    // global en 500 {"errors": ItemError}, alors que ces colonnes sont facultatives en base.
+    // Même défaut côté ItemTypeMapper (category_id) et WarehouseMapper (branch_id).
+    // Si un null-check est ajouté, supprimer ce test.
     String marker = "phase5-item-npe-" + System.nanoTime();
     String body =
         "{\"company_id\":\""
@@ -279,15 +278,15 @@ class ItemApiTests {
             + marker
             + "\"}";
 
-    assertThrows(
-        ServletException.class,
-        () ->
-            mockMvc.perform(
-                post("/api/inventory/items")
-                    .header("Authorization", "Bearer " + token)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(body)),
-        "le mapper de réponse plante sur une FK optionnelle omise (dette connue)");
+    mockMvc
+        .perform(
+            post("/api/inventory/items")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.errors.code").value("INTERNAL_ERROR"))
+        .andExpect(jsonPath("$.errors.message").value(notNullValue()));
   }
 
   private static void purge() throws Exception {

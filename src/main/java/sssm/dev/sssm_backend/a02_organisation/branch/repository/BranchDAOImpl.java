@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
@@ -39,7 +38,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when searchBranchesByName : " + e);
+      throw new ServerException(e);
     }
     return branches;
   }
@@ -62,7 +61,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getAllBranches : " + e);
+      throw new ServerException(e);
     }
     return branches;
   }
@@ -82,7 +81,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when getBranchById : " + e);
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -112,7 +111,7 @@ public class BranchDAOImpl implements BranchDAO {
         }
       }
     } catch (SQLException e) {
-      throw new ServerException("Error when createBranch : " + e);
+      throw new ServerException(e);
     }
     return null;
   }
@@ -174,7 +173,7 @@ public class BranchDAOImpl implements BranchDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when updateBranch : " + e);
+      throw new ServerException(e);
     }
     return getBranchById(id).get();
   }
@@ -189,7 +188,7 @@ public class BranchDAOImpl implements BranchDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      throw new ServerException("Error when deleteBranch : " + e);
+      throw new ServerException(e);
     }
   }
 

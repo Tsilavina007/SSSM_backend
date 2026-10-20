@@ -5,6 +5,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentResponse;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.mapper.AssignmentRestMapper;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.rest.AssignmentRest;
@@ -34,7 +35,10 @@ public class AssignmentService {
 
   public Object one(String id) {
     AssignmentResponse r = assignmentDAO.one(id).orElse(null);
-    return r != null ? assignmentRestMapper.toRest(r) : Map.of("error", "Not found", "id", id);
+    return r != null
+        ? assignmentRestMapper.toRest(r)
+        : Map.of(
+            "errors", new ItemError("Not found", "id: " + id, "NOT_FOUND"));
   }
 
   public Object save(String id, Map<String, Object> b, boolean u) {

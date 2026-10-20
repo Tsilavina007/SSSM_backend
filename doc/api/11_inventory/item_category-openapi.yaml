@@ -6,9 +6,9 @@ info:
     API des catégories d'articles (module a11_inventory/item_category), dérivée
     du contrôleur ItemCategoryController. Toutes les routes exigent un JWT
     (Authorization: Bearer …). Erreurs : enveloppe {"errors": {message, detail,
-    code}} ; une requête malformée renvoie l'erreur Spring par défaut. Pagination
-    : page=1, pageSize=10 par défaut. Aucune validation Jakarta — les champs
-    marqués « requis » le sont par la base (NOT NULL sans défaut).
+    code}} ; une requête malformée renvoie l'erreur enveloppe ItemError.
+    Pagination : page=1, pageSize=10 par défaut. Aucune validation Jakarta — les
+    champs marqués « requis » le sont par la base (NOT NULL sans défaut).
 servers:
   - url: http://localhost:8080
 security:
@@ -19,74 +19,86 @@ tags:
 paths:
   /api/inventory/item-categories:
     get:
-      tags: [Item Categories]
+      tags: [ Item Categories ]
       summary: Lister les catégories
       parameters:
-        - {$ref: '#/components/parameters/Search'}
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des catégories
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/ItemCategory'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/ItemCategory' } }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [Item Categories]
+      tags: [ Item Categories ]
       summary: Créer une catégorie
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/ItemCategoryCreate'}}
+          application/json: { schema: { $ref: '#/components/schemas/ItemCategoryCreate' } }
       responses:
         '200':
           description: Catégorie créée
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ItemCategory'}
+              schema: { $ref: '#/components/schemas/ItemCategory' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/inventory/item-categories/{itemCategoryId}:
     parameters:
-      - {$ref: '#/components/parameters/ItemCategoryId'}
+      - { $ref: '#/components/parameters/ItemCategoryId' }
     get:
-      tags: [Item Categories]
+      tags: [ Item Categories ]
       summary: Récupérer une catégorie par identifiant
       responses:
         '200':
           description: Catégorie trouvée
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ItemCategory'}
+              schema: { $ref: '#/components/schemas/ItemCategory' }
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     patch:
-      tags: [Item Categories]
+      tags: [ Item Categories ]
       summary: Mettre à jour partiellement une catégorie
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/ItemCategoryUpdate'}}
+          application/json: { schema: { $ref: '#/components/schemas/ItemCategoryUpdate' } }
       responses:
         '200':
           description: Catégorie mise à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ItemCategory'}
+              schema: { $ref: '#/components/schemas/ItemCategory' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     delete:
-      tags: [Item Categories]
+      tags: [ Item Categories ]
       summary: Supprimer une catégorie
       description: >-
         Ne renvoie jamais 404 : la suppression d'un identifiant inexistant
@@ -96,9 +108,17 @@ paths:
           description: Message de confirmation (chaîne JSON)
           content:
             application/json:
-              schema: {type: string, example: 'ItemCategory deleted : 3f0c2f70-0000-4000-8000-000000000001'}
+              schema:
+                {
+                  type: string,
+                  example: 'ItemCategory deleted : 3f0c2f70-0000-4000-8000-000000000001'
+                }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -110,80 +130,93 @@ components:
       name: search
       in: query
       required: false
-      schema: {type: string}
+      schema: { type: string }
       description: Recherche libre (ILIKE) selon la ressource.
     Page:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     ItemCategoryId:
       name: itemCategoryId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
     BadRequest:
-      description: >-
-        Requête malformée (désérialisation JSON) — format d'erreur Spring par
-        défaut, hors enveloppe du module.
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     NotFound:
-      description: Catégorie introuvable
+      description: Ressource introuvable (404) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
-      description: >-
-        Erreur serveur — enveloppe {"errors": …} (ServerException) ou format
-        d'erreur Spring par défaut (identifiant malformé).
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
     ErrorEnvelope:
       type: object
       properties:
-        errors: {$ref: '#/components/schemas/Error'}
-    Error:
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
       type: object
       properties:
-        message: {type: string, nullable: true}
-        detail: {type: string, nullable: true}
-        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     CompanyBrief:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        name: {type: string}
+        id: { type: string, format: uuid }
+        name: { type: string }
     ItemCategory:
       type: object
       properties:
-        id: {type: string, format: uuid}
-        company: {$ref: '#/components/schemas/CompanyBrief'}
-        name: {type: string}
-        description: {type: string, nullable: true}
-        created_at: {type: string, format: date-time}
-        updated_at: {type: string, format: date-time}
-        archived_at: {type: string, format: date-time, nullable: true}
+        id: { type: string, format: uuid }
+        company: { $ref: '#/components/schemas/CompanyBrief' }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        archived_at: { type: string, format: date-time, nullable: true }
     ItemCategoryCreate:
       type: object
       description: >-
         Corps de création. Les champs requis le sont par la base (NOT NULL sans
         défaut) : leur omission provoque une erreur 500.
-      required: [company_id, name]
+      required: [ company_id, name ]
       properties:
-        company_id: {type: string, format: uuid}
-        name: {type: string}
-        description: {type: string, nullable: true}
+        company_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
     ItemCategoryUpdate:
       type: object
       description: Tous les champs sont facultatifs (mise à jour partielle).
       properties:
-        company_id: {type: string, format: uuid}
-        name: {type: string}
-        description: {type: string, nullable: true}
+        company_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }

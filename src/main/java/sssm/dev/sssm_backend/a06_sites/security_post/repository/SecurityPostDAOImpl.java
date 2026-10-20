@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.PostStatus;
 import sssm.dev.sssm_backend.a06_sites.security_post.entity.SecurityPost;
 
@@ -29,7 +29,7 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return posts;
   }
@@ -49,7 +49,7 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -79,7 +79,7 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return post;
   }
@@ -137,7 +137,7 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return post;
   }
@@ -152,7 +152,7 @@ public class SecurityPostDAOImpl implements SecurityPostDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 

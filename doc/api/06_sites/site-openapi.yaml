@@ -1,14 +1,16 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Sites — Sites API
   version: 1.0.0
   description: >-
     API des sites (module a06_sites/site), dérivée du contrôleur SiteController.
-    Toutes les routes exigent un JWT. Pas de gestion d'exception : les erreurs
-    suivent le format Spring par défaut (hors enveloppe). Le DAO capture les
-    SQLException (listes vides, création silencieusement en échec avec 200).
-    Pagination : page=1, pageSize=10 par défaut. Le statut est facultatif à la
-    création : le DAO applique ACTIVE si null.
+    Toutes les routes exigent un JWT. Toutes les erreurs renvoient l'enveloppe
+    {"errors": {message, detail, code}} : 400 (requête invalide, JSON illisible
+    ou UUID malformé), 401 (JWT absent, invalide ou expiré), 404 (site
+    introuvable lors d'une mise à jour), 500 (erreur serveur ou SQL). La lecture
+    d'un identifiant absent renvoie encore 200 null. Pagination : page=1,
+    pageSize=10 par défaut. Le statut est facultatif à la création : le DAO
+    applique ACTIVE si null.
 servers:
   - url: http://localhost:8080
 security:
@@ -19,46 +21,52 @@ tags:
 paths:
   /api/sites:
     get:
-      tags: [Sites]
+      tags: [ Sites ]
       summary: Lister les sites
       description: Recherche libre sur name, code et city (ILIKE).
       parameters:
-        - {$ref: '#/components/parameters/Search'}
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des sites
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Site'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Site' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
     post:
-      tags: [Sites]
+      tags: [ Sites ]
       summary: Créer un site
       description: >-
-        Une erreur SQL (contrainte, UUID invalide côté SQL) est capturée par le
-        DAO : la réponse reste 200 et peut contenir un objet sans id.
+        Une erreur SQL (contrainte, UUID invalide côté SQL) renvoie 500 avec une
+        enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Site'}}
+          application/json: { schema: { $ref: '#/components/schemas/Site' } }
       responses:
         '200':
-          description: Site créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Site créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Site'}
+              schema: { $ref: '#/components/schemas/Site' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/sites/{id}:
     parameters:
-      - {$ref: '#/components/parameters/SiteId'}
+      - { $ref: '#/components/parameters/SiteId' }
     get:
-      tags: [Sites]
+      tags: [ Sites ]
       summary: Récupérer un site par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -68,35 +76,40 @@ paths:
           description: Site trouvé, ou null si absent
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Site'}
+              schema: { $ref: '#/components/schemas/Site' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [Sites]
+      tags: [ Sites ]
       summary: Mettre à jour partiellement un site
       description: >-
-        Seuls les champs non null sont écrits (impossible de remettre un champ
-        à null). Un identifiant inconnu lève IllegalArgumentException → 500 au
-        format Spring par défaut. La réponse est l'objet envoyé complété de
-        l'id.
+        Seuls les champs non null sont écrits (impossible de remettre un champ à
+        null). Un identifiant inconnu lève NotFoundException → 404 (enveloppe
+        ItemError). La réponse est l'objet envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Site'}}
+          application/json: { schema: { $ref: '#/components/schemas/Site' } }
       responses:
         '200':
           description: Site mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Site'}
+              schema: { $ref: '#/components/schemas/Site' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [Sites]
+      tags: [ Sites ]
       summary: Supprimer un site
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -106,6 +119,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -117,58 +132,83 @@ components:
       name: search
       in: query
       required: false
-      schema: {type: string}
+      schema: { type: string }
       description: Recherche libre (ILIKE) sur name, code et city.
     Page:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     SiteId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     SiteStatus:
       type: string
-      enum: [ACTIVE, INACTIVE]
+      enum: [ ACTIVE, INACTIVE ]
     Site:
       type: object
-      required: [company_id, name]
+      required: [ company_id, name ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        company_id: {type: string, format: uuid}
-        client_id: {type: string, format: uuid, nullable: true}
-        branch_id: {type: string, format: uuid, nullable: true}
-        name: {type: string, maxLength: 180}
-        code: {type: string, maxLength: 80, nullable: true}
-        address: {type: string, nullable: true}
-        city: {type: string, maxLength: 100, nullable: true}
-        latitude: {type: number, multipleOf: 0.0000001, nullable: true}
-        longitude: {type: number, multipleOf: 0.0000001, nullable: true}
-        status: {$ref: '#/components/schemas/SiteStatus'}
-        access_instructions: {type: string, nullable: true}
-        risk_level: {type: string, maxLength: 30, nullable: true}
-        created_at: {type: string, format: date-time, readOnly: true}
-        updated_at: {type: string, format: date-time, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
+        company_id: { type: string, format: uuid }
+        client_id: { type: string, format: uuid, nullable: true }
+        branch_id: { type: string, format: uuid, nullable: true }
+        name: { type: string, maxLength: 180 }
+        code: { type: string, maxLength: 80, nullable: true }
+        address: { type: string, nullable: true }
+        city: { type: string, maxLength: 100, nullable: true }
+        latitude: { type: number, multipleOf: 1e-7, nullable: true }
+        longitude: { type: number, multipleOf: 1e-7, nullable: true }
+        status: { $ref: '#/components/schemas/SiteStatus' }
+        access_instructions: { type: string, nullable: true }
+        risk_level: { type: string, maxLength: 30, nullable: true }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }

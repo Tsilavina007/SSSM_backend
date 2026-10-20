@@ -5,8 +5,9 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import sssm.dev.sssm_backend.a11_inventory.operation.dto.OperationResponse;
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a11_inventory.operation.dto.mapper.OperationRestMapper;
+import sssm.dev.sssm_backend.a11_inventory.operation.dto.OperationResponse;
 import sssm.dev.sssm_backend.a11_inventory.operation.repository.OperationDAO;
 
 @Service
@@ -21,7 +22,10 @@ public class OperationService {
 
   public Object one(String id) {
     OperationResponse r = operationDAO.one(id).orElse(null);
-    return r != null ? operationRestMapper.toRest(r) : Map.of("error", "Not found", "id", id);
+    return r != null
+        ? operationRestMapper.toRest(r)
+        : Map.of(
+            "errors", new ItemError("Not found", "id: " + id, "NOT_FOUND"));
   }
 
   public Object save(String id, Map<String, Object> b, boolean u) {

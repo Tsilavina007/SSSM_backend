@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 
 @Repository
@@ -35,7 +35,7 @@ public class AgencyDAOImpl implements AgencyDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return agencies;
   }
@@ -58,7 +58,7 @@ public class AgencyDAOImpl implements AgencyDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return agencies;
   }
@@ -78,7 +78,7 @@ public class AgencyDAOImpl implements AgencyDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -109,7 +109,7 @@ public class AgencyDAOImpl implements AgencyDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return agency;
   }
@@ -175,7 +175,7 @@ public class AgencyDAOImpl implements AgencyDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return agency;
   }
@@ -190,7 +190,7 @@ public class AgencyDAOImpl implements AgencyDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 

@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 import sssm.dev.sssm_backend.a06_sites.site.entity.Site;
 
@@ -36,7 +36,7 @@ public class SiteDAOImpl implements SiteDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return sites;
   }
@@ -59,7 +59,7 @@ public class SiteDAOImpl implements SiteDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return sites;
   }
@@ -79,7 +79,7 @@ public class SiteDAOImpl implements SiteDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -114,7 +114,7 @@ public class SiteDAOImpl implements SiteDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return site;
   }
@@ -188,7 +188,7 @@ public class SiteDAOImpl implements SiteDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return site;
   }
@@ -203,7 +203,7 @@ public class SiteDAOImpl implements SiteDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 

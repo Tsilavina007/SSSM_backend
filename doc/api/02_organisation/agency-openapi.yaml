@@ -1,17 +1,16 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Organisation — Agencies API
   version: 1.0.0
   description: >-
     API des agences (module a02_organisation/agency), dérivée du contrôleur
-    AgencyController. Toutes les routes exigent un JWT (Authorization:
-    Bearer …). Ce contrôleur ne possède pas de gestion d'exception : les
-    erreurs Spring par défaut sont renvoyées hors enveloppe (UUID malformé,
-    IllegalArgumentException sur mise à jour inexistante → 500). Le DAO
-    capture en revanche les SQLException : une création en échec peut donc
-    renvoyer 200 avec un objet sans id (échec silencieux), et les listes
-    renvoient un tableau vide. Pagination : page=1, pageSize=10 par défaut.
-    Aucune validation Jakarta.
+    AgencyController. Toutes les routes exigent un JWT (Authorization: Bearer
+    …). Toutes les erreurs renvoient l'enveloppe {"errors": {message, detail,
+    code}} : 400 (requête invalide, JSON illisible ou UUID malformé), 401 (JWT
+    absent, invalide ou expiré), 404 (agence introuvable lors d'une mise à
+    jour), 500 (erreur serveur ou SQL). La lecture d'un identifiant absent
+    renvoie encore 200 null. Pagination : page=1, pageSize=10 par défaut. Aucune
+    validation Jakarta.
 servers:
   - url: http://localhost:8080
 security:
@@ -22,46 +21,52 @@ tags:
 paths:
   /api/agency:
     get:
-      tags: [Agencies]
+      tags: [ Agencies ]
       summary: Lister les agences
       description: Recherche libre sur name et code (ILIKE).
       parameters:
-        - {$ref: '#/components/parameters/Search'}
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des agences
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Agency'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Agency' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
     post:
-      tags: [Agencies]
+      tags: [ Agencies ]
       summary: Créer une agence
       description: >-
-        Une erreur SQL (contrainte, UUID invalide côté SQL) est capturée par
-        le DAO : la réponse reste 200 et peut contenir un objet sans id.
+        Une erreur SQL (contrainte, UUID invalide côté SQL) renvoie 500 avec une
+        enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Agency'}}
+          application/json: { schema: { $ref: '#/components/schemas/Agency' } }
       responses:
         '200':
-          description: Agence créée (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Agence créée
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Agency'}
+              schema: { $ref: '#/components/schemas/Agency' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/agency/{agencyId}:
     parameters:
-      - {$ref: '#/components/parameters/AgencyId'}
+      - { $ref: '#/components/parameters/AgencyId' }
     get:
-      tags: [Agencies]
+      tags: [ Agencies ]
       summary: Récupérer une agence par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -71,34 +76,40 @@ paths:
           description: Agence trouvée, ou null si absente
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Agency'}
+              schema: { $ref: '#/components/schemas/Agency' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [Agencies]
+      tags: [ Agencies ]
       summary: Mettre à jour partiellement une agence
       description: >-
         Mise à jour partielle (seuls les champs non null sont écrits). Un
-        identifiant inconnu lève IllegalArgumentException → 500 au format
-        Spring par défaut. La réponse est l'objet envoyé complété de l'id.
+        identifiant inconnu lève NotFoundException → 404 (enveloppe ItemError).
+        La réponse est l'objet envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Agency'}}
+          application/json: { schema: { $ref: '#/components/schemas/Agency' } }
       responses:
         '200':
           description: Agence mise à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Agency'}
+              schema: { $ref: '#/components/schemas/Agency' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [Agencies]
+      tags: [ Agencies ]
       summary: Supprimer une agence
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -108,6 +119,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -119,60 +132,82 @@ components:
       name: search
       in: query
       required: false
-      schema: {type: string}
+      schema: { type: string }
       description: Recherche libre (ILIKE) sur name et code.
     Page:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     AgencyId:
       name: agencyId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: >-
-        Erreur Spring par défaut hors enveloppe (identifiant malformé,
-        IllegalArgumentException sur mise à jour inexistante).
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
-      description: Format d'erreur Spring Boot par défaut.
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     Agency:
       type: object
       description: >-
         Agence sérialisée telle quelle (entité Agency). id et horodatages sont
-        générés par la base. La base exige company_id et name ; le DAO envoie
-        active tel quel, donc null provoque un échec d'insertion silencieux.
-      required: [company_id, name]
+        générés par la base. La base exige company_id et name ; active est
+        envoyé tel quel (null peut provoquer une erreur SQL).
+      required: [ company_id, name ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        company_id: {type: string, format: uuid}
-        name: {type: string, maxLength: 180}
-        code: {type: string, maxLength: 50, nullable: true}
-        address: {type: string, nullable: true}
-        city: {type: string, maxLength: 100, nullable: true}
-        phone: {type: string, maxLength: 50, nullable: true}
-        email: {type: string, format: email, maxLength: 180, nullable: true}
-        tax_number: {type: string, maxLength: 100, nullable: true}
-        registration_number: {type: string, maxLength: 100, nullable: true}
-        active: {type: boolean, default: true}
-        created_at: {type: string, format: date, readOnly: true}
-        updated_at: {type: string, format: date, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
+        company_id: { type: string, format: uuid }
+        name: { type: string, maxLength: 180 }
+        code: { type: string, maxLength: 50, nullable: true }
+        address: { type: string, nullable: true }
+        city: { type: string, maxLength: 100, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        email: { type: string, format: email, maxLength: 180, nullable: true }
+        tax_number: { type: string, maxLength: 100, nullable: true }
+        registration_number: { type: string, maxLength: 100, nullable: true }
+        active: { type: boolean, default: true }
+        created_at: { type: string, format: date, readOnly: true }
+        updated_at: { type: string, format: date, readOnly: true }

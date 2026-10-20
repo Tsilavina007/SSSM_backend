@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a03_authentication.permission.entity.Permission;
 
 public class PermissionDAOImpl implements PermissionDAO {
@@ -29,7 +29,7 @@ public class PermissionDAOImpl implements PermissionDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return permissions;
   }
@@ -49,7 +49,7 @@ public class PermissionDAOImpl implements PermissionDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -70,7 +70,7 @@ public class PermissionDAOImpl implements PermissionDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return permission;
   }
@@ -108,7 +108,7 @@ public class PermissionDAOImpl implements PermissionDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return permission;
   }
@@ -123,7 +123,7 @@ public class PermissionDAOImpl implements PermissionDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 

@@ -3,15 +3,17 @@ info:
   title: SSSM Authentication — Users API
   version: 1.0.0
   description: >-
-    API des utilisateurs (module a03_authentication/user), dérivée du
-    contrôleur AppUserController. Toutes les routes exigent le rôle ADMIN
-    (hasRole("ADMIN")), en plus du JWT. Erreurs : enveloppe {"errors":
-    {message, detail, code}} pour ClientException (400), NotFoundException
-    (404) et ServerException (500). Pagination : page=1, pageSize=10 par
-    défaut. Le champ password_hash est annoté @JsonIgnore : il n'est jamais
-    exposé ni accepté en entrée. En conséquence, POST /api/users ne peut pas
-    fournir de mot de passe et échoue sur la contrainte NOT NULL
-    (password_hash) → 500 ; utiliser /api/auth/register pour créer un compte.
+    API des utilisateurs (module a03_authentication/user), dérivée du contrôleur
+    AppUserController. Toutes les routes exigent le rôle ADMIN
+    (hasRole("ADMIN")), en plus du JWT. Toutes les erreurs renvoient l'enveloppe
+    {"errors": {message, detail, code}} : 400 (requête invalide, JSON illisible
+    ou UUID malformé), 401 (JWT absent, invalide ou expiré), 403 (rôle ADMIN
+    manquant), 404 (utilisateur introuvable), 500 (erreur serveur ou SQL).
+    Pagination : page=1, pageSize=10 par défaut. Le champ password_hash est
+    annoté @JsonIgnore : il n'est jamais exposé ni accepté en entrée. En
+    conséquence, POST /api/users ne peut pas fournir de mot de passe et échoue
+    sur la contrainte NOT NULL (password_hash) → 500 ; utiliser
+    /api/auth/register pour créer un compte.
 servers:
   - url: http://localhost:8080
 security:
@@ -22,17 +24,17 @@ tags:
 paths:
   /api/users:
     get:
-      tags: [Users]
+      tags: [ Users ]
       summary: Lister les utilisateurs
       parameters:
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des utilisateurs
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/AppUser'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/AppUser' } }
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -41,34 +43,38 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [Users]
+      tags: [ Users ]
       summary: Créer un utilisateur (non fonctionnel sans password_hash)
       description: >-
         Le corps est lié à l'entité AppUser. password_hash étant @JsonIgnore,
-        aucune valeur ne peut être fournie : l'insertion viole la contrainte
-        NOT NULL et renvoie 500. Les autres champs sont insérés tels quels.
+        aucune valeur ne peut être fournie : l'insertion viole la contrainte NOT
+        NULL et renvoie 500. Les autres champs sont insérés tels quels.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/AppUser'}}
+          application/json: { schema: { $ref: '#/components/schemas/AppUser' } }
       responses:
         '200':
           description: Utilisateur créé (cas théorique si password_hash était renseigné)
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/AppUser'}
+              schema: { $ref: '#/components/schemas/AppUser' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/users/{id}:
     parameters:
-      - {$ref: '#/components/parameters/UserId'}
+      - { $ref: '#/components/parameters/UserId' }
     get:
-      tags: [Users]
+      tags: [ Users ]
       summary: Récupérer un utilisateur par identifiant
       description: Un identifiant inconnu renvoie 404 avec l'enveloppe d'erreur.
       responses:
@@ -76,7 +82,7 @@ paths:
           description: Utilisateur trouvé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/AppUser'}
+              schema: { $ref: '#/components/schemas/AppUser' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -85,23 +91,25 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     patch:
-      tags: [Users]
+      tags: [ Users ]
       summary: Mettre à jour partiellement un utilisateur
       description: >-
         Seuls les champs non null sont écrits. La réponse est l'objet envoyé
-        (avec id), et non la ligne relue : les champs omis sont donc absents
-        ou null dans la réponse. Un identifiant inconnu renvoie 404.
+        (avec id), et non la ligne relue : les champs omis sont donc absents ou
+        null dans la réponse. Un identifiant inconnu renvoie 404.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/AppUser'}}
+          application/json: { schema: { $ref: '#/components/schemas/AppUser' } }
       responses:
         '200':
           description: Utilisateur mis à jour (objet d'entrée complété de l'id)
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/AppUser'}
+              schema: { $ref: '#/components/schemas/AppUser' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -110,8 +118,10 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     delete:
-      tags: [Users]
+      tags: [ Users ]
       summary: Supprimer un utilisateur
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -125,12 +135,14 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/users/{userId}/roles/{roleId}:
     parameters:
-      - {$ref: '#/components/parameters/UserIdPath'}
-      - {$ref: '#/components/parameters/RoleId'}
+      - { $ref: '#/components/parameters/UserIdPath' }
+      - { $ref: '#/components/parameters/RoleId' }
     post:
-      tags: [Users]
+      tags: [ Users ]
       summary: Attribuer un rôle à un utilisateur
       description: >-
         Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 200 avec corps
@@ -144,8 +156,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     delete:
-      tags: [Users]
+      tags: [ Users ]
       summary: Retirer un rôle à un utilisateur
       description: Réponse 200 avec corps vide, même si l'association n'existe pas.
       responses:
@@ -157,6 +171,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -168,74 +184,91 @@ components:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     UserId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     UserIdPath:
       name: userId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     RoleId:
       name: roleId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
     BadRequest:
-      description: Requête malformée ou ClientException (enveloppe).
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     Forbidden:
-      description: JWT absent ou rôle ADMIN manquant (403 Spring Security).
+      description: Rôle ADMIN manquant (403) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     NotFound:
-      description: Utilisateur introuvable (enveloppe d'erreur).
+      description: Ressource introuvable (404) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
-      description: Erreur serveur (enveloppe d'erreur).
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
     ErrorEnvelope:
       type: object
       properties:
-        errors: {$ref: '#/components/schemas/Error'}
-    Error:
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
       type: object
       properties:
-        message: {type: string, nullable: true}
-        detail: {type: string, nullable: true}
-        code: {type: string, nullable: true, description: SQLState PostgreSQL (ex. 23505).}
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     UserStatus:
       type: string
-      enum: [ACTIVE, INACTIVE, LOCKED]
+      enum: [ ACTIVE, INACTIVE, LOCKED ]
     AppUser:
       type: object
       description: >-
-        Utilisateur sérialisé (entité AppUser). password_hash est toujours
-        omis (@JsonIgnore) et ne peut pas être fourni en entrée.
-      required: [username]
+        Utilisateur sérialisé (entité AppUser). password_hash est toujours omis
+        (@JsonIgnore) et ne peut pas être fourni en entrée.
+      required: [ username ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        company_id: {type: string, format: uuid, nullable: true}
-        username: {type: string, maxLength: 100}
-        email: {type: string, format: email, maxLength: 180, nullable: true}
-        first_name: {type: string, maxLength: 100, nullable: true}
-        last_name: {type: string, maxLength: 100, nullable: true}
-        phone: {type: string, maxLength: 50, nullable: true}
-        status: {$ref: '#/components/schemas/UserStatus'}
-        last_login_at: {type: string, format: date-time, nullable: true, readOnly: true}
-        created_at: {type: string, format: date-time, readOnly: true}
-        updated_at: {type: string, format: date-time, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
+        company_id: { type: string, format: uuid, nullable: true }
+        username: { type: string, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 180, nullable: true }
+        first_name: { type: string, maxLength: 100, nullable: true }
+        last_name: { type: string, maxLength: 100, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        status: { $ref: '#/components/schemas/UserStatus' }
+        last_login_at: { type: string, format: date-time, nullable: true, readOnly: true }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }

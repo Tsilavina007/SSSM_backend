@@ -2,7 +2,7 @@ package sssm.dev.sssm_backend.a06_sites.security_post.service;
 
 import java.util.List;
 import java.util.Optional;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a06_sites.security_post.entity.SecurityPost;
 import sssm.dev.sssm_backend.a06_sites.security_post.repository.SecurityPostDAO;
 import sssm.dev.sssm_backend.a06_sites.security_post.repository.SecurityPostDAOImpl;
@@ -24,7 +24,7 @@ public class SecurityPostService {
 
   public SecurityPost update(String id, SecurityPost post) {
     if (dao.findById(id).isEmpty())
-      throw new IllegalArgumentException("Security post not found with ID: " + id);
+      throw new NotFoundException("Security post not found with ID: " + id);
     post.setId(id);
     return dao.update(post);
   }

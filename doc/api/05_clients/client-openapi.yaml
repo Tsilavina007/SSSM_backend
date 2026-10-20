@@ -1,15 +1,17 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Clients — Clients API
   version: 1.0.0
   description: >-
     API des clients (module a05_clients/client), dérivée du contrôleur
-    ClientController. Toutes les routes exigent un JWT. Pas de gestion
-    d'exception : les erreurs suivent le format Spring par défaut (hors
-    enveloppe). Le DAO capture les SQLException (listes vides, création
-    silencieusement en échec avec 200). Pagination : page=1, pageSize=10 par
-    défaut. Le DAO envoie payment_terms_days et active explicitement : null
-    viole les contraintes NOT NULL, ces champs sont donc requis en pratique.
+    ClientController. Toutes les routes exigent un JWT. Toutes les erreurs
+    renvoient l'enveloppe {"errors": {message, detail, code}} : 400 (requête
+    invalide, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
+    expiré), 404 (client introuvable lors d'une mise à jour), 500 (erreur
+    serveur ou SQL). La lecture d'un identifiant absent renvoie encore 200 null.
+    Pagination : page=1, pageSize=10 par défaut. Le DAO envoie
+    payment_terms_days et active explicitement : null viole les contraintes NOT
+    NULL, ces champs sont donc requis en pratique.
 servers:
   - url: http://localhost:8080
 security:
@@ -20,46 +22,52 @@ tags:
 paths:
   /api/clients:
     get:
-      tags: [Clients]
+      tags: [ Clients ]
       summary: Lister les clients
       description: Recherche libre sur name, code et legal_name (ILIKE).
       parameters:
-        - {$ref: '#/components/parameters/Search'}
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Search' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des clients
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Client'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Client' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
     post:
-      tags: [Clients]
+      tags: [ Clients ]
       summary: Créer un client
       description: >-
-        Une erreur SQL (contrainte, UUID invalide côté SQL) est capturée par le
-        DAO : la réponse reste 200 et peut contenir un objet sans id.
+        Une erreur SQL (contrainte, UUID invalide côté SQL) renvoie 500 avec une
+        enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Client'}}
+          application/json: { schema: { $ref: '#/components/schemas/Client' } }
       responses:
         '200':
-          description: Client créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Client créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Client'}
+              schema: { $ref: '#/components/schemas/Client' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/clients/{id}:
     parameters:
-      - {$ref: '#/components/parameters/ClientId'}
+      - { $ref: '#/components/parameters/ClientId' }
     get:
-      tags: [Clients]
+      tags: [ Clients ]
       summary: Récupérer un client par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -69,34 +77,40 @@ paths:
           description: Client trouvé, ou null si absent
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Client'}
+              schema: { $ref: '#/components/schemas/Client' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [Clients]
+      tags: [ Clients ]
       summary: Mettre à jour partiellement un client
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        IllegalArgumentException → 500 au format Spring par défaut. La réponse
-        est l'objet envoyé complété de l'id.
+        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Client'}}
+          application/json: { schema: { $ref: '#/components/schemas/Client' } }
       responses:
         '200':
           description: Client mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Client'}
+              schema: { $ref: '#/components/schemas/Client' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [Clients]
+      tags: [ Clients ]
       summary: Supprimer un client
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -106,6 +120,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -117,58 +133,83 @@ components:
       name: search
       in: query
       required: false
-      schema: {type: string}
+      schema: { type: string }
       description: Recherche libre (ILIKE) sur name, code et legal_name.
     Page:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     ClientId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     Client:
       type: object
-      required: [company_id, code, name, payment_terms_days, active]
+      required: [ company_id, code, name, payment_terms_days, active ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        company_id: {type: string, format: uuid}
-        agency_id: {type: string, format: uuid, nullable: true}
-        code: {type: string, maxLength: 80}
-        name: {type: string, maxLength: 180}
-        legal_name: {type: string, maxLength: 255, nullable: true}
-        client_type: {type: string, maxLength: 80, nullable: true}
-        registration_number: {type: string, maxLength: 100, nullable: true}
-        tax_number: {type: string, maxLength: 100, nullable: true}
-        email: {type: string, format: email, maxLength: 180, nullable: true}
-        phone: {type: string, maxLength: 50, nullable: true}
-        address: {type: string, nullable: true}
-        city: {type: string, maxLength: 100, nullable: true}
-        country: {type: string, maxLength: 100, nullable: true, default: Madagascar}
-        payment_terms_days: {type: integer, minimum: 0, default: 30}
-        active: {type: boolean, default: true}
-        created_at: {type: string, format: date-time, readOnly: true}
-        updated_at: {type: string, format: date-time, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
+        company_id: { type: string, format: uuid }
+        agency_id: { type: string, format: uuid, nullable: true }
+        code: { type: string, maxLength: 80 }
+        name: { type: string, maxLength: 180 }
+        legal_name: { type: string, maxLength: 255, nullable: true }
+        client_type: { type: string, maxLength: 80, nullable: true }
+        registration_number: { type: string, maxLength: 100, nullable: true }
+        tax_number: { type: string, maxLength: 100, nullable: true }
+        email: { type: string, format: email, maxLength: 180, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        address: { type: string, nullable: true }
+        city: { type: string, maxLength: 100, nullable: true }
+        country: { type: string, maxLength: 100, nullable: true, default: Madagascar }
+        payment_terms_days: { type: integer, minimum: 0, default: 30 }
+        active: { type: boolean, default: true }
+        created_at: { type: string, format: date-time, readOnly: true }
+        updated_at: { type: string, format: date-time, readOnly: true }

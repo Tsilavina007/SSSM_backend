@@ -12,10 +12,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import tools.jackson.databind.ObjectMapper;
-
-import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -54,7 +53,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
 
-        objectMapper.writeValue(response.getWriter(), Map.of("errors", ErrorMapper.toItemError(e)));
+        String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+        objectMapper.writeValue(
+            response.getWriter(),
+            Map.of("errors", new ItemError("Jeton invalide ou expiré", detail, "UNAUTHORIZED")));
         return;
       }
     }

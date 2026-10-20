@@ -2,7 +2,7 @@ package sssm.dev.sssm_backend.a06_sites.site.service;
 
 import java.util.List;
 import java.util.Optional;
-
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a06_sites.site.entity.Site;
 import sssm.dev.sssm_backend.a06_sites.site.repository.SiteDAO;
 import sssm.dev.sssm_backend.a06_sites.site.repository.SiteDAOImpl;
@@ -29,7 +29,7 @@ public class SiteService {
 
   public Site update(String id, Site site) {
     if (dao.findById(id).isEmpty()) {
-      throw new IllegalArgumentException("Site not found with ID: " + id);
+      throw new NotFoundException("Site not found with ID: " + id);
     }
     site.setId(id);
     return dao.update(site);

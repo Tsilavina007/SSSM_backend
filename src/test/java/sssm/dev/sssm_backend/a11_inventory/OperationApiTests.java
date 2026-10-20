@@ -147,7 +147,8 @@ class OperationApiTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.error").value("request body is required"));
+        .andExpect(jsonPath("$.errors.message").value("Request body is required"))
+        .andExpect(jsonPath("$.errors.code").value("BAD_REQUEST"));
   }
 
   @Test

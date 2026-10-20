@@ -4,13 +4,13 @@ info:
   version: 1.0.0
   description: >-
     API des rôles (module a03_authentication/role), dérivée du contrôleur
-    RoleController. Toutes les routes exigent le rôle ADMIN. Le contrôleur
-    n'a pas de gestion d'exception : les erreurs suivent le format Spring par
-    défaut (hors enveloppe). Le DAO capture les SQLException : les listes
-    peuvent être vides et une création en échec peut renvoyer 200 avec un
-    objet sans id. Pagination : page=1, pageSize=10 par défaut. Attention :
-    RoleDAO.create appelle UUID.fromString(company_id) sans garde ; un
-    company_id null (rôle global) provoque une erreur 500.
+    RoleController. Toutes les routes exigent le rôle ADMIN. Toutes les erreurs
+    renvoient l'enveloppe {"errors": {message, detail, code}} : 400 (requête
+    invalide, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
+    expiré), 403 (rôle ADMIN manquant), 404 (rôle introuvable lors d'une mise à
+    jour), 500 (erreur serveur ou SQL). Pagination : page=1, pageSize=10 par
+    défaut. Attention : RoleDAO.create appelle UUID.fromString(company_id) sans
+    garde ; un company_id null (rôle global) provoque une erreur 500.
 servers:
   - url: http://localhost:8080
 security:
@@ -21,45 +21,53 @@ tags:
 paths:
   /api/roles:
     get:
-      tags: [Roles]
+      tags: [ Roles ]
       summary: Lister les rôles
       parameters:
-        - {$ref: '#/components/parameters/Page'}
-        - {$ref: '#/components/parameters/PageSize'}
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
           description: Liste paginée des rôles
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Role'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/Role' } }
         '403':
           $ref: '#/components/responses/Forbidden'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ServerError"
     post:
-      tags: [Roles]
+      tags: [ Roles ]
       summary: Créer un rôle
       description: >-
-        company_id est obligatoire en pratique (UUID.fromString sans garde).
-        Une erreur SQL est capturée : la réponse reste 200 et peut contenir un
-        objet sans id.
+        company_id est obligatoire en pratique (UUID.fromString sans garde). Une erreur SQL renvoie 500 avec une enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Role'}}
+          application/json: { schema: { $ref: '#/components/schemas/Role' } }
       responses:
         '200':
-          description: Rôle créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Rôle créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Role'}
+              schema: { $ref: '#/components/schemas/Role' }
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/roles/{id}:
     parameters:
-      - {$ref: '#/components/parameters/RoleId'}
+      - { $ref: '#/components/parameters/RoleId' }
     get:
-      tags: [Roles]
+      tags: [ Roles ]
       summary: Récupérer un rôle par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -69,34 +77,44 @@ paths:
           description: Rôle trouvé, ou null si absent
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Role'}
+              schema: { $ref: '#/components/schemas/Role' }
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     patch:
-      tags: [Roles]
+      tags: [ Roles ]
       summary: Mettre à jour partiellement un rôle
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        IllegalArgumentException → 500 au format Spring par défaut. La réponse
-        est l'objet envoyé complété de l'id.
+        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/Role'}}
+          application/json: { schema: { $ref: '#/components/schemas/Role' } }
       responses:
         '200':
           description: Rôle mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Role'}
+              schema: { $ref: '#/components/schemas/Role' }
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [Roles]
+      tags: [ Roles ]
       summary: Supprimer un rôle
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -106,14 +124,19 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /api/roles/{roleId}/permissions/{permissionId}:
     parameters:
-      - {$ref: '#/components/parameters/RoleIdPath'}
-      - {$ref: '#/components/parameters/PermissionId'}
+      - { $ref: '#/components/parameters/RoleIdPath' }
+      - { $ref: '#/components/parameters/PermissionId' }
     post:
-      tags: [Roles]
+      tags: [ Roles ]
       summary: Attribuer une permission à un rôle
-      description: Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 200 avec corps vide.
+      description: Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 200 avec
+        corps vide.
       responses:
         '200':
           description: Permission attribuée (corps vide)
@@ -121,8 +144,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     delete:
-      tags: [Roles]
+      tags: [ Roles ]
       summary: Retirer une permission à un rôle
       description: Réponse 200 avec corps vide, même si l'association n'existe pas.
       responses:
@@ -132,6 +159,10 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
@@ -143,52 +174,82 @@ components:
       name: page
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 1}
+      schema: { type: integer, minimum: 1, default: 1 }
     PageSize:
       name: pageSize
       in: query
       required: false
-      schema: {type: integer, minimum: 1, default: 10}
+      schema: { type: integer, minimum: 1, default: 10 }
     RoleId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     RoleIdPath:
       name: roleId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     PermissionId:
       name: permissionId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Forbidden:
-      description: JWT absent ou rôle ADMIN manquant (403 Spring Security).
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Rôle ADMIN manquant (403) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     Role:
       type: object
-      required: [name]
+      required: [ name ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
+        id: { type: string, format: uuid, readOnly: true }
         company_id:
           type: string
           format: uuid
           nullable: true
           description: Obligatoire en pratique à la création (UUID.fromString sans garde).
-        name: {type: string, maxLength: 100}
-        description: {type: string, nullable: true}
+        name: { type: string, maxLength: 100 }
+        description: { type: string, nullable: true }

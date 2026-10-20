@@ -5,12 +5,11 @@ info:
   description: >-
     API d'inscription et de connexion (module a03_authentication/auth), dérivée
     du contrôleur AuthController. Ces deux routes sont publiques (permitAll) :
-    aucun JWT n'est requis. Erreurs : les exceptions métier renvoient
-    l'enveloppe {"errors": {message, detail, code}}. À l'inscription, les
-    erreurs de validation Jakarta renvoient 400 avec une carte
-    {"errors": {champ: {message, detail, code}}}. À la connexion, l'absence de
-    BindingResult fait remonter MethodArgumentNotValidException au format
-    Spring par défaut (hors enveloppe).
+    aucun JWT n'est requis. Toutes les erreurs renvoient l'enveloppe
+    {"errors": {message, detail, code}} : 400 (validation Jakarta, corps
+    illisible, identifiants invalides ou compte inactif), 404 (ressource liée
+    introuvable), 500 (erreur serveur). Les erreurs de validation sont
+    concaténées dans detail (par exemple « username: … ; password: … »).
 servers:
   - url: http://localhost:8080
 tags:
@@ -40,14 +39,11 @@ paths:
               schema: {$ref: '#/components/schemas/AuthResponse'}
         '400':
           description: >-
-            Validation en échec (carte errors par champ), doublon
-            username/email ou champ requis absent côté service (enveloppe).
+            Validation en échec (detail liste les champs), doublon username/email ou champ requis absent côté service ; enveloppe ItemError.
           content:
             application/json:
               schema:
-                oneOf:
-                  - {$ref: '#/components/schemas/ValidationErrors'}
-                  - {$ref: '#/components/schemas/ErrorEnvelope'}
+                $ref: '#/components/schemas/ErrorEnvelope'
         '404':
           description: Ressource liée introuvable (enveloppe d'erreur).
           content:
@@ -81,7 +77,7 @@ paths:
         '400':
           description: >-
             Identifiants invalides ou compte inactif (enveloppe), ou validation
-            Jakarta en échec (format Spring par défaut, hors enveloppe).
+            Jakarta en échec (enveloppe ItemError, detail liste les champs).
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorEnvelope'}
@@ -100,20 +96,20 @@ components:
     ErrorEnvelope:
       type: object
       properties:
-        errors: {$ref: '#/components/schemas/Error'}
-    ValidationErrors:
-      type: object
-      description: Carte des erreurs de validation, indexée par nom de champ.
-      properties:
-        errors:
-          type: object
-          additionalProperties: {$ref: '#/components/schemas/Error'}
-    Error:
+        errors: {$ref: '#/components/schemas/ItemError'}
+    ItemError:
       type: object
       properties:
         message: {type: string, nullable: true}
         detail: {type: string, nullable: true}
-        code: {type: string, nullable: true}
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR, INVALID_REQUEST_BODY,
+            NOT_FOUND, CLIENT_ERROR, SERVER_ERROR, UNAUTHORIZED, FORBIDDEN,
+            METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE, INTERNAL_ERROR) ou
+            SQLState PostgreSQL (ex. 23505).
     RegisterRequest:
       type: object
       required: [username, password]

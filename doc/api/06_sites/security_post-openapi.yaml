@@ -1,13 +1,14 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: SSSM Sites — Security Posts API
   version: 1.0.0
   description: >-
     API des postes de sécurité (module a06_sites/security_post), dérivée du
-    contrôleur SecurityPostController. Toutes les routes exigent un JWT. Pas
-    de gestion d'exception : les erreurs suivent le format Spring par défaut
-    (hors enveloppe). Le DAO capture les SQLException (listes vides, création
-    silencieusement en échec avec 200). La liste par site n'est pas paginée.
+    contrôleur SecurityPostController. Toutes les routes exigent un JWT. Toutes
+    les erreurs renvoient l'enveloppe {"errors": {message, detail, code}} : 400
+    (requête invalide, JSON illisible ou UUID malformé), 401 (JWT absent,
+    invalide ou expiré), 404 (poste introuvable lors d'une mise à jour), 500
+    (erreur serveur ou SQL). La liste par site n'est pas paginée.
     required_agents et status ont une valeur par défaut appliquée par le DAO.
 servers:
   - url: http://localhost:8080
@@ -19,9 +20,9 @@ tags:
 paths:
   /api/security-posts/site/{siteId}:
     parameters:
-      - {$ref: '#/components/parameters/SiteId'}
+      - { $ref: '#/components/parameters/SiteId' }
     get:
-      tags: [SecurityPosts]
+      tags: [ SecurityPosts ]
       summary: Lister les postes d'un site
       description: Retourne tous les postes du site, triés par name, sans pagination.
       responses:
@@ -29,38 +30,41 @@ paths:
           description: Liste des postes
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/SecurityPost'}}
+              schema: { type: array, items: { $ref: '#/components/schemas/SecurityPost' } }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/security-posts:
     post:
-      tags: [SecurityPosts]
+      tags: [ SecurityPosts ]
       summary: Créer un poste de sécurité
       description: >-
         required_agents vaut 1 et status vaut ACTIVE si les champs sont omis.
-        Une erreur SQL est capturée par le DAO : la réponse reste 200 et peut
-        contenir un objet sans id.
+        Une erreur SQL renvoie 500 avec une enveloppe ItemError.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/SecurityPost'}}
+          application/json: { schema: { $ref: '#/components/schemas/SecurityPost' } }
       responses:
         '200':
-          description: Poste créé (ou objet d'entrée si l'insertion a échoué silencieusement)
+          description: Poste créé
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/SecurityPost'}
+              schema: { $ref: '#/components/schemas/SecurityPost' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
   /api/security-posts/{id}:
     parameters:
-      - {$ref: '#/components/parameters/PostId'}
+      - { $ref: '#/components/parameters/PostId' }
     get:
-      tags: [SecurityPosts]
+      tags: [ SecurityPosts ]
       summary: Récupérer un poste par identifiant
       description: >-
         Un identifiant inexistant renvoie 200 avec un corps null (Optional
@@ -70,34 +74,40 @@ paths:
           description: Poste trouvé, ou null si absent
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/SecurityPost'}
+              schema: { $ref: '#/components/schemas/SecurityPost' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
     patch:
-      tags: [SecurityPosts]
+      tags: [ SecurityPosts ]
       summary: Mettre à jour partiellement un poste
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        IllegalArgumentException → 500 au format Spring par défaut. La réponse
-        est l'objet envoyé complété de l'id.
+        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        envoyé complété de l'id.
       requestBody:
         required: true
         content:
-          application/json: {schema: {$ref: '#/components/schemas/SecurityPost'}}
+          application/json: { schema: { $ref: '#/components/schemas/SecurityPost' } }
       responses:
         '200':
           description: Poste mis à jour
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/SecurityPost'}
+              schema: { $ref: '#/components/schemas/SecurityPost' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
-      tags: [SecurityPosts]
+      tags: [ SecurityPosts ]
       summary: Supprimer un poste
       description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
       responses:
@@ -107,6 +117,8 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
 components:
   securitySchemes:
     bearerAuth:
@@ -118,41 +130,66 @@ components:
       name: siteId
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
     PostId:
       name: id
       in: path
       required: true
-      schema: {type: string, format: uuid}
+      schema: { type: string, format: uuid }
   responses:
-    Unauthorized:
-      description: JWT invalide ou expiré (401, enveloppe) ; JWT absent → 403 Spring Security.
-    ServerError:
-      description: Erreur Spring par défaut hors enveloppe.
+    BadRequest:
+      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
+        validation) — enveloppe ItemError.
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/SpringError'}
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Ressource introuvable (404) — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+        code).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
   schemas:
-    SpringError:
+    ErrorEnvelope:
       type: object
       properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer}
-        error: {type: string}
-        path: {type: string}
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      properties:
+        message: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        code:
+          type: string
+          nullable: true
+          description: >-
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     PostStatus:
       type: string
-      enum: [ACTIVE, INACTIVE]
+      enum: [ ACTIVE, INACTIVE ]
     SecurityPost:
       type: object
-      required: [site_id, name]
+      required: [ site_id, name ]
       properties:
-        id: {type: string, format: uuid, readOnly: true}
-        site_id: {type: string, format: uuid}
-        name: {type: string, maxLength: 180}
-        code: {type: string, maxLength: 80, nullable: true}
-        description: {type: string, nullable: true}
-        required_agents: {type: integer, minimum: 1, default: 1}
+        id: { type: string, format: uuid, readOnly: true }
+        site_id: { type: string, format: uuid }
+        name: { type: string, maxLength: 180 }
+        code: { type: string, maxLength: 80, nullable: true }
+        description: { type: string, nullable: true }
+        required_agents: { type: integer, minimum: 1, default: 1 }
         start_time:
           type: string
           nullable: true
@@ -165,5 +202,5 @@ components:
           pattern: '^[0-9]{2}:[0-9]{2}:[0-9]{2}$'
           example: '18:00:00'
           description: Heure au format HH:mm:ss (java.sql.Time).
-        status: {$ref: '#/components/schemas/PostStatus'}
-        created_at: {type: string, format: date-time, readOnly: true}
+        status: { $ref: '#/components/schemas/PostStatus' }
+        created_at: { type: string, format: date-time, readOnly: true }

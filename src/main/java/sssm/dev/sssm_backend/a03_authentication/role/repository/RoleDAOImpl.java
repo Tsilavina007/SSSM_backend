@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
 
 public class RoleDAOImpl implements RoleDAO {
@@ -29,7 +29,7 @@ public class RoleDAOImpl implements RoleDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return roles;
   }
@@ -49,7 +49,7 @@ public class RoleDAOImpl implements RoleDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -64,7 +64,7 @@ public class RoleDAOImpl implements RoleDAO {
         if (rs.next()) return Optional.of(mapRowToRole(rs));
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return Optional.empty();
   }
@@ -85,7 +85,7 @@ public class RoleDAOImpl implements RoleDAO {
         }
       }
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return role;
   }
@@ -123,7 +123,7 @@ public class RoleDAOImpl implements RoleDAO {
       }
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
     return role;
   }
@@ -138,7 +138,7 @@ public class RoleDAOImpl implements RoleDAO {
       stmt.setObject(1, id);
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 
@@ -163,7 +163,7 @@ public class RoleDAOImpl implements RoleDAO {
       stmt.setObject(2, UUID.fromString(secondId));
       stmt.executeUpdate();
     } catch (SQLException e) {
-      e.printStackTrace();
+      throw new ServerException(e);
     }
   }
 
