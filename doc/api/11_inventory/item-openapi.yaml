@@ -28,6 +28,16 @@ paths:
         - { $ref: '#/components/parameters/Search' }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
+        - name: warehouseId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+          description: Filtrer par entrepôt.
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/ItemStatus' }
+          description: Filtrer par statut.
       responses:
         '200':
           description: Liste paginée des articles
@@ -151,6 +161,54 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ItemQrCode' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/items/{itemId}/qr-code/image:
+    parameters:
+      - { $ref: '#/components/parameters/ItemId' }
+    get:
+      tags: [ Items ]
+      summary: Générer l'image PNG du QR code d'un article
+      responses:
+        '200':
+          description: Image PNG du QR code
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/items/{itemId}/history:
+    parameters:
+      - { $ref: '#/components/parameters/ItemId' }
+    get:
+      tags: [ Items ]
+      summary: Consulter l'historique d'un article
+      description: >-
+        Retourne les mouvements de stock et les affectations associés à
+        l'article.
+      responses:
+        '200':
+          description: Historique de l'article
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item_id: { type: string, format: uuid }
+                  movements: { type: array, items: { type: object } }
+                  assignments: { type: array, items: { type: object } }
         '404':
           $ref: '#/components/responses/NotFound'
         '500':

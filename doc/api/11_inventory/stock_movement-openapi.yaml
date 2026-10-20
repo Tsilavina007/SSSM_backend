@@ -193,7 +193,7 @@ components:
             INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     MovementType:
       type: string
-      enum: [ IN, OUT, TRANSFER, RETURN, ADJUSTMENT ]
+      enum: [ IN, OUT, TRANSFER, RETURN, ADJUSTMENT, DESTRUCTION ]
     StockMovement:
       type: object
       properties:

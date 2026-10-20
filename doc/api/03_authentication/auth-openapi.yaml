@@ -127,6 +127,50 @@ paths:
           content:
             application/json:
               schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Renouveler un jeton JWT
+      description: >-
+        Valide le jeton fourni (même expiré) et en émet un nouveau pour le même
+        utilisateur et les mêmes rôles. Le compte doit être actif.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, description: Jeton JWT à renouveler. }
+      responses:
+        '200':
+          description: Nouveau jeton émis
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthResponse'}
+        '400':
+          description: Requête invalide (enveloppe ItemError).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '401':
+          description: JWT absent, invalide ou expiré (enveloppe ItemError).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '404':
+          description: Utilisateur introuvable (enveloppe ItemError).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+        '500':
+          description: Erreur serveur (enveloppe d'erreur).
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
 components:
   schemas:
     ErrorEnvelope:

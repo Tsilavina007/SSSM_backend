@@ -22,6 +22,16 @@ paths:
       parameters:
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
+        - name: itemId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+          description: Filtrer par article.
+        - name: warehouseId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+          description: Filtrer par entrepôt.
       responses:
         '200':
           description: Liste paginée des mouvements enrichis (colonnes brutes de
@@ -94,7 +104,7 @@ components:
             INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
     MovementType:
       type: string
-      enum: [ IN, OUT, TRANSFER, RETURN, ADJUSTMENT ]
+      enum: [ IN, OUT, TRANSFER, RETURN, ADJUSTMENT, DESTRUCTION ]
     ReportMovement:
       type: object
       properties:
