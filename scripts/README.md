@@ -42,7 +42,9 @@ Sous Linux ou macOS :
 
 Le script retourne le code `0` si tout est correct et le code `1` si une
 erreur est détectée. Il peut donc être appelé par un hook Git `pre-push` ou
-par une pipeline CI.
+par une pipeline CI. Le workflow GitHub Actions l'utilise avec
+`--skip-tests`, puis exécute les tests dans un job séparé avec PostgreSQL.
+Voir [`doc/ci.md`](../doc/ci.md) pour le détail de la CI.
 
 Sur Linux ou macOS, rendre le script exécutable une première fois si
 nécessaire :

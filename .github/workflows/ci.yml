@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: "17"
+
+jobs:
+  test:
+    name: Tests (Java 17 + PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sssm_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sssm_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Initialize database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f doc/database/sssm_schema2_v01.sql
+          psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f doc/database/mock_data/sssm_mock_data.sql
+
+      - name: Run tests
+        env:
+          DB_URL: "jdbc:postgresql://127.0.0.1:5432/sssm_db"
+          DB_USER: "postgres"
+          DB_PASSWORD: "postgres"
+          JWT_SECRET: "ci-only-jwt-secret-with-at-least-32-characters"
+        run: ./mvnw -B -q test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  lint:
+    name: Lint (Java + OpenAPI)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Java static checks
+        run: bash scripts/check-before-push.sh --skip-tests
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate OpenAPI specifications
+        run: |
+          find doc/api -type f -name '*.yaml' -print0 \
+            | xargs -0 npx --yes @redocly/cli@2.65.1 lint --format=summary
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test, lint]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Build application
+        run: ./mvnw -B -q -DskipTests package
+
+      - name: Upload application jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: sssm-backend-jar
+          path: target/*.jar
+          if-no-files-found: error
+          retention-days: 7
