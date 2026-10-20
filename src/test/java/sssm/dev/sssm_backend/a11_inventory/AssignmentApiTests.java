@@ -250,6 +250,7 @@ class AssignmentApiTests {
   }
 
   private static void purge() throws Exception {
+    execute("UPDATE security.item SET status = 'AVAILABLE' WHERE id IN (SELECT item_id FROM security.item_assignment WHERE notes LIKE 'phase5-asg%')");
     execute("DELETE FROM security.item_assignment WHERE notes LIKE 'phase5-asg%'");
   }
 

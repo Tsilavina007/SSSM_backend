@@ -12,6 +12,10 @@ public interface ItemDAO {
 
   List<ItemResponse> searchItemsByName(String value, int page, int pageSize);
 
+  List<ItemResponse> getItemsByWarehouse(String warehouseId, int page, int pageSize);
+
+  List<ItemResponse> getItemsByStatus(String status, int page, int pageSize);
+
   Optional<ItemResponse> getItemById(String id);
 
   ItemResponse createItem(ItemCreateRequest value);

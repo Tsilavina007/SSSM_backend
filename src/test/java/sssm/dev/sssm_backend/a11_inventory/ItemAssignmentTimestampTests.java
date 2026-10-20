@@ -68,6 +68,7 @@ class ItemAssignmentTimestampTests {
 
   @AfterEach
   void cleanUp() throws Exception {
+    execute("UPDATE security.item SET status = 'AVAILABLE' WHERE id IN (SELECT item_id FROM security.item_assignment WHERE notes LIKE 'phase2-ia-%')");
     execute("DELETE FROM security.item_assignment WHERE notes LIKE 'phase2-ia-%'");
   }
 

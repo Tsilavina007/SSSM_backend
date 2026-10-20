@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentResponse;
@@ -41,6 +42,7 @@ public class AssignmentService {
             "errors", new ItemError("Affectation d'article introuvable", "Aucune affectation d'article ne correspond à l'identifiant " + id + ".", "NOT_FOUND"));
   }
 
+  @Transactional
   public Object save(String id, Map<String, Object> b, boolean u) {
     Object r = assignmentDAO.save(id, b, u);
     return r instanceof AssignmentResponse rs ? assignmentRestMapper.toRest(rs) : r;

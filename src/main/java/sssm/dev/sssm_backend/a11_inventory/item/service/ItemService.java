@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
@@ -28,13 +29,23 @@ public class ItemService {
   private final ItemRestMapper itemRestMapper;
 
   public List<ItemRest> getItems(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
+      Optional<String> search,
+      Optional<Integer> page,
+      Optional<Integer> pageSize,
+      Optional<String> warehouseId,
+      Optional<String> status) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    List<ItemResponse> items =
-        search
-            .map(value -> itemDAO.searchItemsByName(value, pageNumber, pageSizeNumber))
-            .orElseGet(() -> itemDAO.getAllItems(pageNumber, pageSizeNumber));
+    List<ItemResponse> items;
+    if (search.isPresent()) {
+      items = itemDAO.searchItemsByName(search.get(), pageNumber, pageSizeNumber);
+    } else if (warehouseId.isPresent()) {
+      items = itemDAO.getItemsByWarehouse(warehouseId.get(), pageNumber, pageSizeNumber);
+    } else if (status.isPresent()) {
+      items = itemDAO.getItemsByStatus(status.get(), pageNumber, pageSizeNumber);
+    } else {
+      items = itemDAO.getAllItems(pageNumber, pageSizeNumber);
+    }
     return items.stream().map(itemRestMapper::toRest).toList();
   }
 
@@ -62,6 +73,7 @@ public class ItemService {
                     "NOT_FOUND"));
   }
 
+  @Transactional
   public ItemRest createItem(ItemCreateRequest item) {
     return itemRestMapper.toRest(itemDAO.createItem(item));
   }
@@ -79,6 +91,7 @@ public class ItemService {
     return new ItemBulkCreateResult(createdItems, failedItems);
   }
 
+  @Transactional
   public ItemRest updateItem(String itemId, ItemUpdateRequest updatedItem) {
     if (itemDAO.getItemById(itemId).isEmpty()) {
       throw new NotFoundException(
@@ -89,6 +102,7 @@ public class ItemService {
     return itemRestMapper.toRest(itemDAO.updateItem(itemId, updatedItem));
   }
 
+  @Transactional
   public void deleteItem(String itemId) {
     itemDAO.deleteItem(itemId);
   }

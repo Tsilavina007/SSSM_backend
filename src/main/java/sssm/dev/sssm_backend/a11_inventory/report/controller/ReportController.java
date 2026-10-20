@@ -21,7 +21,15 @@ public class ReportController {
   @GetMapping("/movements")
   public List<ReportMovementRest> movements(
       @RequestParam(required = false) Integer page,
-      @RequestParam(required = false) Integer pageSize) {
+      @RequestParam(required = false) Integer pageSize,
+      @RequestParam(required = false) String itemId,
+      @RequestParam(required = false) String warehouseId) {
+    if (itemId != null) {
+      return reportService.list(page, pageSize, null, "item_id = ?", java.util.UUID.fromString(itemId));
+    }
+    if (warehouseId != null) {
+      return reportService.list(page, pageSize, null, "warehouse_id = ?", java.util.UUID.fromString(warehouseId));
+    }
     return reportService.list(page, pageSize, null, null);
   }
 }

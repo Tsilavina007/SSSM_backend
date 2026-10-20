@@ -94,6 +94,31 @@ public class AuthService {
         toResponse(user, roleNames));
   }
 
+  public AuthResponse refresh(String token) {
+    // Valider le token et en créer un nouveau
+    io.jsonwebtoken.Claims claims = jwt.parse(token);
+    String userId = claims.get("uid", String.class);
+    String username = claims.getSubject();
+    @SuppressWarnings("unchecked")
+    List<String> roles = claims.get("roles", List.class);
+    if (roles == null) roles = List.of();
+    AppUser user = users.findById(userId)
+        .orElseThrow(() -> new NotFoundException(
+            "Utilisateur introuvable",
+            "Aucun utilisateur ne correspond à l'identifiant " + userId + ".",
+            "NOT_FOUND"));
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new ClientException(
+          "Compte inactif",
+          "Le compte utilisateur n'est pas actif.",
+          "CLIENT_ERROR");
+    }
+    return new AuthResponse(
+        jwt.createToken(user.getId(), user.getUsername(), roles),
+        "Bearer",
+        toResponse(user, roles));
+  }
+
   public AuthResponse.UserResponse whoAmI(String username) {
     AppUser user =
         users

@@ -53,7 +53,7 @@ public class DashboardDAOImpl implements DashboardDAO {
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p =
             c.prepareStatement(
-                "SELECT t.*,count(i.id) AS stock_quantity FROM security.item_type t LEFT JOIN security.item i ON i.item_type_id=t.id GROUP BY t.id HAVING count(i.id)<t.minimum_stock")) {
+                "SELECT t.*, t.quantity_total AS stock_quantity FROM security.item_type t WHERE t.quantity_total < t.minimum_stock AND t.archived_at IS NULL")) {
       try (ResultSet r = p.executeQuery()) {
         while (r.next()) o.add(mapRowToDashboardLowStock(r));
       }

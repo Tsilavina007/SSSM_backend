@@ -4,5 +4,6 @@ public enum MovementType {
   OUT,
   TRANSFER,
   RETURN,
-  ADJUSTMENT
+  ADJUSTMENT,
+  DESTRUCTION
 }

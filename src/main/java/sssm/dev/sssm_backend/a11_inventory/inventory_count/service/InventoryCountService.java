@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
@@ -26,11 +27,13 @@ public class InventoryCountService {
     return mapperListScanResponseToRest(inventoryCountDAO.getResults(id));
   }
 
+  @Transactional
   public InventoryCountScanRest scan(String id, Map<String, Object> b) {
     inventoryCountDAO.one(id).orElseThrow(() -> new NotFoundException("Comptage d'inventaire introuvable", "Aucun comptage d'inventaire ne correspond à l'identifiant " + id + ".", "NOT_FOUND"));
     return inventoryCountScanRestMapper.toRest(inventoryCountDAO.createScan(id, b));
   }
 
+  @Transactional
   public Object close(String id, Map<String, Object> b) {
     // Corps absent : COMPLETED, seule valeur fermée acceptée par le CHECK de statut.
     return save(id, b == null ? Map.of("status", "COMPLETED") : b, true);
@@ -48,6 +51,7 @@ public class InventoryCountService {
             "errors", new ItemError("Comptage d'inventaire introuvable", "Aucun comptage d'inventaire ne correspond à l'identifiant " + id + ".", "NOT_FOUND"));
   }
 
+  @Transactional
   public Object save(String id, Map<String, Object> b, boolean u) {
     Object r = inventoryCountDAO.save(id, b, u);
     return r instanceof InventoryCountResponse rs ? inventoryCountRestMapper.toRest(rs) : r;

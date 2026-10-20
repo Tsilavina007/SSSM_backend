@@ -71,6 +71,53 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
+  public List<ItemResponse> getItemsByWarehouse(String warehouseId, int page, int pageSize) {
+    String sql = "SELECT * FROM security.item WHERE current_warehouse_id = ? ORDER BY id LIMIT ? OFFSET ?";
+    List<ItemResponse> values = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+    UUID uuid = UUID.fromString(warehouseId);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, uuid);
+      stmt.setInt(2, pageSize);
+      stmt.setInt(3, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          values.add(mapRowToItemResponse(rs));
+        }
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return values;
+  }
+
+  @Override
+  public List<ItemResponse> getItemsByStatus(String status, int page, int pageSize) {
+    String sql = "SELECT * FROM security.item WHERE status = CAST(? AS security.item_status) ORDER BY id LIMIT ? OFFSET ?";
+    List<ItemResponse> values = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, status);
+      stmt.setInt(2, pageSize);
+      stmt.setInt(3, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          values.add(mapRowToItemResponse(rs));
+        }
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return values;
+  }
+
+  @Override
   public Optional<ItemResponse> getItemById(String id) {
     String sql = "SELECT * FROM security.item WHERE id = ?";
     UUID uuid = UUID.fromString(id);
@@ -103,7 +150,11 @@ public class ItemDAOImpl implements ItemDAO {
           2, value.getCategory_id() == null ? null : UUID.fromString(value.getCategory_id()));
       stmt.setObject(
           3, value.getItem_type_id() == null ? null : UUID.fromString(value.getItem_type_id()));
-      stmt.setString(4, value.getQr_code());
+      String qrCode = value.getQr_code();
+      if (qrCode == null || qrCode.isBlank()) {
+        qrCode = "QR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+      }
+      stmt.setString(4, qrCode);
       stmt.setString(5, value.getDescription());
       stmt.setString(
           6, value.getStatus() == null ? ItemStatus.AVAILABLE.name() : value.getStatus().name());

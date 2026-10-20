@@ -4,8 +4,13 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
@@ -17,6 +22,7 @@ import sssm.dev.sssm_backend.a11_inventory.item_assignment.repository.ItemAssign
 @RequiredArgsConstructor
 public class ItemAssignmentService {
   private final ItemAssignmentDAO itemAssignmentDAO;
+  private final ItemDAO itemDAO;
   private final ItemAssignmentRestMapper itemAssignmentRestMapper;
 
   public List<ItemAssignmentRest> getItemAssignments(
@@ -47,22 +53,55 @@ public class ItemAssignmentService {
                     "NOT_FOUND"));
   }
 
+  @Transactional
   public ItemAssignmentRest createItemAssignment(ItemAssignmentCreateRequest itemAssignment) {
-    return itemAssignmentRestMapper.toRest(itemAssignmentDAO.createItemAssignment(itemAssignment));
+    // Vérifier que l'item existe et est disponible
+    ItemResponse item = itemDAO.getItemById(itemAssignment.getItem_id())
+        .orElseThrow(() -> new NotFoundException(
+            "Article introuvable",
+            "Aucun article ne correspond à l'identifiant " + itemAssignment.getItem_id() + ".",
+            "NOT_FOUND"));
+    if (item.getStatus() != ItemStatus.AVAILABLE) {
+      throw new sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException(
+          "Article non disponible",
+          "L'article " + itemAssignment.getItem_id() + " n'est pas disponible pour une affectation (statut: " + item.getStatus() + ").",
+          "CLIENT_ERROR");
+    }
+
+    ItemAssignmentRest result = itemAssignmentRestMapper.toRest(itemAssignmentDAO.createItemAssignment(itemAssignment));
+
+    // Mettre à jour l'état de l'item
+    ItemUpdateRequest update = new ItemUpdateRequest();
+    update.setStatus(ItemStatus.ASSIGNED);
+    update.setCurrent_warehouse_id(null);
+    itemDAO.updateItem(itemAssignment.getItem_id(), update);
+
+    return result;
   }
 
+  @Transactional
   public ItemAssignmentRest updateItemAssignment(
       String itemAssignmentId, ItemAssignmentUpdateRequest updatedItemAssignment) {
-    if (itemAssignmentDAO.getItemAssignmentById(itemAssignmentId).isEmpty()) {
-      throw new NotFoundException(
-          "Affectation d'article introuvable",
-          "Aucune affectation d'article ne correspond à l'identifiant " + itemAssignmentId + ".",
-          "NOT_FOUND");
-    }
-    return itemAssignmentRestMapper.toRest(
+    ItemAssignmentResponse existing = itemAssignmentDAO.getItemAssignmentById(itemAssignmentId)
+        .orElseThrow(() -> new NotFoundException(
+            "Affectation d'article introuvable",
+            "Aucune affectation d'article ne correspond à l'identifiant " + itemAssignmentId + ".",
+            "NOT_FOUND"));
+
+    ItemAssignmentRest result = itemAssignmentRestMapper.toRest(
         itemAssignmentDAO.updateItemAssignment(itemAssignmentId, updatedItemAssignment));
+
+    // Si la restitution est enregistrée, remettre l'item en AVAILABLE
+    if (updatedItemAssignment.getReturned_at() != null) {
+      ItemUpdateRequest update = new ItemUpdateRequest();
+      update.setStatus(ItemStatus.AVAILABLE);
+      itemDAO.updateItem(existing.getItem_id(), update);
+    }
+
+    return result;
   }
 
+  @Transactional
   public void deleteItemAssignment(String itemAssignmentId) {
     itemAssignmentDAO.deleteItemAssignment(itemAssignmentId);
   }

@@ -19,7 +19,6 @@ public class ItemCreateRequest {
   @Size(max = 36, message = "36 caractères maximum")
   private String item_type_id;
 
-  @NotBlank(message = "Le code QR est obligatoire")
   @Size(max = 100, message = "100 caractères maximum")
   private String qr_code;
 
