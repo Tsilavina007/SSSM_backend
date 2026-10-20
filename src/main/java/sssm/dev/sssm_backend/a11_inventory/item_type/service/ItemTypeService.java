@@ -46,8 +46,7 @@ public class ItemTypeService {
       String itemCategoryId, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return itemTypeDAO
-        .getAllItemTypesByItemCategoryId(itemCategoryId, pageNumber, pageSizeNumber)
+    return itemTypeDAO.getAllItemTypesByItemCategoryId(itemCategoryId, pageNumber, pageSizeNumber)
         .stream()
         .map(itemTypeRestMapper::toRest)
         .toList();

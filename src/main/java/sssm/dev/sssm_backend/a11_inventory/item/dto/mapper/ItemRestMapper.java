@@ -15,7 +15,6 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.dto.rest.ItemCategoryRe
 import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAOImpl;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.mapper.ItemTypeRestMapper;
-import sssm.dev.sssm_backend.a11_inventory.item_type.dto.rest.ItemTypeRest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.repository.ItemTypeDAOImpl;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.mapper.WarehouseRestMapper;
@@ -42,7 +41,9 @@ public class ItemRestMapper {
                 () ->
                     new NotFoundException(
                         "Entreprise introuvable",
-                        "Aucune entreprise ne correspond à l'identifiant " + rs.getCompany_id() + ".",
+                        "Aucune entreprise ne correspond à l'identifiant "
+                            + rs.getCompany_id()
+                            + ".",
                         "NOT_FOUND"));
     ItemTypeResponse itemType =
         itemTypeDAOImpl

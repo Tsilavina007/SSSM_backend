@@ -1,7 +1,6 @@
 package sssm.dev.sssm_backend.a05_clients.client_contact.service;
 
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

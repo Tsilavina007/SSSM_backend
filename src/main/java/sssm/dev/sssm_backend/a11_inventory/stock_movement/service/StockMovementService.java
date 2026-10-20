@@ -27,8 +27,7 @@ public class StockMovementService {
         search
             .map(
                 value ->
-                    stockMovementDAO.searchStockMovementsByName(
-                        value, pageNumber, pageSizeNumber))
+                    stockMovementDAO.searchStockMovementsByName(value, pageNumber, pageSizeNumber))
             .orElseGet(() -> stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber));
     return movements.stream().map(stockMovementRestMapper::toRest).toList();
   }

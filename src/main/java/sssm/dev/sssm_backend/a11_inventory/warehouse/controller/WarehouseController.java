@@ -35,8 +35,7 @@ public class WarehouseController {
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public WarehouseRest createWarehouse(
-      @Valid @RequestBody WarehouseCreateRequest warehouse) {
+  public WarehouseRest createWarehouse(@Valid @RequestBody WarehouseCreateRequest warehouse) {
     return warehouseService.createWarehouse(warehouse);
   }
 

@@ -30,7 +30,9 @@ public class WarehouseRestMapper {
                 () ->
                     new NotFoundException(
                         "Entreprise introuvable",
-                        "Aucune entreprise ne correspond à l'identifiant " + rs.getCompany_id() + ".",
+                        "Aucune entreprise ne correspond à l'identifiant "
+                            + rs.getCompany_id()
+                            + ".",
                         "NOT_FOUND"));
     BranchRest branch = null;
     if (rs.getBranch_id() != null) {

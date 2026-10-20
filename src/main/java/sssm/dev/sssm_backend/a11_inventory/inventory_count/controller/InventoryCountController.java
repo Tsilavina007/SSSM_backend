@@ -51,8 +51,7 @@ public class InventoryCountController {
 
   @PostMapping("/{id}/close")
   public ResponseEntity<Object> close(
-      @PathVariable String id,
-      @RequestBody(required = false) InventoryCountCloseRequest request) {
+      @PathVariable String id, @RequestBody(required = false) InventoryCountCloseRequest request) {
     return ResponseEntity.ok()
         .body(inventoryCountService.close(id, request == null ? null : request.toMap()));
   }

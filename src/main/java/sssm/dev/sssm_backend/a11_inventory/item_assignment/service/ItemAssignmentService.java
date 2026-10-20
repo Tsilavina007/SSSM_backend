@@ -48,8 +48,7 @@ public class ItemAssignmentService {
   }
 
   public ItemAssignmentRest createItemAssignment(ItemAssignmentCreateRequest itemAssignment) {
-    return itemAssignmentRestMapper.toRest(
-        itemAssignmentDAO.createItemAssignment(itemAssignment));
+    return itemAssignmentRestMapper.toRest(itemAssignmentDAO.createItemAssignment(itemAssignment));
   }
 
   public ItemAssignmentRest updateItemAssignment(

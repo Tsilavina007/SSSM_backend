@@ -28,8 +28,7 @@ public class ItemCategoryService {
             .map(
                 value ->
                     itemCategoryDAO.searchItemCategoriesByName(value, pageNumber, pageSizeNumber))
-            .orElseGet(
-                () -> itemCategoryDAO.getAllItemCategories(pageNumber, pageSizeNumber));
+            .orElseGet(() -> itemCategoryDAO.getAllItemCategories(pageNumber, pageSizeNumber));
     return categories.stream().map(itemCategoryRestMapper::toRest).toList();
   }
 

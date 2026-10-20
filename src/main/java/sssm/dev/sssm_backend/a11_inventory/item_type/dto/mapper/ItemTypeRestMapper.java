@@ -30,7 +30,9 @@ public class ItemTypeRestMapper {
                 () ->
                     new NotFoundException(
                         "Entreprise introuvable",
-                        "Aucune entreprise ne correspond à l'identifiant " + rs.getCompany_id() + ".",
+                        "Aucune entreprise ne correspond à l'identifiant "
+                            + rs.getCompany_id()
+                            + ".",
                         "NOT_FOUND"));
     ItemCategoryRest category = null;
     if (rs.getCategory_id() != null) {

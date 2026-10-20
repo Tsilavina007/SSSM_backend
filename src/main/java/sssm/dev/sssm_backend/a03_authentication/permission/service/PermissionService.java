@@ -60,6 +60,9 @@ public class PermissionService {
 
   private PermissionResponse toResponse(Permission permission) {
     return new PermissionResponse(
-        permission.getId(), permission.getCode(), permission.getName(), permission.getDescription());
+        permission.getId(),
+        permission.getCode(),
+        permission.getName(),
+        permission.getDescription());
   }
 }

@@ -54,8 +54,7 @@ public class WarehouseService {
           "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".",
           "NOT_FOUND");
     }
-    return warehouseRestMapper.toRest(
-        warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
+    return warehouseRestMapper.toRest(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
   }
 
   public void deleteWarehouse(String warehouseId) {
