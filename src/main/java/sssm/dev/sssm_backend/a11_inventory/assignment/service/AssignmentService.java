@@ -38,7 +38,7 @@ public class AssignmentService {
     return r != null
         ? assignmentRestMapper.toRest(r)
         : Map.of(
-            "errors", new ItemError("Not found", "id: " + id, "NOT_FOUND"));
+            "errors", new ItemError("Affectation d'article introuvable", "Aucune affectation d'article ne correspond à l'identifiant " + id + ".", "NOT_FOUND"));
   }
 
   public Object save(String id, Map<String, Object> b, boolean u) {

@@ -38,7 +38,7 @@ public class BranchService {
 
   public Branch updateBranch(String id, BranchUpdateRequest branch) {
     if (branchDAO.getBranchById(id).isEmpty())
-      throw new NotFoundException("Branch not found with ID: " + id);
+      throw new NotFoundException("Succursale introuvable", "Aucune succursale ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     return mapperResponseToBranch(branchDAO.updateBranch(id, branch));
   }
 

@@ -23,7 +23,7 @@ public class ClientService {
   }
 
   public Client update(String id, Client client) {
-    if (dao.findById(id).isEmpty()) throw new NotFoundException("Client not found with ID: " + id);
+    if (dao.findById(id).isEmpty()) throw new NotFoundException("Client introuvable", "Aucun client ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     client.setId(id);
     return dao.update(client);
   }

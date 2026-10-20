@@ -48,7 +48,8 @@ class ErrorFormatTests {
     mockMvc
         .perform(get("/api/agency"))
         .andExpect(status().isUnauthorized())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Authentification requise"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("Authorization")))
         .andExpect(jsonPath("$.errors.code").value("UNAUTHORIZED"));
   }
 
@@ -58,6 +59,7 @@ class ErrorFormatTests {
         .perform(get("/api/agency").header("Authorization", "Bearer not-a-jwt"))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.detail").value(notNullValue()))
         .andExpect(jsonPath("$.errors.code").value("UNAUTHORIZED"));
   }
 
@@ -66,7 +68,8 @@ class ErrorFormatTests {
     mockMvc
         .perform(get("/api/users").header("Authorization", "Bearer " + userToken))
         .andExpect(status().isForbidden())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Accès refusé"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("rôle")))
         .andExpect(jsonPath("$.errors.code").value("FORBIDDEN"));
   }
 
@@ -75,20 +78,24 @@ class ErrorFormatTests {
     mockMvc
         .perform(get("/api/agency/not-a-uuid").header("Authorization", "Bearer " + adminToken))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Paramètre invalide"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("not-a-uuid")))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("UUID valide")))
         .andExpect(jsonPath("$.errors.code").value("BAD_REQUEST"));
   }
 
   @Test
   void unknownAgencyUpdateReturns404ItemError() throws Exception {
+    String unknownId = "00000000-0000-0000-0000-000000000000";
     mockMvc
         .perform(
-            patch("/api/agency/00000000-0000-0000-0000-000000000000")
+            patch("/api/agency/" + unknownId)
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Agence introuvable"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString(unknownId)))
         .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
   }
 
@@ -101,7 +108,8 @@ class ErrorFormatTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{"))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Corps de requête illisible"))
+        .andExpect(jsonPath("$.errors.detail").value(notNullValue()))
         .andExpect(jsonPath("$.errors.code").value("INVALID_REQUEST_BODY"));
   }
 
@@ -116,11 +124,25 @@ class ErrorFormatTests {
   }
 
   @Test
+  void invalidCredentialsReturns400ItemError() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"login\":\"unknown-error-format\",\"password\":\"bad-password\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.message").value("Identifiants invalides"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("mot de passe")))
+        .andExpect(jsonPath("$.errors.code").value("CLIENT_ERROR"));
+  }
+
+  @Test
   void unknownRouteReturns404ItemError() throws Exception {
     mockMvc
         .perform(get("/api/unknown-route").header("Authorization", "Bearer " + adminToken))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Route introuvable"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("/api/unknown-route")))
         .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
   }
 
@@ -129,7 +151,8 @@ class ErrorFormatTests {
     mockMvc
         .perform(put("/api/agency").header("Authorization", "Bearer " + adminToken))
         .andExpect(status().isMethodNotAllowed())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Méthode HTTP non autorisée"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("PUT")))
         .andExpect(jsonPath("$.errors.code").value("METHOD_NOT_ALLOWED"));
   }
 
@@ -142,7 +165,8 @@ class ErrorFormatTests {
                 .contentType(MediaType.TEXT_PLAIN)
                 .content("not-json"))
         .andExpect(status().isUnsupportedMediaType())
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()))
+        .andExpect(jsonPath("$.errors.message").value("Type de média non supporté"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("text/plain")))
         .andExpect(jsonPath("$.errors.code").value("UNSUPPORTED_MEDIA_TYPE"));
   }
 }

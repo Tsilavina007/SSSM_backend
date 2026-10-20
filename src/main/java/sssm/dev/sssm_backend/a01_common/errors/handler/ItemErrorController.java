@@ -13,7 +13,7 @@ import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 /**
  * Remplace le contrôleur d'erreur Spring Boot par défaut afin que même les
  * erreurs gérées par le conteneur (404, 405, etc.) respectent l'enveloppe
- * ItemError.
+ * ItemError avec un message explicite.
  */
 @RestController
 public class ItemErrorController implements ErrorController {
@@ -21,12 +21,7 @@ public class ItemErrorController implements ErrorController {
   @RequestMapping("${server.error.path:${error.path:/error}}")
   public ResponseEntity<Map<String, ItemError>> error(HttpServletRequest request) {
     int status = status(request);
-    Throwable exception = exception(request);
-    String message = message(request, exception, status);
-    String detail =
-        exception != null ? exception.getMessage() : request.getRequestURI();
-
-    ItemError error = new ItemError(message, detail, code(status));
+    ItemError error = new ItemError(message(status), detail(request, status), code(status));
     return ResponseEntity.status(status).body(Map.of("errors", error));
   }
 
@@ -35,29 +30,61 @@ public class ItemErrorController implements ErrorController {
     return value instanceof Integer status ? status : 500;
   }
 
+  private static String message(int status) {
+    return switch (status) {
+      case 400 -> "Requête invalide";
+      case 401 -> "Authentification requise";
+      case 403 -> "Accès refusé";
+      case 404 -> "Route introuvable";
+      case 405 -> "Méthode HTTP non autorisée";
+      case 415 -> "Type de média non supporté";
+      case 500 -> "Erreur interne du serveur";
+      default -> "Erreur HTTP " + status;
+    };
+  }
+
+  private static String detail(HttpServletRequest request, int status) {
+    String original = attribute(request, RequestDispatcher.ERROR_MESSAGE);
+    Throwable exception = exception(request);
+    String cause = exception == null ? null : exception.getMessage();
+
+    return switch (status) {
+      case 400 -> textOr(original, textOr(cause, "La requête est invalide ou mal formée."));
+      case 401 -> "Un jeton JWT valide est requis pour accéder à cette ressource.";
+      case 403 -> "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.";
+      case 404 -> "Aucune route ne correspond à l'URL " + originalUri(request) + ".";
+      case 405 -> textOr(original, "La méthode HTTP utilisée n'est pas autorisée pour cette route.");
+      case 415 -> textOr(original, "Le type de média de la requête n'est pas supporté.");
+      case 500 ->
+          textOr(
+              cause,
+              textOr(
+                  original,
+                  "Une erreur inattendue est survenue. Consultez les journaux du serveur."));
+      default ->
+          textOr(
+              original,
+              textOr(cause, "La requête a échoué avec le statut HTTP " + status + "."));
+    };
+  }
+
   private static Throwable exception(HttpServletRequest request) {
     Object value = request.getAttribute(RequestDispatcher.ERROR_EXCEPTION);
     return value instanceof Throwable exception ? exception : null;
   }
 
-  private static String message(
-      HttpServletRequest request, Throwable exception, int status) {
-    Object value = request.getAttribute(RequestDispatcher.ERROR_MESSAGE);
-    if (value instanceof String message && !message.isBlank()) {
-      return message;
-    }
-    if (exception != null && exception.getMessage() != null) {
-      return exception.getMessage();
-    }
-    return switch (status) {
-      case 400 -> "Requête invalide";
-      case 401 -> "Authentification requise";
-      case 403 -> "Accès refusé";
-      case 404 -> "Ressource introuvable";
-      case 405 -> "Méthode non autorisée";
-      case 415 -> "Type de média non supporté";
-      default -> status >= 500 ? "Erreur interne du serveur" : "Erreur HTTP " + status;
-    };
+  private static String originalUri(HttpServletRequest request) {
+    String uri = attribute(request, RequestDispatcher.ERROR_REQUEST_URI);
+    return uri == null ? request.getRequestURI() : uri;
+  }
+
+  private static String attribute(HttpServletRequest request, String name) {
+    Object value = request.getAttribute(name);
+    return value instanceof String text && !text.isBlank() ? text : null;
+  }
+
+  private static String textOr(String value, String fallback) {
+    return value == null || value.isBlank() ? fallback : value;
   }
 
   private static String code(int status) {

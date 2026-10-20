@@ -1,6 +1,11 @@
 package sssm.dev.sssm_backend.a03_authentication.auth.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.*;
@@ -52,14 +57,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
-
-        String detail = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-        objectMapper.writeValue(
-            response.getWriter(),
-            Map.of("errors", new ItemError("Jeton invalide ou expiré", detail, "UNAUTHORIZED")));
+        objectMapper.writeValue(response.getWriter(), Map.of("errors", jwtError(e)));
         return;
       }
     }
     chain.doFilter(request, response);
+  }
+
+  private static ItemError jwtError(RuntimeException exception) {
+    if (exception instanceof ExpiredJwtException) {
+      return new ItemError(
+          "Jeton expiré",
+          "Le jeton JWT a expiré. Connectez-vous à nouveau pour obtenir un nouveau jeton.",
+          "UNAUTHORIZED");
+    }
+    if (exception instanceof MalformedJwtException) {
+      return new ItemError(
+          "Jeton mal formé",
+          "Le jeton JWT n'est pas au format attendu.",
+          "UNAUTHORIZED");
+    }
+    if (exception instanceof SignatureException) {
+      return new ItemError(
+          "Signature du jeton invalide",
+          "La signature du jeton JWT ne correspond pas à la clé du serveur.",
+          "UNAUTHORIZED");
+    }
+    if (exception instanceof UnsupportedJwtException) {
+      return new ItemError(
+          "Jeton non supporté",
+          "Le type ou les algorithmes du jeton JWT ne sont pas supportés.",
+          "UNAUTHORIZED");
+    }
+    if (exception instanceof JwtException) {
+      return new ItemError(
+          "Jeton invalide",
+          textOr(exception.getMessage(), "Le jeton JWT est invalide ou a expiré."),
+          "UNAUTHORIZED");
+    }
+    return new ItemError(
+        "Jeton invalide",
+        textOr(
+            exception.getMessage(),
+            "Le jeton JWT est vide ou contient des caractères invalides."),
+        "UNAUTHORIZED");
+  }
+
+  private static String textOr(String value, String fallback) {
+    return value == null || value.isBlank() ? fallback : value;
   }
 }

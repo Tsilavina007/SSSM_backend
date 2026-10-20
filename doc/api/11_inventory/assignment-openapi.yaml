@@ -70,8 +70,9 @@ paths:
     get:
       tags: [ Assignments ]
       summary: Récupérer une affectation
-      description: 'Identifiant inexistant → 200 {"errors": ItemError} (code
-        NOT_FOUND, detail id) (jamais 404).'
+      description: 'Identifiant inexistant → 200 avec {"errors": ItemError}
+        (message « Affectation d''article introuvable », code NOT_FOUND) ; jamais
+        404.'
       responses:
         '200':
           description: 'Affectation trouvée, ou enveloppe {"errors": ItemError} si
@@ -228,12 +229,16 @@ components:
         errors: { $ref: '#/components/schemas/ItemError' }
     ItemError:
       type: object
+      required: [message, detail, code]
       properties:
-        message: { type: string, nullable: true }
-        detail: { type: string, nullable: true }
+        message:
+          type: string
+          description: Message lisible en français, toujours renseigné.
+        detail:
+          type: string
+          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
         code:
           type: string
-          nullable: true
           description: >-
             Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,

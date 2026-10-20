@@ -32,7 +32,7 @@ public class ItemTypeService {
   public Optional<ItemType> getItemTypeById(String itemTypeId) {
     Optional<ItemTypeResponse> itemTypeResponse = itemTypeDAO.getItemTypeById(itemTypeId);
     if (itemTypeResponse.isEmpty()) {
-      throw new NotFoundException("ItemType not found with ID: " + itemTypeId);
+      throw new NotFoundException("Type d'article introuvable", "Aucun type d'article ne correspond à l'identifiant " + itemTypeId + ".", "NOT_FOUND");
     }
     return Optional.of(itemTypeMapper.toRest(itemTypeResponse.get()));
   }
@@ -51,7 +51,7 @@ public class ItemTypeService {
 
   public ItemType updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType) {
     if (itemTypeDAO.getItemTypeById(itemTypeId).isEmpty()) {
-      throw new NotFoundException("ItemType not found with ID: " + itemTypeId);
+      throw new NotFoundException("Type d'article introuvable", "Aucun type d'article ne correspond à l'identifiant " + itemTypeId + ".", "NOT_FOUND");
     }
     return itemTypeMapper.toRest(itemTypeDAO.updateItemType(itemTypeId, updatedItemType));
   }

@@ -21,7 +21,7 @@ public class RoleService {
   }
 
   public Role update(String id, Role role) {
-    if (dao.findById(id).isEmpty()) throw new NotFoundException("Role not found with ID: " + id);
+    if (dao.findById(id).isEmpty()) throw new NotFoundException("Rôle introuvable", "Aucun rôle ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     role.setId(id);
     return dao.update(role);
   }

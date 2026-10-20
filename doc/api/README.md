@@ -91,16 +91,19 @@ Security — renvoient la même enveloppe :
 ```json
 {
   "errors": {
-    "message": "duplicate key value violates unique constraint \"uq_company_code\"",
-    "detail": "Key (code)=(ACME) already exists.",
+    "message": "Valeur déjà existante",
+    "detail": "duplicate key value violates unique constraint \"uq_company_code\" | Key (code)=(ACME) already exists. | SQLState : 23505",
     "code": "23505"
   }
 }
 ```
 
-- `message` : message lisible de l'erreur.
-- `detail` : précision éventuelle (détail PostgreSQL, liste des champs de
-  validation, cause de l'échec). Peut être `null` lorsqu'il n'y a pas de détail.
+- `message` : message lisible en français, toujours renseigné (par exemple
+  « Agence introuvable », « Identifiants invalides » ou « Champ obligatoire
+  manquant »).
+- `detail` : précision contextuelle toujours renseignée (identifiant concerné,
+  champ invalide, liste des erreurs de validation, détail PostgreSQL ou cause
+  technique de l'échec).
 - `code` : code applicatif (`BAD_REQUEST`, `VALIDATION_ERROR`,
   `INVALID_REQUEST_BODY`, `NOT_FOUND`, `CLIENT_ERROR`, `SERVER_ERROR`,
   `UNAUTHORIZED`, `FORBIDDEN`, `METHOD_NOT_ALLOWED`,
@@ -116,7 +119,8 @@ fichier précise les codes réellement produits par ses routes.
 
 - **Erreurs SQL** : les DAO ne masquent plus les `SQLException`. Une contrainte
   violée, un UUID invalide côté SQL ou une colonne `NOT NULL` omise renvoie
-  désormais `500` avec le message, le détail et le SQLState PostgreSQL.
+  désormais `500` avec un message français explicite, le détail PostgreSQL et le
+  SQLState.
 - **Réponses `null`** : les contrôleurs retournant `Optional<T>` renvoient
   encore `200 null` pour un identifiant absent (et non `404`). Les mises à jour
   d'un identifiant inexistant renvoient en revanche `404`.
@@ -130,8 +134,10 @@ fichier précise les codes réellement produits par ses routes.
   global (`company_id = null`) échoue en `500`.
 - **Inventory (11)** : plusieurs ressources utilisent un corps `Map` générique
   et des échecs doux en `200` avec la même enveloppe `{"errors": ItemError}`
-  (code `NOT_FOUND` ou `BAD_REQUEST`) ; ces comportements sont détaillés dans
-  les fichiers concernés.
+  (code `NOT_FOUND` ou `BAD_REQUEST`). Chaque échec doux renvoie un message
+  français explicite (par exemple « Affectation d'article introuvable ») et un
+  détail contenant l'identifiant ou le champ concerné ; ces comportements sont
+  détaillés dans les fichiers concernés.
 
 ## Vérification
 

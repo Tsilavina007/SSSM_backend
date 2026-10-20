@@ -24,7 +24,7 @@ public class SecurityPostService {
 
   public SecurityPost update(String id, SecurityPost post) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Security post not found with ID: " + id);
+      throw new NotFoundException("Poste de sécurité introuvable", "Aucun poste de sécurité ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     post.setId(id);
     return dao.update(post);
   }

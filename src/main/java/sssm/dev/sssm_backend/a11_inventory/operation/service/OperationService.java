@@ -25,7 +25,7 @@ public class OperationService {
     return r != null
         ? operationRestMapper.toRest(r)
         : Map.of(
-            "errors", new ItemError("Not found", "id: " + id, "NOT_FOUND"));
+            "errors", new ItemError("Opération d'inventaire introuvable", "Aucune opération d'inventaire ne correspond à l'identifiant " + id + ".", "NOT_FOUND"));
   }
 
   public Object save(String id, Map<String, Object> b, boolean u) {

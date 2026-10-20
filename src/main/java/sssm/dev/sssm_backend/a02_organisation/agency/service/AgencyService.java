@@ -31,7 +31,7 @@ public class AgencyService {
 
   public Agency updateAgency(String id, Agency agency) {
     if (agencyDAO.getAgencyById(id).isEmpty())
-      throw new NotFoundException("Agency not found with ID: " + id);
+      throw new NotFoundException("Agence introuvable", "Aucune agence ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     agency.setId(id);
     return agencyDAO.updateAgency(agency);
   }

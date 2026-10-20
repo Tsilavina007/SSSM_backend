@@ -1,11 +1,15 @@
 package sssm.dev.sssm_backend.a01_common.errors.handler;
 
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
@@ -52,18 +57,20 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Map<String, ItemError>> handleValidation(BindException exception) {
     List<String> details = new ArrayList<>();
     for (FieldError error : exception.getBindingResult().getFieldErrors()) {
-      details.add(error.getField() + ": " + error.getDefaultMessage());
+      details.add(
+          error.getField()
+              + " : "
+              + textOr(error.getDefaultMessage(), "valeur invalide"));
     }
     for (ObjectError error : exception.getBindingResult().getGlobalErrors()) {
-      details.add(error.getDefaultMessage());
+      details.add(textOr(error.getDefaultMessage(), "contrainte globale non respectée"));
     }
 
-    ItemError error =
-        new ItemError(
-            "Validation échouée",
-            details.isEmpty() ? exception.getMessage() : String.join("; ", details),
-            "VALIDATION_ERROR");
-    return ResponseEntity.badRequest().body(Map.of("errors", error));
+    String detail =
+        details.isEmpty()
+            ? "La requête ne respecte pas les contraintes de validation."
+            : String.join(" ; ", details);
+    return badRequest(new ItemError("Validation échouée", detail, "VALIDATION_ERROR"));
   }
 
   @ExceptionHandler(ConstraintViolationException.class)
@@ -71,71 +78,120 @@ public class GlobalExceptionHandler {
       ConstraintViolationException exception) {
     String detail =
         exception.getConstraintViolations().stream()
-            .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
-            .collect(Collectors.joining("; "));
+            .map(
+                violation ->
+                    violation.getPropertyPath() + " : " + violation.getMessage())
+            .collect(Collectors.joining(" ; "));
 
-    ItemError error =
-        new ItemError(
-            "Validation échouée",
-            detail.isBlank() ? exception.getMessage() : detail,
-            "VALIDATION_ERROR");
-    return ResponseEntity.badRequest().body(Map.of("errors", error));
+    if (detail.isBlank()) {
+      detail = "La requête ne respecte pas les contraintes de validation.";
+    }
+    return badRequest(new ItemError("Validation échouée", detail, "VALIDATION_ERROR"));
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<Map<String, ItemError>> handleUnreadableBody(
       HttpMessageNotReadableException exception) {
-    ItemError error =
-        new ItemError(
-            "Corps de requête illisible",
-            exception.getMostSpecificCause().getMessage(),
-            "INVALID_REQUEST_BODY");
-    return ResponseEntity.badRequest().body(Map.of("errors", error));
+    String cause = exception.getMostSpecificCause().getMessage();
+    String detail =
+        textOr(cause, "Le corps de la requête est absent ou mal formé.")
+            + " Vérifiez la syntaxe JSON et les types des champs.";
+    return badRequest(new ItemError("Corps de requête illisible", detail, "INVALID_REQUEST_BODY"));
   }
 
   @ExceptionHandler(MissingServletRequestParameterException.class)
   public ResponseEntity<Map<String, ItemError>> handleMissingParameter(
       MissingServletRequestParameterException exception) {
-    ItemError error =
-        new ItemError("Paramètre obligatoire manquant", exception.getMessage(), "BAD_REQUEST");
-    return ResponseEntity.badRequest().body(Map.of("errors", error));
+    String type =
+        exception.getParameterType() == null || exception.getParameterType().isBlank()
+            ? ""
+            : " de type " + exception.getParameterType();
+    String detail =
+        "Le paramètre '" + exception.getParameterName() + "'" + type + " est obligatoire.";
+    return badRequest(new ItemError("Paramètre obligatoire manquant", detail, "BAD_REQUEST"));
   }
 
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
   public ResponseEntity<Map<String, ItemError>> handleTypeMismatch(
       MethodArgumentTypeMismatchException exception) {
-    ItemError error = new ItemError("Paramètre invalide", exception.getMessage(), "BAD_REQUEST");
-    return ResponseEntity.badRequest().body(Map.of("errors", error));
+    String requiredType =
+        exception.getRequiredType() == null
+            ? "attendu"
+            : exception.getRequiredType().getSimpleName();
+    String value = exception.getValue() == null ? "null" : String.valueOf(exception.getValue());
+    String detail =
+        "Le paramètre '"
+            + exception.getName()
+            + "' doit être de type "
+            + requiredType
+            + ". Valeur reçue : '"
+            + value
+            + "'.";
+    return badRequest(new ItemError("Paramètre invalide", detail, "BAD_REQUEST"));
   }
 
   @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
-  public ResponseEntity<Map<String, ItemError>> handleNoResource(Exception exception) {
-    ItemError error = new ItemError("Ressource introuvable", exception.getMessage(), "NOT_FOUND");
-    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("errors", error));
+  public ResponseEntity<Map<String, ItemError>> handleNoResource(HttpServletRequest request) {
+    String detail = "Aucune route ne correspond à l'URL " + originalUri(request) + ".";
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(Map.of("errors", new ItemError("Route introuvable", detail, "NOT_FOUND")));
   }
 
   @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
   public ResponseEntity<Map<String, ItemError>> handleMethodNotAllowed(
       HttpRequestMethodNotSupportedException exception) {
-    ItemError error =
-        new ItemError("Méthode non autorisée", exception.getMessage(), "METHOD_NOT_ALLOWED");
-    return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(Map.of("errors", error));
+    String methods =
+        exception.getSupportedHttpMethods() == null
+            ? ""
+            : exception.getSupportedHttpMethods().stream()
+                .map(HttpMethod::name)
+                .sorted()
+                .collect(Collectors.joining(", "));
+    String detail =
+        "La méthode "
+            + exception.getMethod()
+            + " n'est pas autorisée pour cette route."
+            + (methods.isBlank() ? "" : " Méthodes autorisées : " + methods + ".");
+    return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+        .body(
+            Map.of(
+                "errors",
+                new ItemError("Méthode HTTP non autorisée", detail, "METHOD_NOT_ALLOWED")));
   }
 
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
   public ResponseEntity<Map<String, ItemError>> handleUnsupportedMediaType(
       HttpMediaTypeNotSupportedException exception) {
-    ItemError error =
-        new ItemError(
-            "Type de média non supporté", exception.getMessage(), "UNSUPPORTED_MEDIA_TYPE");
-    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(Map.of("errors", error));
+    String supported =
+        exception.getSupportedMediaTypes().stream()
+            .map(MediaType::toString)
+            .collect(Collectors.joining(", "));
+    String contentType =
+        exception.getContentType() == null ? "inconnu" : exception.getContentType().toString();
+    String detail =
+        "Le type de média '"
+            + contentType
+            + "' n'est pas supporté."
+            + (supported.isBlank() ? "" : " Types acceptés : " + supported + ".");
+    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+        .body(
+            Map.of(
+                "errors",
+                new ItemError(
+                    "Type de média non supporté", detail, "UNSUPPORTED_MEDIA_TYPE")));
   }
 
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<Map<String, ItemError>> handleAccessDenied(
       AccessDeniedException exception) {
-    ItemError error = new ItemError("Accès refusé", "Permissions insuffisantes", "FORBIDDEN");
-    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("errors", error));
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(
+            Map.of(
+                "errors",
+                new ItemError(
+                    "Accès refusé",
+                    "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
+                    "FORBIDDEN")));
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
@@ -149,7 +205,24 @@ public class GlobalExceptionHandler {
     return build(HttpStatus.INTERNAL_SERVER_ERROR, exception);
   }
 
-  private ResponseEntity<Map<String, ItemError>> build(HttpStatus status, Throwable exception) {
+  private static ResponseEntity<Map<String, ItemError>> badRequest(ItemError error) {
+    return ResponseEntity.badRequest().body(Map.of("errors", error));
+  }
+
+  private static ResponseEntity<Map<String, ItemError>> build(
+      HttpStatus status, Throwable exception) {
     return ResponseEntity.status(status).body(Map.of("errors", ErrorMapper.toItemError(exception)));
+  }
+
+  private static String originalUri(HttpServletRequest request) {
+    Object value = request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI);
+    if (value instanceof String uri && !uri.isBlank()) {
+      return uri;
+    }
+    return request.getRequestURI();
+  }
+
+  private static String textOr(String value, String fallback) {
+    return value == null || value.isBlank() ? fallback : value;
   }
 }

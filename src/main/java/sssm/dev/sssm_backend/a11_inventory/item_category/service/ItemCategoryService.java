@@ -34,7 +34,7 @@ public class ItemCategoryService {
     Optional<ItemCategoryResponse> itemCategoryResponse =
         itemCategoryDAO.getItemCategoryById(itemCategoryId);
     if (itemCategoryResponse.isEmpty()) {
-      throw new NotFoundException("ItemCategory not found with ID: " + itemCategoryId);
+      throw new NotFoundException("Catégorie d'article introuvable", "Aucune catégorie d'article ne correspond à l'identifiant " + itemCategoryId + ".", "NOT_FOUND");
     }
     return Optional.of(itemCategoryMapper.toRest(itemCategoryResponse.get()));
   }
@@ -46,7 +46,7 @@ public class ItemCategoryService {
   public ItemCategory updateItemCategory(
       String itemCategoryId, ItemCategoryUpdateRequest updatedItemCategory) {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
-      throw new NotFoundException("ItemCategory not found with ID: " + itemCategoryId);
+      throw new NotFoundException("Catégorie d'article introuvable", "Aucune catégorie d'article ne correspond à l'identifiant " + itemCategoryId + ".", "NOT_FOUND");
     }
     return itemCategoryMapper.toRest(
         itemCategoryDAO.updateItemCategory(itemCategoryId, updatedItemCategory));

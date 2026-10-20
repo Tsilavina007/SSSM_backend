@@ -57,7 +57,8 @@ public class SecurityConfig {
                                 HttpServletResponse.SC_UNAUTHORIZED,
                                 new ItemError(
                                     "Authentification requise",
-                                    "Un jeton JWT valide est requis",
+                                    "Aucun jeton JWT valide n'a été fourni. Ajoutez l'en-tête "
+                                        + "'Authorization: Bearer <token>'.",
                                     "UNAUTHORIZED")))
                     .accessDeniedHandler(
                         (request, response, exception) ->
@@ -66,7 +67,10 @@ public class SecurityConfig {
                                 objectMapper,
                                 HttpServletResponse.SC_FORBIDDEN,
                                 new ItemError(
-                                    "Accès refusé", "Permissions insuffisantes", "FORBIDDEN"))))
+                                    "Accès refusé",
+                                    "Le jeton JWT est valide, mais le rôle associé ne permet pas "
+                                        + "d'accéder à cette ressource.",
+                                    "FORBIDDEN"))))
         .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
     return http.build();
   }

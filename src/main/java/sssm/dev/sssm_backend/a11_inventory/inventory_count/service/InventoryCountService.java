@@ -27,7 +27,7 @@ public class InventoryCountService {
   }
 
   public InventoryCountScanRest scan(String id, Map<String, Object> b) {
-    inventoryCountDAO.one(id).orElseThrow(() -> new NotFoundException("inventory count not found"));
+    inventoryCountDAO.one(id).orElseThrow(() -> new NotFoundException("Comptage d'inventaire introuvable", "Aucun comptage d'inventaire ne correspond à l'identifiant " + id + ".", "NOT_FOUND"));
     return inventoryCountScanRestMapper.toRest(inventoryCountDAO.createScan(id, b));
   }
 
@@ -45,7 +45,7 @@ public class InventoryCountService {
     return r != null
         ? inventoryCountRestMapper.toRest(r)
         : Map.of(
-            "errors", new ItemError("Not found", "id: " + id, "NOT_FOUND"));
+            "errors", new ItemError("Comptage d'inventaire introuvable", "Aucun comptage d'inventaire ne correspond à l'identifiant " + id + ".", "NOT_FOUND"));
   }
 
   public Object save(String id, Map<String, Object> b, boolean u) {

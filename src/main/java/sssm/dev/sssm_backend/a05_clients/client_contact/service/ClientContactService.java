@@ -22,7 +22,7 @@ public class ClientContactService {
 
   public ClientContact update(String id, ClientContact contact) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Client contact not found with ID: " + id);
+      throw new NotFoundException("Contact client introuvable", "Aucun contact client ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     contact.setId(id);
     return dao.update(contact);
   }

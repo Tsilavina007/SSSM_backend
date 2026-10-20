@@ -33,7 +33,7 @@ public class StockMovementService {
     Optional<StockMovementResponse> stockMovement =
         stockMovementDAO.getStockMovementById(stockMovementId);
     if (stockMovement.isEmpty()) {
-      throw new NotFoundException("StockMovement not found with ID: " + stockMovementId);
+      throw new NotFoundException("Mouvement de stock introuvable", "Aucun mouvement de stock ne correspond à l'identifiant " + stockMovementId + ".", "NOT_FOUND");
     }
     return Optional.of(stockMovementRestMapper.toRest(stockMovement.get()));
   }
@@ -45,7 +45,7 @@ public class StockMovementService {
   public StockMovementRest updateStockMovement(
       String stockMovementId, StockMovementUpdateRequest updatedStockMovement) {
     if (stockMovementDAO.getStockMovementById(stockMovementId).isEmpty()) {
-      throw new NotFoundException("StockMovement not found with ID: " + stockMovementId);
+      throw new NotFoundException("Mouvement de stock introuvable", "Aucun mouvement de stock ne correspond à l'identifiant " + stockMovementId + ".", "NOT_FOUND");
     }
     return stockMovementRestMapper.toRest(
         stockMovementDAO.updateStockMovement(stockMovementId, updatedStockMovement));

@@ -24,7 +24,7 @@ public class EmployeeService {
 
   public Employee update(String id, Employee employee) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Employee not found with ID: " + id);
+      throw new NotFoundException("Employé introuvable", "Aucun employé ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     employee.setId(id);
     return dao.update(employee);
   }

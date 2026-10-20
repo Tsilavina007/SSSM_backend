@@ -34,7 +34,7 @@ public class ItemAssignmentService {
     Optional<ItemAssignmentResponse> itemAssignment =
         itemAssignmentDAO.getItemAssignmentById(itemAssignmentId);
     if (itemAssignment.isEmpty()) {
-      throw new NotFoundException("ItemAssignment not found with ID: " + itemAssignmentId);
+      throw new NotFoundException("Affectation d'article introuvable", "Aucune affectation d'article ne correspond à l'identifiant " + itemAssignmentId + ".", "NOT_FOUND");
     }
     return Optional.of(itemAssignmentRestMapper.toRest(itemAssignment.get()));
   }
@@ -46,7 +46,7 @@ public class ItemAssignmentService {
   public ItemAssignmentRest updateItemAssignment(
       String itemAssignmentId, ItemAssignmentUpdateRequest updatedItemAssignment) {
     if (itemAssignmentDAO.getItemAssignmentById(itemAssignmentId).isEmpty()) {
-      throw new NotFoundException("ItemAssignment not found with ID: " + itemAssignmentId);
+      throw new NotFoundException("Affectation d'article introuvable", "Aucune affectation d'article ne correspond à l'identifiant " + itemAssignmentId + ".", "NOT_FOUND");
     }
     return itemAssignmentRestMapper.toRest(
         itemAssignmentDAO.updateItemAssignment(itemAssignmentId, updatedItemAssignment));

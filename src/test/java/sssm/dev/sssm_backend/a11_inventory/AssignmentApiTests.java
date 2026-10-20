@@ -159,7 +159,8 @@ class AssignmentApiTests {
             get("/api/inventory/assignments/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.errors.message").value("Not found"))
+        .andExpect(jsonPath("$.errors.message").value("Affectation d'article introuvable"))
+        .andExpect(jsonPath("$.errors.detail").value(notNullValue()))
         .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
   }
 
@@ -172,7 +173,8 @@ class AssignmentApiTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.errors.message").value("Request body is required"))
+        .andExpect(jsonPath("$.errors.message").value("Corps de requête obligatoire"))
+        .andExpect(jsonPath("$.errors.detail").value(notNullValue()))
         .andExpect(jsonPath("$.errors.code").value("BAD_REQUEST"));
   }
 
@@ -186,6 +188,8 @@ class AssignmentApiTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"notes\":\"sans ids\"}"))
         .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.errors.message").value("Champ obligatoire manquant"))
+        .andExpect(jsonPath("$.errors.detail").value(containsString("SQLState")))
         .andExpect(jsonPath("$.errors.code").value("23502"));
   }
 

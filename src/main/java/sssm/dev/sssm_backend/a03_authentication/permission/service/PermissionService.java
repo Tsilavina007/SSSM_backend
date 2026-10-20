@@ -22,7 +22,7 @@ public class PermissionService {
 
   public Permission update(String id, Permission permission) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Permission not found with ID: " + id);
+      throw new NotFoundException("Permission introuvable", "Aucune permission ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     permission.setId(id);
     return dao.update(permission);
   }

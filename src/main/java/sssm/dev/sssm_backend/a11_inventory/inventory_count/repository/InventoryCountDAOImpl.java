@@ -93,15 +93,15 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
       Set.of("NONE", "MISSING", "UNEXPECTED", "WRONG_LOCATION", "DAMAGED");
 
   public InventoryCountScanResponse createScan(String inventoryCountId, Map<String, Object> b) {
-    if (b == null || b.isEmpty()) throw new ClientException("item_id is required");
+    if (b == null || b.isEmpty()) throw new ClientException("Article obligatoire", "Le champ 'item_id' est obligatoire.", "CLIENT_ERROR");
     for (String key : b.keySet())
-      if (!scanBodyColumns.contains(key)) throw new ClientException("unknown field: " + key);
+      if (!scanBodyColumns.contains(key)) throw new ClientException("Champ inconnu", "Le champ '" + key + "' n'est pas autorisé pour un scan de comptage.", "CLIENT_ERROR");
     Object itemId = b.get("item_id");
     if (itemId == null || String.valueOf(itemId).isBlank())
-      throw new ClientException("item_id is required");
+      throw new ClientException("Article obligatoire", "Le champ 'item_id' est obligatoire.", "CLIENT_ERROR");
     Object discrepancy = b.get("discrepancy_type");
     if (discrepancy != null && !scanDiscrepancyTypes.contains(String.valueOf(discrepancy)))
-      throw new ClientException("invalid discrepancy_type");
+      throw new ClientException("Type d'écart invalide", "Le champ 'discrepancy_type' doit valoir NONE, MISSING, UNEXPECTED, WRONG_LOCATION ou DAMAGED.", "CLIENT_ERROR");
 
     // inventory_count_id provient toujours du chemin ; scanned_at absent → défaut now().
     List<String> cs = new ArrayList<>(List.of("inventory_count_id"));
@@ -130,9 +130,9 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
       }
     } catch (SQLException e) {
       if ("23505".equals(e.getSQLState()))
-        throw new ClientException("item already scanned for this count");
+        throw new ClientException("Article déjà scanné", "Cet article a déjà été scanné pour ce comptage.", "CLIENT_ERROR");
       if ("23503".equals(e.getSQLState()))
-        throw new ClientException("invalid item, warehouse or scanner reference");
+        throw new ClientException("Référence invalide", "L'article, l'entrepôt ou le scanneur indiqué est introuvable ou invalide.", "CLIENT_ERROR");
       throw new ServerException(e);
     }
     return getScanById(generatedId);
@@ -150,14 +150,14 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    throw new ServerException("scan not found after insert");
+    throw new ServerException("Erreur interne du serveur", "Le scan créé n'a pas pu être relu depuis la base de données.", "SERVER_ERROR");
   }
 
   private Object scanUuid(String field, Object value) {
     try {
       return UUID.fromString(String.valueOf(value));
     } catch (Exception e) {
-      throw new ClientException("invalid " + field);
+      throw new ClientException("Identifiant invalide", "Le champ '" + field + "' doit contenir un UUID valide.", "CLIENT_ERROR");
     }
   }
 
@@ -169,7 +169,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
       try {
         return Timestamp.valueOf(LocalDateTime.parse(String.valueOf(value)));
       } catch (RuntimeException second) {
-        throw new ClientException("invalid scanned_at");
+        throw new ClientException("Date de scan invalide", "Le champ 'scanned_at' doit être une date ISO-8601 ou un timestamp valide.", "CLIENT_ERROR");
       }
     }
   }
@@ -221,7 +221,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
     try (Connection c = DatabaseConnection.getConnection()) {
       if (b == null || b.isEmpty())
         return Map.of(
-            "errors", new ItemError("Request body is required", null, "BAD_REQUEST"));
+            "errors", new ItemError("Corps de requête obligatoire", "Le corps JSON de la requête est vide ou absent.", "BAD_REQUEST"));
       List<String> cs = new ArrayList<>();
       List<Object> vs = new ArrayList<>();
       for (var e : b.entrySet())
@@ -231,7 +231,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
         }
       if (cs.isEmpty())
         return Map.of(
-            "errors", new ItemError("No writable fields", null, "BAD_REQUEST"));
+            "errors", new ItemError("Aucun champ modifiable", "Le corps ne contient aucun champ autorisé pour un comptage d'inventaire.", "BAD_REQUEST"));
       StringJoiner set = new StringJoiner(","),
           cols = new StringJoiner(","),
           qs = new StringJoiner(",");
@@ -258,7 +258,7 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
       return r != null
           ? r
           : Map.of(
-              "errors", new ItemError("Not found", "id: " + v, "NOT_FOUND"));
+              "errors", new ItemError("Comptage d'inventaire introuvable", "Aucun comptage d'inventaire ne correspond à l'identifiant " + v + ".", "NOT_FOUND"));
     } catch (SQLException e) {
       throw new ServerException(e);
     }

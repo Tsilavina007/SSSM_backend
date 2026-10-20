@@ -19,7 +19,7 @@ public class AppUserService {
 
   public Optional<AppUser> findById(String id) {
     if (dao.findById(id).isEmpty()) {
-      throw new NotFoundException("User not found with ID: " + id);
+      throw new NotFoundException("Utilisateur introuvable", "Aucun utilisateur ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     }
     return dao.findById(id);
   }
@@ -30,7 +30,7 @@ public class AppUserService {
 
   public Optional<AppUser> findByUsernameOrEmail(String login) {
     if (dao.findByUsernameOrEmail(login).isEmpty()) {
-      throw new NotFoundException("Login not found with login: " + login);
+      throw new NotFoundException("Utilisateur introuvable", "Aucun utilisateur ne correspond au login " + login + ".", "NOT_FOUND");
     }
     return dao.findByUsernameOrEmail(login);
   }
@@ -44,7 +44,7 @@ public class AppUserService {
   }
 
   public AppUser update(String id, AppUser user) {
-    if (dao.findById(id).isEmpty()) throw new NotFoundException("User not found with ID: " + id);
+    if (dao.findById(id).isEmpty()) throw new NotFoundException("Utilisateur introuvable", "Aucun utilisateur ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     user.setId(id);
     return dao.update(user);
   }

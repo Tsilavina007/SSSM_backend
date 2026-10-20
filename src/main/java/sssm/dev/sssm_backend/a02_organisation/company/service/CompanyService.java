@@ -41,7 +41,7 @@ public class CompanyService {
       updatedCompany.setId(companyId);
       return companyDAO.updateCompany(updatedCompany);
     } else {
-      throw new NotFoundException("Company not found with ID: " + companyId);
+      throw new NotFoundException("Entreprise introuvable", "Aucune entreprise ne correspond à l'identifiant " + companyId + ".", "NOT_FOUND");
     }
   }
 

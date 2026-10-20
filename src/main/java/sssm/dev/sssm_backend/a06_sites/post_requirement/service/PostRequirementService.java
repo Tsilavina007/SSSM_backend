@@ -24,7 +24,7 @@ public class PostRequirementService {
 
   public PostRequirement update(String id, PostRequirement requirement) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Post requirement not found with ID: " + id);
+      throw new NotFoundException("Exigence de poste introuvable", "Aucune exigence de poste ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     requirement.setId(id);
     return dao.update(requirement);
   }

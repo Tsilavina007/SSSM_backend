@@ -22,7 +22,7 @@ public class EmployeeDocumentService {
 
   public EmployeeDocument update(String id, EmployeeDocument document) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Employee document not found with ID: " + id);
+      throw new NotFoundException("Document d'employé introuvable", "Aucun document d'employé ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     document.setId(id);
     return dao.update(document);
   }

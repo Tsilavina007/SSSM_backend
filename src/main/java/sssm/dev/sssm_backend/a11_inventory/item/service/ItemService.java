@@ -40,7 +40,7 @@ public class ItemService {
   public Optional<Item> getItemById(String itemId) {
     Optional<ItemResponse> itemResponse = itemDAO.getItemById(itemId);
     if (itemResponse.isEmpty()) {
-      throw new NotFoundException("Item not found with ID: " + itemId);
+      throw new NotFoundException("Article introuvable", "Aucun article ne correspond à l'identifiant " + itemId + ".", "NOT_FOUND");
     }
     return Optional.of(itemMapper.toRest(itemResponse.get()));
   }
@@ -48,7 +48,7 @@ public class ItemService {
   public Optional<ItemQrCodeRest> getQrCodeByItemId(String itemId) {
     Optional<ItemResponse> itemResponse = itemDAO.getItemById(itemId);
     if (itemResponse.isEmpty()) {
-      throw new NotFoundException("Item not found with ID: " + itemId);
+      throw new NotFoundException("Article introuvable", "Aucun article ne correspond à l'identifiant " + itemId + ".", "NOT_FOUND");
     }
     return Optional.of(itemQrCodeRestMapper.toRest(itemResponse.get()));
   }
@@ -74,7 +74,7 @@ public class ItemService {
   public Item updateItem(String itemId, ItemUpdateRequest updatedItem) {
     Optional<ItemResponse> itemResponse = itemDAO.getItemById(itemId);
     if (itemResponse.isEmpty()) {
-      throw new NotFoundException("Item not found with ID: " + itemId);
+      throw new NotFoundException("Article introuvable", "Aucun article ne correspond à l'identifiant " + itemId + ".", "NOT_FOUND");
     }
     return itemMapper.toRest(itemDAO.updateItem(itemId, updatedItem));
   }

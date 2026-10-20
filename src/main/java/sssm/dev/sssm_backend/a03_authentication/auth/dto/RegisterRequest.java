@@ -9,6 +9,7 @@ public record RegisterRequest(
     @Size(max = 100, message = "100 caractères maximum")
     String username,
 
+    @NotBlank(message = "L'adresse email est obligatoire")
     @Email(message = "L'adresse email est invalide")
     @Size(max = 180, message = "180 caractères maximum")
     String email,
@@ -18,7 +19,7 @@ public record RegisterRequest(
         message = "Le mot de passe doit contenir entre 8 et 128 caractères")
     String password,
 
-    @Size(max = 100) String firstName,
+    @Size(max = 100, message = "100 caractères maximum") String firstName,
     @Size(max = 100, message = "100 caractères maximum")
     String lastName,
     @Size(max = 50, message = "50 caractères maximum")

@@ -32,7 +32,7 @@ public class WarehouseService {
   public Optional<Warehouse> getWarehouseById(String warehouseId) {
     Optional<WarehouseResponse> warehouseResponse = warehouseDAO.getWarehouseById(warehouseId);
     if (warehouseResponse.isEmpty()) {
-      throw new NotFoundException("Warehouse not found with ID: " + warehouseId);
+      throw new NotFoundException("Entrepôt introuvable", "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".", "NOT_FOUND");
     }
     return Optional.of(warehouseMapper.toRest(warehouseResponse.get()));
   }
@@ -43,7 +43,7 @@ public class WarehouseService {
 
   public Warehouse updateWarehouse(String warehouseId, WarehouseUpdateRequest updatedWarehouse) {
     if (warehouseDAO.getWarehouseById(warehouseId).isEmpty()) {
-      throw new NotFoundException("Warehouse not found with ID: " + warehouseId);
+      throw new NotFoundException("Entrepôt introuvable", "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".", "NOT_FOUND");
     }
     return warehouseMapper.toRest(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
   }

@@ -119,7 +119,7 @@ public class DashboardDAOImpl implements DashboardDAO {
         return r.next()
             ? row(r)
             : Map.of(
-                "errors", new ItemError("Not found", "id: " + v, "NOT_FOUND"));
+                "errors", new ItemError("Article introuvable", "Aucun article ne correspond à l'identifiant " + v + ".", "NOT_FOUND"));
       }
     } catch (SQLException e) {
       throw new ServerException(e);
@@ -130,7 +130,7 @@ public class DashboardDAOImpl implements DashboardDAO {
     try (Connection c = DatabaseConnection.getConnection()) {
       if (b == null || b.isEmpty())
         return Map.of(
-            "errors", new ItemError("Request body is required", null, "BAD_REQUEST"));
+            "errors", new ItemError("Corps de requête obligatoire", "Le corps JSON de la requête est vide ou absent.", "BAD_REQUEST"));
       List<String> cs = new ArrayList<>();
       List<Object> vs = new ArrayList<>();
       for (var e : b.entrySet())
@@ -140,7 +140,7 @@ public class DashboardDAOImpl implements DashboardDAO {
         }
       if (cs.isEmpty())
         return Map.of(
-            "errors", new ItemError("No writable fields", null, "BAD_REQUEST"));
+            "errors", new ItemError("Aucun champ modifiable", "Le corps ne contient aucun champ autorisé pour cet article.", "BAD_REQUEST"));
       StringJoiner set = new StringJoiner(","),
           cols = new StringJoiner(","),
           qs = new StringJoiner(",");

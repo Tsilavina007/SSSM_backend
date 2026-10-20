@@ -29,7 +29,7 @@ public class SiteService {
 
   public Site update(String id, Site site) {
     if (dao.findById(id).isEmpty()) {
-      throw new NotFoundException("Site not found with ID: " + id);
+      throw new NotFoundException("Site introuvable", "Aucun site ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     }
     site.setId(id);
     return dao.update(site);

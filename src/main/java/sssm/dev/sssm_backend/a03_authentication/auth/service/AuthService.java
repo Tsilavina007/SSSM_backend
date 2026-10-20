@@ -32,17 +32,27 @@ public class AuthService {
 
   public AuthResponse register(RegisterRequest request) {
     if (request == null) {
-      throw new ClientException("Request body is missing");
+      throw new ClientException(
+          "Corps de requête manquant",
+          "Le corps de la requête est obligatoire.",
+          "CLIENT_ERROR");
     }
     if (request.email() == null) {
-      throw new ClientException("Request body is missing, email required");
+      throw new ClientException(
+          "Email obligatoire", "Le champ 'email' est obligatoire.", "CLIENT_ERROR");
     }
     if (request.username() == null) {
-      throw new ClientException("Request body is missing, username required");
+      throw new ClientException(
+          "Nom d'utilisateur obligatoire",
+          "Le champ 'username' est obligatoire.",
+          "CLIENT_ERROR");
     }
     if (users.findByUsernameOrEmail(request.username()).isPresent()
         || users.findByUsernameOrEmail(request.email()).isPresent()) {
-      throw new ClientException("Username or Email already exists");
+      throw new ClientException(
+          "Nom d'utilisateur ou email déjà utilisé",
+          "Un compte existe déjà avec ce nom d'utilisateur ou cette adresse email.",
+          "CLIENT_ERROR");
     }
     AppUser user = new AppUser();
     user.setUsername(request.username().trim());
@@ -64,9 +74,17 @@ public class AuthService {
         users
             .findByUsernameOrEmail(request.login())
             .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-            .orElseThrow(() -> new ClientException("Invalid credentials or inactive user account"));
+            .orElseThrow(
+                () ->
+                    new ClientException(
+                        "Identifiants invalides",
+                        "Le login/email ou le mot de passe est incorrect, ou le compte n'est pas actif.",
+                        "CLIENT_ERROR"));
     if (!encoder.matches(request.password(), user.getPassword_hash()))
-      throw new ClientException("Invalid credentials or inactive user account");
+      throw new ClientException(
+          "Identifiants invalides",
+          "Le login/email ou le mot de passe est incorrect, ou le compte n'est pas actif.",
+          "CLIENT_ERROR");
     users.updateLastLogin(user.getId());
     List<String> roleNames = users.findRoleNames(user.getId());
     return new AuthResponse(
