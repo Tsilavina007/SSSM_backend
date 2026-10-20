@@ -39,9 +39,7 @@ public class AuthController {
     String token = body.get("token");
     if (token == null || token.isBlank()) {
       throw new sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException(
-          "Token manquant",
-          "Le champ 'token' est obligatoire.",
-          "CLIENT_ERROR");
+          "Token manquant", "Le champ 'token' est obligatoire.", "CLIENT_ERROR");
     }
     return service.refresh(token);
   }

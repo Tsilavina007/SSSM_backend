@@ -101,16 +101,18 @@ public class AuthService {
     @SuppressWarnings("unchecked")
     List<String> roles = claims.get("roles", List.class);
     if (roles == null) roles = List.of();
-    AppUser user = users.findById(userId)
-        .orElseThrow(() -> new NotFoundException(
-            "Utilisateur introuvable",
-            "Aucun utilisateur ne correspond à l'identifiant " + userId + ".",
-            "NOT_FOUND"));
+    AppUser user =
+        users
+            .findById(userId)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Utilisateur introuvable",
+                        "Aucun utilisateur ne correspond à l'identifiant " + userId + ".",
+                        "NOT_FOUND"));
     if (user.getStatus() != UserStatus.ACTIVE) {
       throw new ClientException(
-          "Compte inactif",
-          "Le compte utilisateur n'est pas actif.",
-          "CLIENT_ERROR");
+          "Compte inactif", "Le compte utilisateur n'est pas actif.", "CLIENT_ERROR");
     }
     return new AuthResponse(
         jwt.createToken(user.getId(), user.getUsername(), roles),

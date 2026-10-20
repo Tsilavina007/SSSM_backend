@@ -25,10 +25,12 @@ public class ReportController {
       @RequestParam(required = false) String itemId,
       @RequestParam(required = false) String warehouseId) {
     if (itemId != null) {
-      return reportService.list(page, pageSize, null, "item_id = ?", java.util.UUID.fromString(itemId));
+      return reportService.list(
+          page, pageSize, null, "item_id = ?", java.util.UUID.fromString(itemId));
     }
     if (warehouseId != null) {
-      return reportService.list(page, pageSize, null, "warehouse_id = ?", java.util.UUID.fromString(warehouseId));
+      return reportService.list(
+          page, pageSize, null, "warehouse_id = ?", java.util.UUID.fromString(warehouseId));
     }
     return reportService.list(page, pageSize, null, null);
   }

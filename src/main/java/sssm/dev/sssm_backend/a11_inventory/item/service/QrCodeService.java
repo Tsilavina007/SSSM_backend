@@ -16,7 +16,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class QrCodeService {
 
-  public byte[] generatePng(String content, int width, int height) throws WriterException, IOException {
+  public byte[] generatePng(String content, int width, int height)
+      throws WriterException, IOException {
     QRCodeWriter writer = new QRCodeWriter();
     Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
     hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);

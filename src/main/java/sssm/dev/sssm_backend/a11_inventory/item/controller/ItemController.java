@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemBulkCreateResult;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.rest.ItemQrCodeRest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.rest.ItemRest;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
@@ -62,15 +62,16 @@ public class ItemController {
 
   @GetMapping("/{itemId}/history")
   public Map<String, Object> getItemHistory(@PathVariable String itemId) {
-    List<StockMovementRest> movements = stockMovementService.getStockMovements(Optional.empty(), Optional.of(1), Optional.of(100));
-    List<ItemAssignmentRest> assignments = itemAssignmentService.getItemAssignments(Optional.empty(), Optional.of(1), Optional.of(100));
+    List<StockMovementRest> movements =
+        stockMovementService.getStockMovements(Optional.empty(), Optional.of(1), Optional.of(100));
+    List<ItemAssignmentRest> assignments =
+        itemAssignmentService.getItemAssignments(
+            Optional.empty(), Optional.of(1), Optional.of(100));
     // Filter by item_id
-    List<StockMovementRest> itemMovements = movements.stream()
-        .filter(m -> itemId.equals(m.getItem_id()))
-        .toList();
-    List<ItemAssignmentRest> itemAssignments = assignments.stream()
-        .filter(a -> itemId.equals(a.getItem_id()))
-        .toList();
+    List<StockMovementRest> itemMovements =
+        movements.stream().filter(m -> itemId.equals(m.getItem_id())).toList();
+    List<ItemAssignmentRest> itemAssignments =
+        assignments.stream().filter(a -> itemId.equals(a.getItem_id())).toList();
     Map<String, Object> history = new java.util.LinkedHashMap<>();
     history.put("item_id", itemId);
     history.put("movements", itemMovements);

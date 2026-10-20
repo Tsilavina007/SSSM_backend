@@ -72,7 +72,8 @@ public class ItemDAOImpl implements ItemDAO {
 
   @Override
   public List<ItemResponse> getItemsByWarehouse(String warehouseId, int page, int pageSize) {
-    String sql = "SELECT * FROM security.item WHERE current_warehouse_id = ? ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item WHERE current_warehouse_id = ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
     UUID uuid = UUID.fromString(warehouseId);
@@ -96,7 +97,8 @@ public class ItemDAOImpl implements ItemDAO {
 
   @Override
   public List<ItemResponse> getItemsByStatus(String status, int page, int pageSize) {
-    String sql = "SELECT * FROM security.item WHERE status = CAST(? AS security.item_status) ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item WHERE status = CAST(? AS security.item_status) ORDER BY id LIMIT ? OFFSET ?";
     List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
