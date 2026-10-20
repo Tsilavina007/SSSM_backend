@@ -23,27 +23,28 @@ public class StockMovementService {
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return mapperListResponseToRest(
+    List<StockMovementResponse> movements =
         search
             .map(
                 value ->
-                    stockMovementDAO.searchStockMovementsByName(value, pageNumber, pageSizeNumber))
-            .orElseGet(() -> stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber)));
+                    stockMovementDAO.searchStockMovementsByName(
+                        value, pageNumber, pageSizeNumber))
+            .orElseGet(() -> stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber));
+    return movements.stream().map(stockMovementRestMapper::toRest).toList();
   }
 
-  public Optional<StockMovementRest> getStockMovementById(String stockMovementId) {
-    return Optional.of(
-        stockMovementDAO
-            .getStockMovementById(stockMovementId)
-            .map(stockMovementRestMapper::toRest)
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "Mouvement de stock introuvable",
-                        "Aucun mouvement de stock ne correspond à l'identifiant "
-                            + stockMovementId
-                            + ".",
-                        "NOT_FOUND")));
+  public StockMovementRest getStockMovementById(String stockMovementId) {
+    return stockMovementDAO
+        .getStockMovementById(stockMovementId)
+        .map(stockMovementRestMapper::toRest)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Mouvement de stock introuvable",
+                    "Aucun mouvement de stock ne correspond à l'identifiant "
+                        + stockMovementId
+                        + ".",
+                    "NOT_FOUND"));
   }
 
   public StockMovementRest createStockMovement(StockMovementCreateRequest stockMovement) {
@@ -64,14 +65,5 @@ public class StockMovementService {
 
   public void deleteStockMovement(String stockMovementId) {
     stockMovementDAO.deleteStockMovement(stockMovementId);
-  }
-
-  private List<StockMovementRest> mapperListResponseToRest(List<StockMovementResponse> items) {
-    return items.stream()
-        .map(
-            item -> {
-              return stockMovementRestMapper.toRest(item);
-            })
-        .toList();
   }
 }

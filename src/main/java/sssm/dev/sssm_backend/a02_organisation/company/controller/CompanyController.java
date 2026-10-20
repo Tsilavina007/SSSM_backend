@@ -1,11 +1,14 @@
 package sssm.dev.sssm_backend.a02_organisation.company.controller;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
+import sssm.dev.sssm_backend.a02_organisation.company.dto.CompanyCreateRequest;
+import sssm.dev.sssm_backend.a02_organisation.company.dto.CompanyResponse;
+import sssm.dev.sssm_backend.a02_organisation.company.dto.CompanyUpdateRequest;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 
 @RestController
@@ -18,36 +21,33 @@ public class CompanyController {
   }
 
   @GetMapping
-  public ResponseEntity<Object> getCompanies(
+  public List<CompanyResponse> getCompanies(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
-    List<Company> companies = companyService.getCompanies(search, page, pageSize);
-    return ResponseEntity.ok().body(companies);
+    return companyService.getCompanies(search, page, pageSize);
   }
 
   @GetMapping("/{companyId}")
-  public ResponseEntity<Object> getCompanyById(@PathVariable String companyId) {
-    Optional<Company> company = companyService.getCompanyById(companyId);
-    return ResponseEntity.ok().body(company);
+  public CompanyResponse getCompanyById(@PathVariable String companyId) {
+    return companyService.getCompanyById(companyId);
   }
 
   @PostMapping
-  public ResponseEntity<Object> createCompany(@RequestBody Company company) {
-    Company companyRes = companyService.createCompany(company);
-    return ResponseEntity.ok().body(companyRes);
+  @ResponseStatus(HttpStatus.CREATED)
+  public CompanyResponse createCompany(@Valid @RequestBody CompanyCreateRequest request) {
+    return companyService.createCompany(request);
   }
 
-  @PatchMapping("/{CompanyId}")
-  public ResponseEntity<Object> updateCompany(
-      @PathVariable String companyId, @RequestBody Company updatedCompany) {
-    Company company = companyService.updateCompany(companyId, updatedCompany);
-    return ResponseEntity.ok().body(company);
+  @PatchMapping("/{companyId}")
+  public CompanyResponse updateCompany(
+      @PathVariable String companyId, @Valid @RequestBody CompanyUpdateRequest request) {
+    return companyService.updateCompany(companyId, request);
   }
 
-  @DeleteMapping("/{CompanyId}")
-  public ResponseEntity<Object> deleteCompany(@PathVariable String companyId) {
+  @DeleteMapping("/{companyId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteCompany(@PathVariable String companyId) {
     companyService.deleteCompany(companyId);
-    return ResponseEntity.ok().body("Company deleted : " + companyId);
   }
 }

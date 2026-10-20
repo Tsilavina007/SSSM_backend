@@ -80,9 +80,23 @@ Aucune spécification n'est fournie pour `a00_infrastructure`, `a01_common` et
 - Identifiants : UUID en `string`.
 - Enums : `ACTIVE`/`INACTIVE`, `ACTIVE`/`INACTIVE`/`LOCKED`,
   `ACTIVE`/`INACTIVE`/`SUSPENDED`/`LEFT`.
-- Seul le module `a03_authentication/auth` utilise la validation Jakarta
-  (`@Valid`). Ailleurs, les champs obligatoires sont imposés par PostgreSQL
-  (`NOT NULL` sans défaut) et leur omission peut produire une erreur `500`.
+- Les corps de création et de mise à jour passent par des DTO dédiés et la
+  validation Jakarta (`@Valid`). Les champs obligatoires, tailles maximales,
+  formats d'email et valeurs numériques sont contrôlés avant l'accès à la base ;
+  un échec renvoie `400` avec l'enveloppe `ItemError`.
+- Les champs inconnus des DTO typés sont ignorés, sauf pour les scans
+  d'inventaire qui appliquent une liste blanche stricte.
+
+### Politique HTTP
+
+- Création : `201` avec la ressource créée.
+- Lecture : `200` avec la ressource ; identifiant absent : `404`.
+- Mise à jour : `200` avec la ressource mise à jour ; identifiant absent : `404`.
+- Suppression : `204` sans corps, y compris pour un identifiant déjà absent
+  (suppression idempotente).
+- Les endpoints d'inventaire à erreurs douces (assignations génériques,
+  inventaires, opérations) conservent `200` avec `{"errors": ItemError}` pour les
+  échecs métier qui ne sont pas des exceptions HTTP.
 
 ### Format des erreurs
 
@@ -114,8 +128,8 @@ Security — renvoient la même enveloppe :
 
 Le gestionnaire global `GlobalExceptionHandler` et le contrôleur d'erreur
 `ItemErrorController` garantissent ce format pour toutes les routes. Les codes
-HTTP utilisés sont `400`, `401`, `403`, `404`, `405`, `415` et `500`. Chaque
-fichier précise les codes réellement produits par ses routes.
+HTTP utilisés sont `200`, `201`, `204`, `400`, `401`, `403`, `404`, `405`, `415`
+et `500`. Chaque fichier précise les codes réellement produits par ses routes.
 
 ## Points d'attention connus
 
@@ -123,24 +137,20 @@ fichier précise les codes réellement produits par ses routes.
   violée, un UUID invalide côté SQL ou une colonne `NOT NULL` omise renvoie
   désormais `500` avec un message français explicite, le détail PostgreSQL et le
   SQLState.
-- **Réponses `null`** : les contrôleurs retournant `Optional<T>` renvoient
-  encore `200 null` pour un identifiant absent (et non `404`). Les mises à jour
-  d'un identifiant inexistant renvoient en revanche `404`.
-- **Company** : `PATCH` et `DELETE` sont mappés sur `/{CompanyId}` alors que le
-  paramètre lié s'appelle `companyId` ; cette incohérence de casse est signalée
-  dans `company-openapi.yaml`.
 - **Users** : `POST /api/users` et `PATCH /api/users/{id}` utilisent des DTO
   dédiés. Le mot de passe est obligatoire à la création, haché avant insertion
   et jamais renvoyé ; `id`, `password_hash`, `company_id` (en mise à jour) et
   les horodatages ne sont pas modifiables par le client.
 - **Roles** : `RoleDAO.create` convertit `company_id` sans garde ; un rôle
   global (`company_id = null`) échoue en `500`.
-- **Inventory (11)** : plusieurs ressources utilisent un corps `Map` générique
-  et des échecs doux en `200` avec la même enveloppe `{"errors": ItemError}`
-  (code `NOT_FOUND` ou `BAD_REQUEST`). Chaque échec doux renvoie un message
-  français explicite (par exemple « Affectation d'article introuvable ») et un
-  détail contenant l'identifiant ou le champ concerné ; ces comportements sont
-  détaillés dans les fichiers concernés.
+- **Inventory (11)** : les corps sont typés par des DTO dédiés. Les endpoints
+  d'inventaire à erreurs douces conservent `200` avec l'enveloppe
+  `{"errors": ItemError}` (code `NOT_FOUND` ou `BAD_REQUEST`). Chaque échec doux
+  renvoie un message français explicite (par exemple « Affectation d'article
+  introuvable ») et un détail contenant l'identifiant ou le champ concerné.
+- **Stubs `item-types`** : les routes `low-stock`, `items/{typeId}` et
+  `stocks/{typeId}` ne sont pas encore implémentées et renvoient un tableau JSON
+  vide `[]`.
 
 ## Vérification
 

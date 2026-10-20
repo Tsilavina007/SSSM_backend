@@ -1,6 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.inventory_count.controller;
 
-import java.util.Map;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,6 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountCloseRequest;
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountScanRequest;
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.rest.InventoryCountRest;
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.rest.InventoryCountScanRest;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.service.InventoryCountService;
 
 @RestController
@@ -22,30 +27,33 @@ public class InventoryCountController {
   }
 
   @GetMapping
-  public ResponseEntity<Object> list(
+  public List<InventoryCountRest> list(
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer pageSize) {
-    return ResponseEntity.ok().body(inventoryCountService.list(page, pageSize, null, null));
+    return inventoryCountService.list(page, pageSize, null, null);
   }
 
   @PostMapping
-  public ResponseEntity<Object> create(@RequestBody Map<String, Object> b) {
-    return ResponseEntity.ok().body(inventoryCountService.save(null, b, false));
+  public ResponseEntity<Object> create(@RequestBody InventoryCountCreateRequest request) {
+    return ResponseEntity.ok().body(inventoryCountService.save(null, request.toMap(), false));
   }
 
   @PostMapping("/{id}/scans")
-  public ResponseEntity<Object> scan(@PathVariable String id, @RequestBody Map<String, Object> b) {
-    return ResponseEntity.ok().body(inventoryCountService.scan(id, b));
+  public InventoryCountScanRest scan(
+      @PathVariable String id, @RequestBody InventoryCountScanRequest request) {
+    return inventoryCountService.scan(id, request.toMap());
   }
 
   @GetMapping("/{id}/results")
-  public ResponseEntity<Object> results(@PathVariable String id) {
-    return ResponseEntity.ok().body(inventoryCountService.getResults(id));
+  public List<InventoryCountScanRest> results(@PathVariable String id) {
+    return inventoryCountService.getResults(id);
   }
 
   @PostMapping("/{id}/close")
   public ResponseEntity<Object> close(
-      @PathVariable String id, @RequestBody(required = false) Map<String, Object> b) {
-    return ResponseEntity.ok().body(inventoryCountService.close(id, b));
+      @PathVariable String id,
+      @RequestBody(required = false) InventoryCountCloseRequest request) {
+    return ResponseEntity.ok()
+        .body(inventoryCountService.close(id, request == null ? null : request.toMap()));
   }
 }

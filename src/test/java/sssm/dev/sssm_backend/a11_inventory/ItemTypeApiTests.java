@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -116,8 +115,6 @@ class ItemTypeApiTests {
   void createUpdateDeleteLifecycle() throws Exception {
     Assumptions.assumeTrue(categoryId != null, "catégorie de démonstration requise");
     String marker = "phase5-type-" + System.nanoTime();
-    // category_id DOIT être fourni : ItemTypeMapper n'a pas de null-check (dette NPE
-    // préexistante — voir ItemApiTests.createWithoutOptionalFailsWithMapperNpe)
     String body =
         "{\"company_id\":\""
             + companyId
@@ -135,7 +132,7 @@ class ItemTypeApiTests {
                     .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(notNullValue()))
             .andExpect(jsonPath("$.code").value(marker))
             .andReturn();
@@ -164,8 +161,7 @@ class ItemTypeApiTests {
 
     mockMvc
         .perform(delete("/api/inventory/item-types/" + id).header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").value("ItemType deleted : " + id));
+        .andExpect(status().isNoContent());
 
     mockMvc
         .perform(get("/api/inventory/item-types/" + id).header("Authorization", "Bearer " + token))
@@ -173,34 +169,36 @@ class ItemTypeApiTests {
   }
 
   @Test
-  void lowStockStubReturnsEmptyOk() throws Exception {
-    // stub non implémenté (Dette D5) : 200 sans corps
+  void lowStockStubReturnsEmptyArray() throws Exception {
     mockMvc
         .perform(get("/api/inventory/item-types/low-stock").header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
-        .andExpect(content().string(""));
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$.length()").value(0));
   }
 
   @Test
-  void itemsByTypeStubReturnsEmptyOk() throws Exception {
+  void itemsByTypeStubReturnsEmptyArray() throws Exception {
     Assumptions.assumeTrue(itemId != null, "article de démonstration requis");
     mockMvc
         .perform(
             get("/api/inventory/item-types/items/" + itemId)
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
-        .andExpect(content().string(""));
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$.length()").value(0));
   }
 
   @Test
-  void stocksByTypeStubReturnsEmptyOk() throws Exception {
+  void stocksByTypeStubReturnsEmptyArray() throws Exception {
     Assumptions.assumeTrue(itemId != null, "article de démonstration requis");
     mockMvc
         .perform(
             get("/api/inventory/item-types/stocks/" + itemId)
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
-        .andExpect(content().string(""));
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$.length()").value(0));
   }
 
   private static void purge() throws Exception {

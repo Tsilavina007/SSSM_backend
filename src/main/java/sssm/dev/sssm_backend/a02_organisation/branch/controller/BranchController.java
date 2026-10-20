@@ -1,13 +1,14 @@
 package sssm.dev.sssm_backend.a02_organisation.branch.controller;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
-import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.rest.BranchRest;
 import sssm.dev.sssm_backend.a02_organisation.branch.service.BranchService;
 
 @RestController
@@ -20,36 +21,33 @@ public class BranchController {
   }
 
   @GetMapping
-  public ResponseEntity<Object> getBranches(
+  public List<BranchRest> getBranches(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
-    List<Branch> branches = branchService.getBranches(search, page, pageSize);
-    return ResponseEntity.ok().body(branches);
+    return branchService.getBranches(search, page, pageSize);
   }
 
   @GetMapping("/{branchId}")
-  public ResponseEntity<Object> getBranchById(@PathVariable String branchId) {
-    Optional<Branch> branches = branchService.getBranchById(branchId);
-    return ResponseEntity.ok().body(branches);
+  public BranchRest getBranchById(@PathVariable String branchId) {
+    return branchService.getBranchById(branchId);
   }
 
   @PostMapping
-  public ResponseEntity<Object> createBranch(@RequestBody BranchCreateRequest branch) {
-    Branch branchRes = branchService.createBranch(branch);
-    return ResponseEntity.ok().body(branchRes);
+  @ResponseStatus(HttpStatus.CREATED)
+  public BranchRest createBranch(@Valid @RequestBody BranchCreateRequest branch) {
+    return branchService.createBranch(branch);
   }
 
   @PatchMapping("/{branchId}")
-  public ResponseEntity<Object> updateBranch(
-      @PathVariable String branchId, @RequestBody BranchUpdateRequest branch) {
-    Branch branchRes = branchService.updateBranch(branchId, branch);
-    return ResponseEntity.ok().body(branchRes);
+  public BranchRest updateBranch(
+      @PathVariable String branchId, @Valid @RequestBody BranchUpdateRequest branch) {
+    return branchService.updateBranch(branchId, branch);
   }
 
   @DeleteMapping("/{branchId}")
-  public ResponseEntity<Object> deleteBranch(@PathVariable String branchId) {
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deleteBranch(@PathVariable String branchId) {
     branchService.deleteBranch(branchId);
-    return ResponseEntity.ok().body("Company deleted : " + branchId);
   }
 }

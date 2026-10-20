@@ -1,13 +1,14 @@
 package sssm.dev.sssm_backend.a03_authentication.user.controller;
 
 import jakarta.validation.Valid;
-import java.util.*;
-import org.springframework.http.ResponseEntity;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserCreateRequest;
+import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserResponse;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserUpdateRequest;
-import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.service.AppUserService;
 
 @RestController
@@ -20,48 +21,43 @@ public class AppUserController {
   }
 
   @GetMapping
-  public ResponseEntity<Object> findAll(
+  public List<AppUserResponse> findAll(
       @RequestParam Optional<Integer> page, @RequestParam Optional<Integer> pageSize) {
-    List<AppUser> users = service.findAll(page, pageSize);
-    return ResponseEntity.ok().body(users);
+    return service.findAll(page, pageSize);
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<Object> findById(@PathVariable String id) {
-    AppUser user = service.findById(id);
-    return ResponseEntity.ok().body(user);
+  public AppUserResponse findById(@PathVariable String id) {
+    return service.findById(id);
   }
 
   @PostMapping
-  public ResponseEntity<Object> create(@Valid @RequestBody AppUserCreateRequest request) {
-    AppUser createdUser = service.create(request);
-    return ResponseEntity.ok().body(createdUser);
+  @ResponseStatus(HttpStatus.CREATED)
+  public AppUserResponse create(@Valid @RequestBody AppUserCreateRequest request) {
+    return service.create(request);
   }
 
   @PatchMapping("/{id}")
-  public ResponseEntity<Object> update(
+  public AppUserResponse update(
       @PathVariable String id, @Valid @RequestBody AppUserUpdateRequest request) {
-    AppUser updatedUser = service.update(id, request);
-    return ResponseEntity.ok().body(updatedUser);
+    return service.update(id, request);
   }
 
   @DeleteMapping("/{id}")
-  public ResponseEntity<Object> delete(@PathVariable String id) {
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void delete(@PathVariable String id) {
     service.delete(id);
-    return ResponseEntity.ok().build();
   }
 
   @PostMapping("/{userId}/roles/{roleId}")
-  public ResponseEntity<Object> assignRole(
-      @PathVariable String userId, @PathVariable String roleId) {
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void assignRole(@PathVariable String userId, @PathVariable String roleId) {
     service.assignRole(userId, roleId);
-    return ResponseEntity.ok().build();
   }
 
   @DeleteMapping("/{userId}/roles/{roleId}")
-  public ResponseEntity<Object> removeRole(
-      @PathVariable String userId, @PathVariable String roleId) {
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void removeRole(@PathVariable String userId, @PathVariable String roleId) {
     service.removeRole(userId, roleId);
-    return ResponseEntity.ok().build();
   }
 }

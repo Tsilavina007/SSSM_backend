@@ -6,11 +6,11 @@ info:
     API des agences (module a02_organisation/agency), dérivée du contrôleur
     AgencyController. Toutes les routes exigent un JWT (Authorization: Bearer
     …). Toutes les erreurs renvoient l'enveloppe {"errors": {message, detail,
-    code}} : 400 (requête invalide, JSON illisible ou UUID malformé), 401 (JWT
-    absent, invalide ou expiré), 404 (agence introuvable lors d'une mise à
-    jour), 500 (erreur serveur ou SQL). La lecture d'un identifiant absent
-    renvoie encore 200 null. Pagination : page=1, pageSize=10 par défaut. Aucune
-    validation Jakarta.
+    code}} : 400 (requête invalide, JSON illisible, UUID malformé ou validation),
+    401 (JWT absent, invalide ou expiré), 404 (agence introuvable en lecture ou
+    mise à jour), 500 (erreur serveur ou SQL). Pagination : page=1, pageSize=10
+    par défaut. La validation Jakarta (`@Valid`) s'applique aux corps de création
+    et de mise à jour.
 servers:
   - url: http://localhost:8080
 security:
@@ -51,7 +51,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/Agency' } }
       responses:
-        '200':
+        '201':
           description: Agence créée
           content:
             application/json:
@@ -69,14 +69,15 @@ paths:
       tags: [ Agencies ]
       summary: Récupérer une agence par identifiant
       description: >-
-        Un identifiant inexistant renvoie 200 avec un corps null (Optional
-        sérialisé), jamais 404.
+        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
       responses:
         '200':
-          description: Agence trouvée, ou null si absente
+          description: Agence trouvée
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Agency' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -111,10 +112,10 @@ paths:
     delete:
       tags: [ Agencies ]
       summary: Supprimer une agence
-      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      description: Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Suppression effectuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -197,9 +198,9 @@ components:
     Agency:
       type: object
       description: >-
-        Agence sérialisée telle quelle (entité Agency). id et horodatages sont
-        générés par la base. La base exige company_id et name ; active est
-        envoyé tel quel (null peut provoquer une erreur SQL).
+        Agence sérialisée en AgencyResponse. id et horodatages sont générés par
+        la base. La validation impose company_id et name à la création ; active
+        reçoit true par défaut.
       required: [ company_id, name ]
       properties:
         id: { type: string, format: uuid, readOnly: true }

@@ -6,6 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
+import sssm.dev.sssm_backend.a06_sites.post_requirement.dto.PostRequirementCreateRequest;
+import sssm.dev.sssm_backend.a06_sites.post_requirement.dto.PostRequirementResponse;
+import sssm.dev.sssm_backend.a06_sites.post_requirement.dto.PostRequirementUpdateRequest;
 import sssm.dev.sssm_backend.a06_sites.post_requirement.entity.PostRequirement;
 import sssm.dev.sssm_backend.a06_sites.post_requirement.repository.PostRequirementDAO;
 
@@ -14,29 +17,46 @@ import sssm.dev.sssm_backend.a06_sites.post_requirement.repository.PostRequireme
 public class PostRequirementService {
   private final PostRequirementDAO dao;
 
-  public List<PostRequirement> findByPostId(String postId) {
-    return dao.findByPostId(postId);
+  public List<PostRequirementResponse> findByPostId(String postId) {
+    return dao.findByPostId(postId).stream().map(this::toResponse).toList();
   }
 
-  public Optional<PostRequirement> findById(String id) {
-    return dao.findById(id);
+  public PostRequirementResponse findById(String id) {
+    return dao.findById(id)
+        .map(this::toResponse)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Exigence de poste introuvable",
+                    "Aucune exigence de poste ne correspond à l'identifiant " + id + ".",
+                    "NOT_FOUND"));
   }
 
-  public PostRequirement create(PostRequirement requirement) {
-    return dao.create(requirement);
+  public PostRequirementResponse create(PostRequirementCreateRequest request) {
+    PostRequirement requirement = new PostRequirement();
+    requirement.setPost_id(request.getPost_id());
+    requirement.setRequirement(request.getRequirement());
+    return toResponse(dao.create(requirement));
   }
 
-  public PostRequirement update(String id, PostRequirement requirement) {
+  public PostRequirementResponse update(String id, PostRequirementUpdateRequest request) {
     if (dao.findById(id).isEmpty())
       throw new NotFoundException(
           "Exigence de poste introuvable",
           "Aucune exigence de poste ne correspond à l'identifiant " + id + ".",
           "NOT_FOUND");
+    PostRequirement requirement = new PostRequirement();
     requirement.setId(id);
-    return dao.update(requirement);
+    requirement.setRequirement(request.getRequirement());
+    return toResponse(dao.update(requirement));
   }
 
   public void delete(String id) {
     dao.delete(id);
+  }
+
+  private PostRequirementResponse toResponse(PostRequirement requirement) {
+    return new PostRequirementResponse(
+        requirement.getId(), requirement.getPost_id(), requirement.getRequirement());
   }
 }

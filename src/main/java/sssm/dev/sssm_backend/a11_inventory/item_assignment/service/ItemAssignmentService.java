@@ -23,32 +23,33 @@ public class ItemAssignmentService {
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return mapperListResponseToRest(
+    List<ItemAssignmentResponse> assignments =
         search
             .map(
                 value ->
                     itemAssignmentDAO.searchItemAssignmentsByName(
                         value, pageNumber, pageSizeNumber))
-            .orElseGet(() -> itemAssignmentDAO.getAllItemAssignments(pageNumber, pageSizeNumber)));
+            .orElseGet(() -> itemAssignmentDAO.getAllItemAssignments(pageNumber, pageSizeNumber));
+    return assignments.stream().map(itemAssignmentRestMapper::toRest).toList();
   }
 
-  public Optional<ItemAssignmentRest> getItemAssignmentById(String itemAssignmentId) {
-    return Optional.of(
-        itemAssignmentDAO
-            .getItemAssignmentById(itemAssignmentId)
-            .map(itemAssignmentRestMapper::toRest)
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "Affectation d'article introuvable",
-                        "Aucune affectation d'article ne correspond à l'identifiant "
-                            + itemAssignmentId
-                            + ".",
-                        "NOT_FOUND")));
+  public ItemAssignmentRest getItemAssignmentById(String itemAssignmentId) {
+    return itemAssignmentDAO
+        .getItemAssignmentById(itemAssignmentId)
+        .map(itemAssignmentRestMapper::toRest)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Affectation d'article introuvable",
+                    "Aucune affectation d'article ne correspond à l'identifiant "
+                        + itemAssignmentId
+                        + ".",
+                    "NOT_FOUND"));
   }
 
   public ItemAssignmentRest createItemAssignment(ItemAssignmentCreateRequest itemAssignment) {
-    return itemAssignmentRestMapper.toRest(itemAssignmentDAO.createItemAssignment(itemAssignment));
+    return itemAssignmentRestMapper.toRest(
+        itemAssignmentDAO.createItemAssignment(itemAssignment));
   }
 
   public ItemAssignmentRest updateItemAssignment(
@@ -65,14 +66,5 @@ public class ItemAssignmentService {
 
   public void deleteItemAssignment(String itemAssignmentId) {
     itemAssignmentDAO.deleteItemAssignment(itemAssignmentId);
-  }
-
-  private List<ItemAssignmentRest> mapperListResponseToRest(List<ItemAssignmentResponse> items) {
-    return items.stream()
-        .map(
-            item -> {
-              return itemAssignmentRestMapper.toRest(item);
-            })
-        .toList();
   }
 }

@@ -5,12 +5,14 @@ info:
   description: >-
     API des inventaires (module a11_inventory/inventory_count), dérivée du
     contrôleur InventoryCountController. Toutes les routes exigent un JWT
-    (Authorization: Bearer …). Corps : Map validée par regex puis transmise au
-    SQL (famille C), sauf POST /{id}/scans qui utilise une liste de colonnes
-    blanchie avec validation stricte (400 structurés). Réponses en 200 possibles
-    : ligne mapée en InventoryCount, ou enveloppe {"errors": ItemError} (corps
-    vide / aucune colonne writable / introuvable — jamais 404 sur les opérations
-    de sauvegarde, dette connue). Pagination : page=1, pageSize=50 (max 500).
+    (Authorization: Bearer …). Les corps utilisent des DTO typés
+    (InventoryCountCreateRequest, InventoryCountScanRequest,
+    InventoryCountCloseRequest) ; les scans appliquent en plus une liste blanche
+    stricte (champ inconnu → 400). Réponses en 200 possibles : ligne sérialisée
+    en InventoryCountRest, ou enveloppe {"errors": ItemError} (corps vide /
+    aucune colonne writable / inventaire introuvable) — les opérations de
+    sauvegarde conservent ce comportement doux et ne renvoient pas 404.
+    Pagination : page=1, pageSize=50 (max 500).
 servers:
   - url: http://localhost:8080
 security:
@@ -137,7 +139,7 @@ paths:
       requestBody:
         required: false
         content:
-          application/json: { schema: { $ref: '#/components/schemas/InventoryCountUpsert' } }
+          application/json: { schema: { $ref: '#/components/schemas/InventoryCountClose' } }
       responses:
         '200':
           description: 'Inventaire clôturé, ou enveloppe {"errors": ItemError} (corps {})'
@@ -244,21 +246,31 @@ components:
     InventoryCountUpsert:
       type: object
       description: >-
-        Corps Map générique (famille C). Toute colonne de inventory_count sauf
-        id est acceptée (dette de masse d'affectation). Colonnes NOT NULL sans
-        défaut : company_id, warehouse_id, reference — leur omission provoque
-        une erreur 500 (et non 400). status a pour défaut IN_PROGRESS,
-        started_at pour défaut now().
+        Corps typé (InventoryCountCreateRequest). Les champs absents ne sont pas
+        transmis au SQL. Colonnes NOT NULL sans défaut : company_id,
+        warehouse_id, reference — leur omission provoque une erreur 500 (et non
+        400). status a pour défaut IN_PROGRESS, started_at pour défaut now().
       required: [ company_id, warehouse_id, reference ]
-      additionalProperties: true
+      additionalProperties: false
       properties:
-        company_id: { type: string, format: uuid }
-        warehouse_id: { type: string, format: uuid }
-        reference: { type: string }
-        status: { $ref: '#/components/schemas/InventoryCountStatus' }
-        started_by: { type: string, format: uuid, nullable: true }
+        notes: { type: string, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
         completed_by: { type: string, format: uuid, nullable: true }
         started_at: { type: string, format: date-time, nullable: true }
+        started_by: { type: string, format: uuid, nullable: true }
+        status: { $ref: '#/components/schemas/InventoryCountStatus' }
+        reference: { type: string }
+        warehouse_id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid }
+    InventoryCountClose:
+      type: object
+      description: >-
+        Corps facultatif de clôture (InventoryCountCloseRequest). Sans corps,
+        le service applique le statut COMPLETED.
+      additionalProperties: false
+      properties:
+        status: { $ref: '#/components/schemas/InventoryCountStatus' }
+        completed_by: { type: string, format: uuid, nullable: true }
         completed_at: { type: string, format: date-time, nullable: true }
         notes: { type: string, nullable: true }
     InventoryCountScanCreate:

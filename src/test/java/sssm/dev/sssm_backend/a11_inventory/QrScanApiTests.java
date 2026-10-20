@@ -79,6 +79,17 @@ class QrScanApiTests {
   }
 
   @Test
+  void blankQrCodeReturnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/inventory/scans/resolve")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"qrCode\":\"  \"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void malformedBodyReturnsBadRequest() throws Exception {
     // un scalaire est coercible en String par Jackson (ex. 123 → "123" → 200 sans
     // correspondance) ; c'est un objet imbriqué qui casse la désérialisation du record → 400

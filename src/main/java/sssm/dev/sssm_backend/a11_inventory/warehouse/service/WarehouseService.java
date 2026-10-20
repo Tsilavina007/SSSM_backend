@@ -9,68 +9,56 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseUpdateRequest;
-import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.mapper.WarehouseMapper;
-import sssm.dev.sssm_backend.a11_inventory.warehouse.entity.Warehouse;
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.mapper.WarehouseRestMapper;
+import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.rest.WarehouseRest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.repository.WarehouseDAO;
 
 @Service
 @RequiredArgsConstructor
 public class WarehouseService {
   private final WarehouseDAO warehouseDAO;
-  private final WarehouseMapper warehouseMapper;
+  private final WarehouseRestMapper warehouseRestMapper;
 
-  public List<Warehouse> getWarehouses(
+  public List<WarehouseRest> getWarehouses(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return search
-        .map(
-            value ->
-                mapperListResponseToWarehouse(
-                    warehouseDAO.searchWarehousesByName(value, pageNumber, pageSizeNumber)))
-        .orElseGet(
+    List<WarehouseResponse> warehouses =
+        search
+            .map(value -> warehouseDAO.searchWarehousesByName(value, pageNumber, pageSizeNumber))
+            .orElseGet(() -> warehouseDAO.getAllWarehouses(pageNumber, pageSizeNumber));
+    return warehouses.stream().map(warehouseRestMapper::toRest).toList();
+  }
+
+  public WarehouseRest getWarehouseById(String warehouseId) {
+    return warehouseDAO
+        .getWarehouseById(warehouseId)
+        .map(warehouseRestMapper::toRest)
+        .orElseThrow(
             () ->
-                mapperListResponseToWarehouse(
-                    warehouseDAO.getAllWarehouses(pageNumber, pageSizeNumber)));
+                new NotFoundException(
+                    "Entrepôt introuvable",
+                    "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".",
+                    "NOT_FOUND"));
   }
 
-  public Optional<Warehouse> getWarehouseById(String warehouseId) {
-    return Optional.of(
-        warehouseDAO
-            .getWarehouseById(warehouseId)
-            .map(warehouseMapper::toRest)
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "Entrepôt introuvable",
-                        "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".",
-                        "NOT_FOUND")));
+  public WarehouseRest createWarehouse(WarehouseCreateRequest warehouse) {
+    return warehouseRestMapper.toRest(warehouseDAO.createWarehouse(warehouse));
   }
 
-  public Warehouse createWarehouse(WarehouseCreateRequest warehouse) {
-    return warehouseMapper.toRest(warehouseDAO.createWarehouse(warehouse));
-  }
-
-  public Warehouse updateWarehouse(String warehouseId, WarehouseUpdateRequest updatedWarehouse) {
+  public WarehouseRest updateWarehouse(
+      String warehouseId, WarehouseUpdateRequest updatedWarehouse) {
     if (warehouseDAO.getWarehouseById(warehouseId).isEmpty()) {
       throw new NotFoundException(
           "Entrepôt introuvable",
           "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".",
           "NOT_FOUND");
     }
-    return warehouseMapper.toRest(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
+    return warehouseRestMapper.toRest(
+        warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
   }
 
   public void deleteWarehouse(String warehouseId) {
     warehouseDAO.deleteWarehouse(warehouseId);
-  }
-
-  private List<Warehouse> mapperListResponseToWarehouse(List<WarehouseResponse> items) {
-    return items.stream()
-        .map(
-            item -> {
-              return warehouseMapper.toRest(item);
-            })
-        .toList();
   }
 }

@@ -91,7 +91,7 @@ class ReportApiTests {
                         + "\",\"notes\":\""
                         + marker
                         + "\"}"))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()));
 
     MvcResult result =

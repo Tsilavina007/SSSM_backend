@@ -6,92 +6,55 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
-import sssm.dev.sssm_backend.a02_organisation.agency.service.AgencyService;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchUpdateRequest;
-import sssm.dev.sssm_backend.a02_organisation.branch.entity.Branch;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.mapper.BranchRestMapper;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.rest.BranchRest;
 import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAOImpl;
 
 @Service
 @RequiredArgsConstructor
 public class BranchService {
   private final BranchDAOImpl branchDAO;
-  private final AgencyService agencyService;
+  private final BranchRestMapper branchRestMapper;
 
-  public List<Branch> getBranches(
+  public List<BranchRest> getBranches(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int p = page.orElse(1), size = pageSize.orElse(10);
-    return search
-        .map(value -> mapperListResponseToBranch(branchDAO.searchBranchesByName(value, p, size)))
-        .orElseGet(() -> mapperListResponseToBranch(branchDAO.getAllBranches(p, size)));
+    List<BranchResponse> branches =
+        search
+            .map(value -> branchDAO.searchBranchesByName(value, p, size))
+            .orElseGet(() -> branchDAO.getAllBranches(p, size));
+    return branches.stream().map(branchRestMapper::toRest).toList();
   }
 
-  public Optional<Branch> getBranchById(String id) {
-    return Optional.of(
-        branchDAO
-            .getBranchById(id)
-            .map(this::mapperResponseToBranch)
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "Succursale introuvable",
-                        "Aucune succursale ne correspond à l'identifiant " + id + ".",
-                        "NOT_FOUND")));
+  public BranchRest getBranchById(String id) {
+    return branchDAO
+        .getBranchById(id)
+        .map(branchRestMapper::toRest)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Succursale introuvable",
+                    "Aucune succursale ne correspond à l'identifiant " + id + ".",
+                    "NOT_FOUND"));
   }
 
-  public Branch createBranch(BranchCreateRequest branch) {
-    return mapperResponseToBranch(branchDAO.createBranch(branch));
+  public BranchRest createBranch(BranchCreateRequest branch) {
+    return branchRestMapper.toRest(branchDAO.createBranch(branch));
   }
 
-  public Branch updateBranch(String id, BranchUpdateRequest branch) {
+  public BranchRest updateBranch(String id, BranchUpdateRequest branch) {
     if (branchDAO.getBranchById(id).isEmpty())
       throw new NotFoundException(
           "Succursale introuvable",
           "Aucune succursale ne correspond à l'identifiant " + id + ".",
           "NOT_FOUND");
-    return mapperResponseToBranch(branchDAO.updateBranch(id, branch));
+    return branchRestMapper.toRest(branchDAO.updateBranch(id, branch));
   }
 
   public void deleteBranch(String id) {
     if (branchDAO.getBranchById(id).isPresent()) branchDAO.deleteBranch(id);
-  }
-
-  private Branch mapperResponseToBranch(BranchResponse rs) {
-    if (rs == null || rs.getAgence_id() == null) {
-      return null;
-    }
-    Agency c =
-        agencyService
-            .getAgencyById(rs.getAgence_id())
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "Agence introuvable",
-                        "Aucune agence ne correspond à l'identifiant " + rs.getAgence_id() + ".",
-                        "NOT_FOUND"));
-    return (new Branch(
-        rs.getId(),
-        rs.getCompany_id(),
-        c,
-        rs.getName(),
-        rs.getCode(),
-        rs.getAddress(),
-        rs.getCity(),
-        rs.getPhone(),
-        rs.getEmail(),
-        rs.getStatus(),
-        rs.getCreated_at(),
-        rs.getUpdated_at()));
-  }
-
-  private List<Branch> mapperListResponseToBranch(List<BranchResponse> items) {
-    return items.stream()
-        .map(
-            item -> {
-              return mapperResponseToBranch(item);
-            })
-        .toList();
   }
 }

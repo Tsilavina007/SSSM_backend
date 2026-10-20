@@ -24,11 +24,15 @@ public class ItemCategoryRestMapper {
                 () ->
                     new NotFoundException(
                         "Entreprise introuvable",
-                        "Aucune entreprise ne correspond à l'identifiant "
-                            + rs.getCompany_id()
-                            + ".",
+                        "Aucune entreprise ne correspond à l'identifiant " + rs.getCompany_id() + ".",
                         "NOT_FOUND"));
-    return (new ItemCategoryRest(
-        rs.getId(), companyRestMapper.toRest(company), rs.getName(), rs.getDescription()));
+    return new ItemCategoryRest(
+        rs.getId(),
+        companyRestMapper.toRest(company),
+        rs.getName(),
+        rs.getDescription(),
+        rs.getCreated_at(),
+        rs.getUpdated_at(),
+        rs.getArchived_at());
   }
 }

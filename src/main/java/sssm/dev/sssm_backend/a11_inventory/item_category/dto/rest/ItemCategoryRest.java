@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.item_category.dto.rest;
 
+import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,4 +15,7 @@ public class ItemCategoryRest {
   private CompanyRest company;
   private String name;
   private String description;
+  private Timestamp created_at;
+  private Timestamp updated_at;
+  private Timestamp archived_at;
 }

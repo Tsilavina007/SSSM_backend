@@ -8,7 +8,7 @@ info:
     renvoient l'enveloppe {"errors": {message, detail, code}} : 400 (requête
     invalide, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
     expiré), 404 (employé introuvable lors d'une mise à jour), 500 (erreur
-    serveur ou SQL). La lecture d'un identifiant absent renvoie encore 200 null.
+    serveur ou SQL). La lecture d'un identifiant absent renvoie 404 avec l'enveloppe ItemError.
     Pagination : page=1, pageSize=10 par défaut. La colonne status est envoyée
     explicitement par le DAO : null provoque une violation NOT NULL, donc status
     est requis en pratique.
@@ -52,7 +52,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/Employee' } }
       responses:
-        '200':
+        '201':
           description: Employé créé
           content:
             application/json:
@@ -70,14 +70,15 @@ paths:
       tags: [ Employees ]
       summary: Récupérer un employé par identifiant
       description: >-
-        Un identifiant inexistant renvoie 200 avec un corps null (Optional
-        sérialisé), jamais 404.
+        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
       responses:
         '200':
-          description: Employé trouvé, ou null si absent
+          description: Employé trouvé
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Employee' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -112,10 +113,10 @@ paths:
     delete:
       tags: [ Employees ]
       summary: Supprimer un employé
-      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      description: Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Suppression effectuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

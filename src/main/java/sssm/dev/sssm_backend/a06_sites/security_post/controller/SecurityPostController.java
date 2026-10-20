@@ -1,10 +1,13 @@
 package sssm.dev.sssm_backend.a06_sites.security_post.controller;
 
+import jakarta.validation.Valid;
 import java.util.List;
-import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import sssm.dev.sssm_backend.a06_sites.security_post.entity.SecurityPost;
+import sssm.dev.sssm_backend.a06_sites.security_post.dto.SecurityPostCreateRequest;
+import sssm.dev.sssm_backend.a06_sites.security_post.dto.SecurityPostResponse;
+import sssm.dev.sssm_backend.a06_sites.security_post.dto.SecurityPostUpdateRequest;
 import sssm.dev.sssm_backend.a06_sites.security_post.service.SecurityPostService;
 
 @RestController
@@ -17,26 +20,29 @@ public class SecurityPostController {
   }
 
   @GetMapping("/site/{siteId}")
-  public List<SecurityPost> findBySite(@PathVariable String siteId) {
+  public List<SecurityPostResponse> findBySite(@PathVariable String siteId) {
     return service.findBySiteId(siteId);
   }
 
   @GetMapping("/{id}")
-  public Optional<SecurityPost> findById(@PathVariable String id) {
+  public SecurityPostResponse findById(@PathVariable String id) {
     return service.findById(id);
   }
 
   @PostMapping
-  public SecurityPost create(@RequestBody SecurityPost post) {
-    return service.create(post);
+  @ResponseStatus(HttpStatus.CREATED)
+  public SecurityPostResponse create(@Valid @RequestBody SecurityPostCreateRequest request) {
+    return service.create(request);
   }
 
   @PatchMapping("/{id}")
-  public SecurityPost update(@PathVariable String id, @RequestBody SecurityPost post) {
-    return service.update(id, post);
+  public SecurityPostResponse update(
+      @PathVariable String id, @Valid @RequestBody SecurityPostUpdateRequest request) {
+    return service.update(id, request);
   }
 
   @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String id) {
     service.delete(id);
   }

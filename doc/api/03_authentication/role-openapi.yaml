@@ -50,7 +50,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/Role' } }
       responses:
-        '200':
+        '201':
           description: Rôle créé
           content:
             application/json:
@@ -70,14 +70,15 @@ paths:
       tags: [ Roles ]
       summary: Récupérer un rôle par identifiant
       description: >-
-        Un identifiant inexistant renvoie 200 avec un corps null (Optional
-        sérialisé), jamais 404.
+        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
       responses:
         '200':
-          description: Rôle trouvé, ou null si absent
+          description: Rôle trouvé
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Role' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
@@ -116,10 +117,10 @@ paths:
     delete:
       tags: [ Roles ]
       summary: Supprimer un rôle
-      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      description: Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Suppression effectuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
@@ -135,11 +136,11 @@ paths:
     post:
       tags: [ Roles ]
       summary: Attribuer une permission à un rôle
-      description: Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 200 avec
-        corps vide.
+      description: Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 204 sans
+        corps.
       responses:
-        '200':
-          description: Permission attribuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
@@ -151,10 +152,10 @@ paths:
     delete:
       tags: [ Roles ]
       summary: Retirer une permission à un rôle
-      description: Réponse 200 avec corps vide, même si l'association n'existe pas.
+      description: Réponse 204 sans corps, même si l'association n'existe pas.
       responses:
-        '200':
-          description: Permission retirée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':

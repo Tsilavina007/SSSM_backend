@@ -1,10 +1,14 @@
 package sssm.dev.sssm_backend.a02_organisation.agency.controller;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
+import sssm.dev.sssm_backend.a02_organisation.agency.dto.AgencyCreateRequest;
+import sssm.dev.sssm_backend.a02_organisation.agency.dto.AgencyResponse;
+import sssm.dev.sssm_backend.a02_organisation.agency.dto.AgencyUpdateRequest;
 import sssm.dev.sssm_backend.a02_organisation.agency.service.AgencyService;
 
 @RestController
@@ -17,7 +21,7 @@ public class AgencyController {
   }
 
   @GetMapping
-  public List<Agency> getAgencies(
+  public List<AgencyResponse> getAgencies(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
@@ -25,21 +29,24 @@ public class AgencyController {
   }
 
   @GetMapping("/{agencyId}")
-  public Optional<Agency> getAgencyById(@PathVariable String agencyId) {
+  public AgencyResponse getAgencyById(@PathVariable String agencyId) {
     return agencyService.getAgencyById(agencyId);
   }
 
   @PostMapping
-  public Agency createAgency(@RequestBody Agency agency) {
-    return agencyService.createAgency(agency);
+  @ResponseStatus(HttpStatus.CREATED)
+  public AgencyResponse createAgency(@Valid @RequestBody AgencyCreateRequest request) {
+    return agencyService.createAgency(request);
   }
 
   @PatchMapping("/{agencyId}")
-  public Agency updateAgency(@PathVariable String agencyId, @RequestBody Agency agency) {
-    return agencyService.updateAgency(agencyId, agency);
+  public AgencyResponse updateAgency(
+      @PathVariable String agencyId, @Valid @RequestBody AgencyUpdateRequest request) {
+    return agencyService.updateAgency(agencyId, request);
   }
 
   @DeleteMapping("/{agencyId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteAgency(@PathVariable String agencyId) {
     agencyService.deleteAgency(agencyId);
   }

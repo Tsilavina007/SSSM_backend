@@ -5,9 +5,10 @@ info:
   description: >-
     API de résolution de QR codes (module a11_inventory/qr_scan), dérivée du
     contrôleur QrScanController. Toutes les routes exigent un JWT
-    (Authorization: Bearer …). Le corps attend l'enregistrement {"qrCode": "…"}
-    — toute autre forme provoque une erreur 400 (enveloppe ItemError). Une
-    valeur inconnue renvoie une liste vide (pas d'erreur).
+    (Authorization: Bearer …). Le corps attend l'enregistrement
+    {"qrCode": "…"} ; qrCode est obligatoire et ne peut pas être vide
+    (validation Jakarta, enveloppe ItemError en cas d'échec). Une valeur
+    inconnue renvoie une liste vide (pas d'erreur).
 servers:
   - url: http://localhost:8080
 security:
@@ -94,7 +95,8 @@ components:
       properties:
         qrCode:
           type: string
-          description: Chaîne du QR code scanné (propriété exacte « qrCode »).
+          minLength: 1
+          description: Chaîne du QR code scanné (propriété exacte « qrCode »), non vide.
     QrScanItem:
       type: object
       properties:

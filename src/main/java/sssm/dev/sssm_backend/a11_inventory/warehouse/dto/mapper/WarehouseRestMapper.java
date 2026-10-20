@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.mapper.BranchRestMapper;
+import sssm.dev.sssm_backend.a02_organisation.branch.dto.rest.BranchRest;
 import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAOImpl;
 import sssm.dev.sssm_backend.a02_organisation.company.dto.mapper.CompanyRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
@@ -29,25 +30,32 @@ public class WarehouseRestMapper {
                 () ->
                     new NotFoundException(
                         "Entreprise introuvable",
-                        "Aucune entreprise ne correspond à l'identifiant "
-                            + rs.getCompany_id()
-                            + ".",
+                        "Aucune entreprise ne correspond à l'identifiant " + rs.getCompany_id() + ".",
                         "NOT_FOUND"));
-    BranchResponse branch =
-        branchDAOImpl
-            .getBranchById(rs.getBranch_id())
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "Succursale introuvable",
-                        "Aucune succursale ne correspond à l'identifiant "
-                            + rs.getBranch_id()
-                            + ".",
-                        "NOT_FOUND"));
-    return (new WarehouseRest(
+    BranchRest branch = null;
+    if (rs.getBranch_id() != null) {
+      BranchResponse branchResponse =
+          branchDAOImpl
+              .getBranchById(rs.getBranch_id())
+              .orElseThrow(
+                  () ->
+                      new NotFoundException(
+                          "Succursale introuvable",
+                          "Aucune succursale ne correspond à l'identifiant "
+                              + rs.getBranch_id()
+                              + ".",
+                          "NOT_FOUND"));
+      branch = branchRestMapper.toRest(branchResponse);
+    }
+    return new WarehouseRest(
         rs.getId(),
         companyRestMapper.toRest(company),
-        branchRestMapper.toRest(branch),
-        rs.getName()));
+        branch,
+        rs.getName(),
+        rs.getAddress(),
+        rs.getActive(),
+        rs.getCreated_at(),
+        rs.getUpdated_at(),
+        rs.getArchived_at());
   }
 }

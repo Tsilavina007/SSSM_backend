@@ -6,12 +6,11 @@ info:
     API des succursales (module a02_organisation/branch), dérivée du contrôleur
     BranchController. Toutes les routes exigent un JWT (Authorization: Bearer
     …). Toutes les erreurs renvoient l'enveloppe {"errors": {message, detail,
-    code}} : 400 (requête invalide, JSON illisible ou UUID malformé), 401 (JWT
-    absent, invalide ou expiré), 404 (branche ou agence introuvable), 500
-    (erreur serveur ou SQL). Pagination : page=1, pageSize=10 par défaut. Aucune
-    validation Jakarta : company_id, agence_id, name et status sont requis par
-    la base et par le DAO (status est envoyé explicitement, sans valeur par
-    défaut).
+    code}} : 400 (requête invalide, JSON illisible, UUID malformé ou validation),
+    401 (JWT absent, invalide ou expiré), 404 (branche ou agence introuvable),
+    500 (erreur serveur ou SQL). Pagination : page=1, pageSize=10 par défaut. La
+    validation Jakarta (`@Valid`) s'applique aux corps de création et de mise à
+    jour ; company_id, agence_id et name sont obligatoires à la création.
 servers:
   - url: http://localhost:8080
 security:
@@ -37,8 +36,6 @@ paths:
               schema: { type: array, items: { $ref: '#/components/schemas/Branch' } }
         '400':
           $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":
@@ -51,15 +48,13 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/BranchCreate' } }
       responses:
-        '200':
+        '201':
           description: Succursale créée
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Branch' }
         '400':
           $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":
@@ -116,21 +111,12 @@ paths:
       tags: [ Branches ]
       summary: Supprimer une succursale
       description: >-
-        Réponse 200 avec un message de confirmation (le texte mentionne «
-        Company deleted » par copier-coller). Aucune erreur si l'identifiant est
-        inconnu.
+        Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Message de confirmation
-          content:
-            application/json:
-              schema:
-                type: string
-                example: 'Company deleted : 3f0c2f70-0000-4000-8000-000000000001'
+        '204':
+          description: Opération effectuée (sans corps).
         '400':
           $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":

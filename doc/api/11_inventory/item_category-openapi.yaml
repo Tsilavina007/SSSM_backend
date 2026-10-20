@@ -7,8 +7,8 @@ info:
     du contrôleur ItemCategoryController. Toutes les routes exigent un JWT
     (Authorization: Bearer …). Erreurs : enveloppe {"errors": {message, detail,
     code}} ; une requête malformée renvoie l'erreur enveloppe ItemError.
-    Pagination : page=1, pageSize=10 par défaut. Aucune validation Jakarta — les
-    champs marqués « requis » le sont par la base (NOT NULL sans défaut).
+    Pagination : page=1, pageSize=10 par défaut. La validation Jakarta
+    (`@Valid`) s'applique aux corps de création et de mise à jour.
 servers:
   - url: http://localhost:8080
 security:
@@ -45,7 +45,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/ItemCategoryCreate' } }
       responses:
-        '200':
+        '201':
           description: Catégorie créée
           content:
             application/json:
@@ -101,18 +101,11 @@ paths:
       tags: [ Item Categories ]
       summary: Supprimer une catégorie
       description: >-
-        Ne renvoie jamais 404 : la suppression d'un identifiant inexistant
-        renvoie quand même 200 (le DELETE SQL n'affecte aucune ligne).
+        Suppression idempotente : un identifiant inexistant ne produit pas
+        d'erreur et renvoie également 204.
       responses:
-        '200':
-          description: Message de confirmation (chaîne JSON)
-          content:
-            application/json:
-              schema:
-                {
-                  type: string,
-                  example: 'ItemCategory deleted : 3f0c2f70-0000-4000-8000-000000000001'
-                }
+        '204':
+          description: Opération effectuée (sans corps).
         '500':
           $ref: '#/components/responses/ServerError'
         "400":
@@ -210,8 +203,8 @@ components:
     ItemCategoryCreate:
       type: object
       description: >-
-        Corps de création. Les champs requis le sont par la base (NOT NULL sans
-        défaut) : leur omission provoque une erreur 500.
+        Corps de création validé par Jakarta : company_id et name sont
+        obligatoires et leur omission renvoie 400.
       required: [ company_id, name ]
       properties:
         company_id: { type: string, format: uuid }

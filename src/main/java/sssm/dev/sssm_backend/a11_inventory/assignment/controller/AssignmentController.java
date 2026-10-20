@@ -1,6 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.assignment.controller;
 
-import java.util.Map;
+import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentUpdateRequest;
+import sssm.dev.sssm_backend.a11_inventory.assignment.dto.rest.AssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.assignment.service.AssignmentService;
 
 @RestController
@@ -23,15 +26,15 @@ public class AssignmentController {
   }
 
   @GetMapping("/assignments")
-  public ResponseEntity<Object> list(
+  public List<AssignmentRest> list(
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer pageSize) {
-    return ResponseEntity.ok().body(assignmentService.listActive(page, pageSize));
+    return assignmentService.listActive(page, pageSize);
   }
 
   @PostMapping("/assignments")
-  public ResponseEntity<Object> create(@RequestBody Map<String, Object> b) {
-    return ResponseEntity.ok().body(assignmentService.save(null, b, false));
+  public ResponseEntity<Object> create(@RequestBody AssignmentCreateRequest request) {
+    return ResponseEntity.ok().body(assignmentService.save(null, request.toMap(), false));
   }
 
   @GetMapping("/assignments/{id}")
@@ -40,22 +43,24 @@ public class AssignmentController {
   }
 
   @PatchMapping("/assignments/{id}")
-  public ResponseEntity<Object> patch(@PathVariable String id, @RequestBody Map<String, Object> b) {
-    return ResponseEntity.ok().body(assignmentService.save(id, b, true));
+  public ResponseEntity<Object> patch(
+      @PathVariable String id, @RequestBody AssignmentUpdateRequest request) {
+    return ResponseEntity.ok().body(assignmentService.save(id, request.toMap(), true));
   }
 
   @PostMapping("/assignments/{id}/return")
-  public ResponseEntity<Object> ret(@PathVariable String id, @RequestBody Map<String, Object> b) {
-    return ResponseEntity.ok().body(assignmentService.save(id, b, true));
+  public ResponseEntity<Object> ret(
+      @PathVariable String id, @RequestBody AssignmentUpdateRequest request) {
+    return ResponseEntity.ok().body(assignmentService.save(id, request.toMap(), true));
   }
 
   @GetMapping("/employees/{id}/assignments")
-  public ResponseEntity<Object> employee(@PathVariable String id) {
-    return ResponseEntity.ok().body(assignmentService.listByEmployee(id));
+  public List<AssignmentRest> employee(@PathVariable String id) {
+    return assignmentService.listByEmployee(id);
   }
 
   @GetMapping("/security-posts/{id}/assignments")
-  public ResponseEntity<Object> post(@PathVariable String id) {
-    return ResponseEntity.ok().body(assignmentService.listByPost(id));
+  public List<AssignmentRest> post(@PathVariable String id) {
+    return assignmentService.listByPost(id);
   }
 }

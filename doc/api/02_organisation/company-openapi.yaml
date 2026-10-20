@@ -6,16 +6,11 @@ info:
     API des sociétés (module a02_organisation/company), dérivée du contrôleur
     CompanyController. Toutes les routes exigent un JWT (Authorization: Bearer
     …). Toutes les erreurs renvoient l'enveloppe {"errors": {message, detail,
-    code}} : 400 (requête invalide, JSON illisible ou UUID malformé), 401 (JWT
-    absent, invalide ou expiré), 404 (société introuvable lors d'une mise à
-    jour), 500 (erreur serveur ou SQL). La lecture d'un identifiant absent
-    renvoie encore 200 null. Pagination : page=1, pageSize=10 par défaut (aucun
-    maximum). Aucune validation Jakarta : les champs marqués « requis » le sont
-    par la base (NOT NULL sans défaut). Remarque : PATCH et DELETE sont déclarés
-    sur /{CompanyId} dans le contrôleur alors que le paramètre lié s'appelle
-    companyId ; cette incohérence de casse peut empêcher la résolution du
-    paramètre. Le chemin est documenté ici sous sa forme fonctionnelle
-    /{companyId}.
+    code}} : 400 (requête invalide, JSON illisible, UUID malformé ou validation),
+    401 (JWT absent, invalide ou expiré), 404 (société introuvable en lecture ou
+    mise à jour), 500 (erreur serveur ou SQL). Pagination : page=1, pageSize=10
+    par défaut (aucun maximum). La validation Jakarta (`@Valid`) s'applique aux
+    corps de création et de mise à jour.
 servers:
   - url: http://localhost:8080
 security:
@@ -43,8 +38,6 @@ paths:
               schema: { type: array, items: { $ref: '#/components/schemas/Company' } }
         '400':
           $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":
@@ -57,15 +50,13 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/Company' } }
       responses:
-        '200':
+        '201':
           description: Société créée
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Company' }
         '400':
           $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":
@@ -77,8 +68,7 @@ paths:
       tags: [ Companies ]
       summary: Récupérer une société par identifiant
       description: >-
-        Un identifiant inexistant renvoie 200 avec un corps null (Optional
-        sérialisé), jamais 404.
+        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
       responses:
         '200':
           description: Société trouvée, ou null si absente
@@ -122,20 +112,13 @@ paths:
       tags: [ Companies ]
       summary: Supprimer une société
       description: >-
-        Ne renvoie jamais 404 : un identifiant inexistant renvoie quand même 200
-        (le DELETE SQL n'affecte aucune ligne).
+        Suppression idempotente : un identifiant inexistant ne produit pas
+        d'erreur et renvoie également 204.
       responses:
-        '200':
-          description: Message de confirmation
-          content:
-            application/json:
-              schema:
-                type: string
-                example: 'Company deleted : 3f0c2f70-0000-4000-8000-000000000001'
+        '204':
+          description: Opération effectuée (sans corps).
         '400':
           $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":
@@ -216,8 +199,8 @@ components:
     Company:
       type: object
       description: >-
-        Société sérialisée telle quelle (entité Company). id et les horodatages
-        sont générés par la base et ignorés à la création/mise à jour.
+        Société sérialisée en CompanyResponse. id et les horodatages sont
+        générés par la base et ne sont pas modifiables par le client.
       required: [ name ]
       properties:
         id: { type: string, format: uuid, readOnly: true }

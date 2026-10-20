@@ -1,10 +1,14 @@
 package sssm.dev.sssm_backend.a06_sites.site.controller;
 
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import sssm.dev.sssm_backend.a06_sites.site.entity.Site;
+import sssm.dev.sssm_backend.a06_sites.site.dto.SiteCreateRequest;
+import sssm.dev.sssm_backend.a06_sites.site.dto.SiteResponse;
+import sssm.dev.sssm_backend.a06_sites.site.dto.SiteUpdateRequest;
 import sssm.dev.sssm_backend.a06_sites.site.service.SiteService;
 
 @RestController
@@ -17,7 +21,7 @@ public class SiteController {
   }
 
   @GetMapping
-  public List<Site> findAll(
+  public List<SiteResponse> findAll(
       @RequestParam Optional<String> search,
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize) {
@@ -25,21 +29,24 @@ public class SiteController {
   }
 
   @GetMapping("/{id}")
-  public Optional<Site> findById(@PathVariable String id) {
+  public SiteResponse findById(@PathVariable String id) {
     return service.findById(id);
   }
 
   @PostMapping
-  public Site create(@RequestBody Site site) {
-    return service.create(site);
+  @ResponseStatus(HttpStatus.CREATED)
+  public SiteResponse create(@Valid @RequestBody SiteCreateRequest request) {
+    return service.create(request);
   }
 
   @PatchMapping("/{id}")
-  public Site update(@PathVariable String id, @RequestBody Site site) {
-    return service.update(id, site);
+  public SiteResponse update(
+      @PathVariable String id, @Valid @RequestBody SiteUpdateRequest request) {
+    return service.update(id, request);
   }
 
   @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String id) {
     service.delete(id);
   }

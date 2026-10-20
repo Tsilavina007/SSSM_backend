@@ -3,16 +3,15 @@ info:
   title: SSSM Inventory — Operations API
   version: 1.0.0
   description: >-
-    API des opérations d'inventaire (module a11_inventory/operation, famille «
-    générique » à corps Map), dérivée du contrôleur OperationController. Toutes
-    les routes exigent un JWT (Authorization: Bearer …). Attention :
+    API des opérations d'inventaire (module a11_inventory/operation), dérivée du
+    contrôleur OperationController. Toutes les routes exigent un JWT
+    (Authorization: Bearer …). Les corps utilisent OperationRequest. Attention :
     l'operation_type n'est PAS déduit de la route choisie (dette connue,
     préexistant) — il doit figurer dans le corps, sinon l'insertion échoue en
-    500 (NOT NULL sans défaut). Corps : objet libre validé par regex puis
-    transmis tel quel au SQL ; clé inconnue → 500. Réponses en 200 : ligne mapée
-    en Operation, ou enveloppe {"errors": ItemError} si le corps est vide ou
-    sans colonne writable. Aucune lecture/suppression exposée (routes create
-    only).
+    500 (NOT NULL sans défaut). Les champs inconnus sont ignorés. Réponses en
+    200 : ligne sérialisée en OperationRest, ou enveloppe {"errors": ItemError}
+    si le corps est vide ou sans colonne writable. Aucune lecture ou suppression
+    n'est exposée (routes de création uniquement).
 servers:
   - url: http://localhost:8080
 security:
@@ -182,13 +181,12 @@ components:
     OperationUpsert:
       type: object
       description: >-
-        Corps Map générique (famille C). Clés validées par regex puis transmises
-        au SQL : toute colonne de inventory_operation sauf id est acceptée
-        (dette de masse d'affectation, options A/B/C non décidées). company_id
-        et operation_type sont NOT NULL sans défaut : leur omission provoque une
+        Corps typé (OperationRequest). Les champs absents ne sont pas transmis
+        au SQL et les champs inconnus sont ignorés. company_id et
+        operation_type sont NOT NULL sans défaut : leur omission provoque une
         erreur 500 (et non 400). status a pour défaut PENDING.
       required: [ company_id, operation_type ]
-      additionalProperties: true
+      additionalProperties: false
       properties:
         company_id: { type: string, format: uuid }
         operation_type: { $ref: '#/components/schemas/OperationType' }

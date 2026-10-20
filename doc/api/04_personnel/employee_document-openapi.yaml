@@ -48,7 +48,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/EmployeeDocument' } }
       responses:
-        '200':
+        '201':
           description: Document créé
           content:
             application/json:
@@ -66,14 +66,15 @@ paths:
       tags: [ EmployeeDocuments ]
       summary: Récupérer un document par identifiant
       description: >-
-        Un identifiant inexistant renvoie 200 avec un corps null (Optional
-        sérialisé), jamais 404.
+        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
       responses:
         '200':
-          description: Document trouvé, ou null si absent
+          description: Document trouvé
           content:
             application/json:
               schema: { $ref: '#/components/schemas/EmployeeDocument' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -108,10 +109,10 @@ paths:
     delete:
       tags: [ EmployeeDocuments ]
       summary: Supprimer un document
-      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      description: Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Suppression effectuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

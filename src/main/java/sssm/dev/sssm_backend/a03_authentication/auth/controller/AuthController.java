@@ -2,7 +2,6 @@ package sssm.dev.sssm_backend.a03_authentication.auth.controller;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,19 +19,17 @@ public class AuthController {
 
   @PostMapping("/register")
   @ResponseStatus(HttpStatus.CREATED)
-  public ResponseEntity<Object> register(@Valid @RequestBody RegisterRequest request) {
-    AuthResponse response = service.register(request);
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
+    return service.register(request);
   }
 
   @PostMapping("/login")
-  public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest request) {
-    AuthResponse response = service.login(request);
-    return ResponseEntity.ok().body(response);
+  public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+    return service.login(request);
   }
 
   @GetMapping("/whoami")
-  public ResponseEntity<Object> whoAmI(Authentication authentication) {
-    return ResponseEntity.ok().body(service.whoAmI(authentication.getName()));
+  public AuthResponse.UserResponse whoAmI(Authentication authentication) {
+    return service.whoAmI(authentication.getName());
   }
 }

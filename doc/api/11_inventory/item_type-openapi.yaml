@@ -7,10 +7,10 @@ info:
     contrôleur ItemTypeController. Toutes les routes exigent un JWT
     (Authorization: Bearer …). Erreurs : enveloppe {"errors": {message, detail,
     code}} ; une requête malformée renvoie l'erreur enveloppe ItemError.
-    Pagination : page=1, pageSize=10 par défaut. Aucune validation Jakarta — les
-    champs marqués « requis » le sont par la base (NOT NULL sans défaut). Les
-    trois routes « stub » (low-stock, items, stocks) ne sont pas implémentées :
-    elles renvoient 200 avec un corps vide (dette D5 connue, non décidée).
+    Pagination : page=1, pageSize=10 par défaut. La validation Jakarta
+    (`@Valid`) s'applique aux corps de création et de mise à jour. Les trois
+    routes « stub » (low-stock, items, stocks) ne sont pas encore implémentées :
+    elles renvoient 200 avec un tableau JSON vide (dette D5 connue).
 servers:
   - url: http://localhost:8080
 security:
@@ -47,7 +47,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/ItemTypeCreate' } }
       responses:
-        '200':
+        '201':
           description: Type créé
           content:
             application/json:
@@ -103,18 +103,11 @@ paths:
       tags: [ Item Types ]
       summary: Supprimer un type
       description: >-
-        Ne renvoie jamais 404 : la suppression d'un identifiant inexistant
-        renvoie quand même 200 (le DELETE SQL n'affecte aucune ligne).
+        Suppression idempotente : un identifiant inexistant ne produit pas
+        d'erreur et renvoie également 204.
       responses:
-        '200':
-          description: Message de confirmation (chaîne JSON)
-          content:
-            application/json:
-              schema:
-                {
-                  type: string,
-                  example: 'ItemType deleted : 3f0c2f70-0000-4000-8000-000000000001'
-                }
+        '204':
+          description: Opération effectuée (sans corps).
         '500':
           $ref: '#/components/responses/ServerError'
         "400":
@@ -147,11 +140,14 @@ paths:
       tags: [ Item Types ]
       summary: 'Stub — types en stock bas (non implémenté)'
       description: >-
-        Route présente dans le contrôleur mais la méthode renvoie null : 200
-        sans corps. Comportement préexistant conservé tel quel (dette D5).
+        Route présente dans le contrôleur mais non implémentée : le service
+        renvoie une liste vide, sérialisée en tableau JSON vide (dette D5).
       responses:
         '200':
-          description: 200 sans corps (stub)
+          description: Tableau vide (stub non implémenté)
+          content:
+            application/json:
+              schema: { type: array, maxItems: 0, items: {} }
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -168,11 +164,14 @@ paths:
       tags: [ Item Types ]
       summary: 'Stub — articles d un type (non implémenté)'
       description: >-
-        Route présente dans le contrôleur mais la méthode renvoie null : 200
-        sans corps. Comportement préexistant conservé tel quel (dette D5).
+        Route présente dans le contrôleur mais non implémentée : le service
+        renvoie une liste vide, sérialisée en tableau JSON vide (dette D5).
       responses:
         '200':
-          description: 200 sans corps (stub)
+          description: Tableau vide (stub non implémenté)
+          content:
+            application/json:
+              schema: { type: array, maxItems: 0, items: {} }
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -189,11 +188,14 @@ paths:
       tags: [ Item Types ]
       summary: 'Stub — stocks d un type (non implémenté)'
       description: >-
-        Route présente dans le contrôleur mais la méthode renvoie null : 200
-        sans corps. Comportement préexistant conservé tel quel (dette D5).
+        Route présente dans le contrôleur mais non implémentée : le service
+        renvoie une liste vide, sérialisée en tableau JSON vide (dette D5).
       responses:
         '200':
-          description: 200 sans corps (stub)
+          description: Tableau vide (stub non implémenté)
+          content:
+            application/json:
+              schema: { type: array, maxItems: 0, items: {} }
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -311,9 +313,9 @@ components:
     ItemTypeCreate:
       type: object
       description: >-
-        Corps de création. Les champs requis le sont par la base (NOT NULL sans
-        défaut) : leur omission provoque une erreur 500. unit, quantity_total,
-        minimum_stock et status ont des valeurs par défaut en base.
+        Corps de création validé par Jakarta : company_id, code et name sont
+        obligatoires (400 sinon). unit, quantity_total, minimum_stock et status
+        ont des valeurs par défaut en base.
       required: [ company_id, code, name ]
       properties:
         company_id: { type: string, format: uuid }

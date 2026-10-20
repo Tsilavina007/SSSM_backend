@@ -76,7 +76,7 @@ class AppUserApiTests {
                     .header("Authorization", "Bearer " + adminToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(createPayload()))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(not(SUPPLIED_ID)))
             .andExpect(jsonPath("$.username").value(username))
             .andExpect(jsonPath("$.email").value(email))
@@ -104,7 +104,7 @@ class AppUserApiTests {
                     .header("Authorization", "Bearer " + adminToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(createPayload()))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn();
 
     String createdId = JsonPath.read(created.getResponse().getContentAsString(), "$.id");

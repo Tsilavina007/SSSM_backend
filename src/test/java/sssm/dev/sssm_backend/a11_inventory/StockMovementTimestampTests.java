@@ -81,7 +81,7 @@ class StockMovementTimestampTests {
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
         .andExpect(jsonPath("$.movement_date").value(nullValue()));
 
@@ -120,7 +120,7 @@ class StockMovementTimestampTests {
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
         .andExpect(jsonPath("$.movement_date").value(notNullValue()));
 

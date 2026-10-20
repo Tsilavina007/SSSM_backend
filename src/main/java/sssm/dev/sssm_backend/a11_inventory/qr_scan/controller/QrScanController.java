@@ -1,12 +1,14 @@
 package sssm.dev.sssm_backend.a11_inventory.qr_scan.controller;
 
-import org.springframework.http.ResponseEntity;
+import java.util.List;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.QrScanRequest;
+import sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.rest.QrScanItemRest;
 import sssm.dev.sssm_backend.a11_inventory.qr_scan.service.QrScanService;
 
 @RestController
@@ -19,7 +21,7 @@ public class QrScanController {
   }
 
   @PostMapping("/resolve")
-  public ResponseEntity<Object> resolve(@RequestBody QrScanRequest request) {
-    return ResponseEntity.ok().body(qrScanService.resolveQrCode(request.qrCode()));
+  public List<QrScanItemRest> resolve(@Valid @RequestBody QrScanRequest request) {
+    return qrScanService.resolveQrCode(request.qrCode());
   }
 }

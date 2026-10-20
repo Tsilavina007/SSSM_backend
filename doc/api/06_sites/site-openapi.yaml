@@ -5,12 +5,12 @@ info:
   description: >-
     API des sites (module a06_sites/site), dérivée du contrôleur SiteController.
     Toutes les routes exigent un JWT. Toutes les erreurs renvoient l'enveloppe
-    {"errors": {message, detail, code}} : 400 (requête invalide, JSON illisible
-    ou UUID malformé), 401 (JWT absent, invalide ou expiré), 404 (site
-    introuvable lors d'une mise à jour), 500 (erreur serveur ou SQL). La lecture
-    d'un identifiant absent renvoie encore 200 null. Pagination : page=1,
-    pageSize=10 par défaut. Le statut est facultatif à la création : le DAO
-    applique ACTIVE si null.
+    {"errors": {message, detail, code}} : 400 (requête invalide, JSON illisible,
+    UUID malformé ou validation), 401 (JWT absent, invalide ou expiré), 404 (site
+    introuvable en lecture ou mise à jour), 500 (erreur serveur ou SQL).
+    Pagination : page=1, pageSize=10 par défaut. Le statut est facultatif à la
+    création : le DAO applique ACTIVE si null. La validation Jakarta (`@Valid`)
+    s'applique aux corps de création et de mise à jour.
 servers:
   - url: http://localhost:8080
 security:
@@ -51,7 +51,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/Site' } }
       responses:
-        '200':
+        '201':
           description: Site créé
           content:
             application/json:
@@ -69,14 +69,15 @@ paths:
       tags: [ Sites ]
       summary: Récupérer un site par identifiant
       description: >-
-        Un identifiant inexistant renvoie 200 avec un corps null (Optional
-        sérialisé), jamais 404.
+        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
       responses:
         '200':
-          description: Site trouvé, ou null si absent
+          description: Site trouvé
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Site' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -111,10 +112,10 @@ paths:
     delete:
       tags: [ Sites ]
       summary: Supprimer un site
-      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      description: Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Suppression effectuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

@@ -48,7 +48,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/PostRequirement' } }
       responses:
-        '200':
+        '201':
           description: Exigence créée
           content:
             application/json:
@@ -66,14 +66,15 @@ paths:
       tags: [ PostRequirements ]
       summary: Récupérer une exigence par identifiant
       description: >-
-        Un identifiant inexistant renvoie 200 avec un corps null (Optional
-        sérialisé), jamais 404.
+        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
       responses:
         '200':
-          description: Exigence trouvée, ou null si absente
+          description: Exigence trouvée
           content:
             application/json:
               schema: { $ref: '#/components/schemas/PostRequirement' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':
@@ -108,10 +109,10 @@ paths:
     delete:
       tags: [ PostRequirements ]
       summary: Supprimer une exigence
-      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      description: Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Suppression effectuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

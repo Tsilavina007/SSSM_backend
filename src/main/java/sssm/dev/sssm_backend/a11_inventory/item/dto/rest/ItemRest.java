@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.item.dto.rest;
 
+import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,4 +23,9 @@ public class ItemRest {
   private String qr_code;
   private String description;
   private ItemStatus status;
+  private Timestamp created_at;
+  private Timestamp updated_at;
+  private Timestamp archived_at;
+  private String archived_by;
+  private Timestamp last_inventory_at;
 }

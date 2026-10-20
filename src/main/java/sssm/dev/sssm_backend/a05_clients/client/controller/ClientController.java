@@ -1,9 +1,14 @@
 package sssm.dev.sssm_backend.a05_clients.client.controller;
 
-import java.util.*;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import sssm.dev.sssm_backend.a05_clients.client.entity.Client;
+import sssm.dev.sssm_backend.a05_clients.client.dto.ClientCreateRequest;
+import sssm.dev.sssm_backend.a05_clients.client.dto.ClientResponse;
+import sssm.dev.sssm_backend.a05_clients.client.dto.ClientUpdateRequest;
 import sssm.dev.sssm_backend.a05_clients.client.service.ClientService;
 
 @RestController
@@ -16,7 +21,7 @@ public class ClientController {
   }
 
   @GetMapping
-  public List<Client> findAll(
+  public List<ClientResponse> findAll(
       @RequestParam Optional<String> search,
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize) {
@@ -24,21 +29,24 @@ public class ClientController {
   }
 
   @GetMapping("/{id}")
-  public Optional<Client> findById(@PathVariable String id) {
+  public ClientResponse findById(@PathVariable String id) {
     return service.findById(id);
   }
 
   @PostMapping
-  public Client create(@RequestBody Client client) {
-    return service.create(client);
+  @ResponseStatus(HttpStatus.CREATED)
+  public ClientResponse create(@Valid @RequestBody ClientCreateRequest request) {
+    return service.create(request);
   }
 
   @PatchMapping("/{id}")
-  public Client update(@PathVariable String id, @RequestBody Client client) {
-    return service.update(id, client);
+  public ClientResponse update(
+      @PathVariable String id, @Valid @RequestBody ClientUpdateRequest request) {
+    return service.update(id, request);
   }
 
   @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String id) {
     service.delete(id);
   }

@@ -9,6 +9,7 @@ import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.mapper.ItemCategoryRestMapper;
+import sssm.dev.sssm_backend.a11_inventory.item_category.dto.rest.ItemCategoryRest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.repository.ItemCategoryDAOImpl;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.rest.ItemTypeRest;
@@ -29,27 +30,35 @@ public class ItemTypeRestMapper {
                 () ->
                     new NotFoundException(
                         "Entreprise introuvable",
-                        "Aucune entreprise ne correspond à l'identifiant "
-                            + rs.getCompany_id()
-                            + ".",
+                        "Aucune entreprise ne correspond à l'identifiant " + rs.getCompany_id() + ".",
                         "NOT_FOUND"));
-    ItemCategoryResponse itemCategoryResponse =
-        itemCategoryDAOImpl
-            .getItemCategoryById(rs.getCategory_id())
-            .orElseThrow(
-                () ->
-                    new NotFoundException(
-                        "Catégorie d'article introuvable",
-                        "Aucune catégorie d'article ne correspond à l'identifiant "
-                            + rs.getCategory_id()
-                            + ".",
-                        "NOT_FOUND"));
-    return (new ItemTypeRest(
+    ItemCategoryRest category = null;
+    if (rs.getCategory_id() != null) {
+      ItemCategoryResponse itemCategoryResponse =
+          itemCategoryDAOImpl
+              .getItemCategoryById(rs.getCategory_id())
+              .orElseThrow(
+                  () ->
+                      new NotFoundException(
+                          "Catégorie d'article introuvable",
+                          "Aucune catégorie d'article ne correspond à l'identifiant "
+                              + rs.getCategory_id()
+                              + ".",
+                          "NOT_FOUND"));
+      category = itemCategoryRestMapper.toRest(itemCategoryResponse);
+    }
+    return new ItemTypeRest(
         rs.getId(),
         companyRestMapper.toRest(company),
-        itemCategoryRestMapper.toRest(itemCategoryResponse),
+        category,
         rs.getCode(),
         rs.getName(),
-        rs.getDescription()));
+        rs.getDescription(),
+        rs.getUnit(),
+        rs.getQuantity_total(),
+        rs.getMinimum_stock(),
+        rs.getStatus(),
+        rs.getCreated_at(),
+        rs.getUpdated_at());
   }
 }

@@ -3,17 +3,17 @@ info:
   title: SSSM Inventory — Assignments API
   version: 1.0.0
   description: >-
-    API des affectations (module a11_inventory/assignment, famille « générique »
-    à corps Map), dérivée du contrôleur AssignmentController. Attention : module
-    distinct de item_assignment exposé sous /api/item-assignments (dette
-    d'architecture A/B, non décidée). Toutes les routes exigent un JWT
-    (Authorization: Bearer …). Corps : objet libre dont les clés sont validées
-    par regex puis transmises telles quelles au SQL — seules les colonnes de
-    security.item_assignment (sauf id) sont acceptées, le reste produit une
-    erreur 500. Réponses en 200 : ligne mapée en AssignmentRest, ou carte
-    {"errors": ItemError} en cas d'échec doux (corps vide, aucune colonne
-    writable, introuvable) — l'identifiant inexistant ne renvoie jamais 404 ici
-    (dette connue). Pagination : page=1, pageSize=50 (max 500).
+    API des affectations (module a11_inventory/assignment), dérivée du
+    contrôleur AssignmentController. Attention : module distinct de
+    item_assignment exposé sous /api/item-assignments (dette d'architecture
+    A/B, non décidée). Toutes les routes exigent un JWT (Authorization: Bearer
+    …). Les corps de création et de mise à jour utilisent des DTO typés
+    (AssignmentCreateRequest / AssignmentUpdateRequest) ; les champs inconnus
+    sont ignorés. Réponses en 200 : ligne sérialisée en AssignmentRest, ou
+    enveloppe {"errors": ItemError} en cas d'échec doux (corps vide, aucune
+    colonne writable, affectation introuvable) — l'identifiant inexistant ne
+    renvoie jamais 404 ici (comportement historique conservé). Pagination :
+    page=1, pageSize=50 (max 500).
 servers:
   - url: http://localhost:8080
 security:
@@ -118,9 +118,9 @@ paths:
       tags: [ Assignments ]
       summary: Enregistrer le retour d une affectation
       description: >-
-        Même mécanique que PATCH : corps Map (typiquement returned_at,
-        condition_on_return, returned_by). Identifiant inexistant → 200 carte
-        {"errors": ItemError}.
+        Même mécanique que PATCH, avec le DTO AssignmentUpdateRequest
+        (typiquement returned_at, condition_on_return, returned_by).
+        Identifiant inexistant → 200 enveloppe {"errors": ItemError}.
       requestBody:
         required: true
         content:
@@ -271,15 +271,13 @@ components:
     AssignmentUpsert:
       type: object
       description: >-
-        Corps Map générique (famille C). Les clés doivent être des identifiants
-        SQL valides ; toute colonne de security.item_assignment sauf id est
-        acceptée, y compris les colonnes audit created_at, updated_at,
-        assigned_by, returned_by, expected_return_at (dette de masse
-        d'affectation, options A/B/C non décidées). Colonnes NOT NULL sans
+        Corps typé (AssignmentCreateRequest / AssignmentUpdateRequest). Les
+        champs absents ne sont pas transmis au SQL. Colonnes NOT NULL sans
         défaut : item_id, employee_id, post_id — leur omission provoque une
-        erreur 500 (et non 400).
+        erreur 500 (et non 400). Les champs created_at et updated_at ne sont
+        pas modifiables par le client.
       required: [ item_id, employee_id, post_id ]
-      additionalProperties: true
+      additionalProperties: false
       properties:
         item_id: { type: string, format: uuid }
         employee_id: { type: string, format: uuid }
@@ -289,8 +287,6 @@ components:
         condition_on_assignment: { type: string, nullable: true }
         condition_on_return: { type: string, nullable: true }
         notes: { type: string, nullable: true }
-        created_at: { type: string, format: date-time, nullable: true }
-        updated_at: { type: string, format: date-time, nullable: true }
         assigned_by: { type: string, format: uuid, nullable: true }
         returned_by: { type: string, format: uuid, nullable: true }
         expected_return_at: { type: string, format: date-time, nullable: true }

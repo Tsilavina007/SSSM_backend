@@ -1,9 +1,14 @@
 package sssm.dev.sssm_backend.a04_personnel.employee.controller;
 
-import java.util.*;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import sssm.dev.sssm_backend.a04_personnel.employee.entity.Employee;
+import sssm.dev.sssm_backend.a04_personnel.employee.dto.EmployeeCreateRequest;
+import sssm.dev.sssm_backend.a04_personnel.employee.dto.EmployeeResponse;
+import sssm.dev.sssm_backend.a04_personnel.employee.dto.EmployeeUpdateRequest;
 import sssm.dev.sssm_backend.a04_personnel.employee.service.EmployeeService;
 
 @RestController
@@ -16,7 +21,7 @@ public class EmployeeController {
   }
 
   @GetMapping
-  public List<Employee> findAll(
+  public List<EmployeeResponse> findAll(
       @RequestParam Optional<String> search,
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize) {
@@ -24,21 +29,24 @@ public class EmployeeController {
   }
 
   @GetMapping("/{id}")
-  public Optional<Employee> findById(@PathVariable String id) {
+  public EmployeeResponse findById(@PathVariable String id) {
     return service.findById(id);
   }
 
   @PostMapping
-  public Employee create(@RequestBody Employee employee) {
-    return service.create(employee);
+  @ResponseStatus(HttpStatus.CREATED)
+  public EmployeeResponse create(@Valid @RequestBody EmployeeCreateRequest request) {
+    return service.create(request);
   }
 
   @PatchMapping("/{id}")
-  public Employee update(@PathVariable String id, @RequestBody Employee employee) {
-    return service.update(id, employee);
+  public EmployeeResponse update(
+      @PathVariable String id, @Valid @RequestBody EmployeeUpdateRequest request) {
+    return service.update(id, request);
   }
 
   @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable String id) {
     service.delete(id);
   }

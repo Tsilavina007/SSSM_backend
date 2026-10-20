@@ -92,8 +92,6 @@ class WarehouseApiTests {
   void createUpdateDeleteLifecycle() throws Exception {
     Assumptions.assumeTrue(branchId != null, "branche de démonstration requise");
     String marker = "phase5-wh-" + System.nanoTime();
-    // branch_id DOIT être fourni : WarehouseMapper n'a pas de null-check (dette NPE
-    // préexistante — voir ItemApiTests.createWithoutOptionalFailsWithMapperNpe)
     String body =
         "{\"company_id\":\""
             + companyId
@@ -110,7 +108,7 @@ class WarehouseApiTests {
                     .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(notNullValue()))
             .andExpect(jsonPath("$.name").value(marker))
             .andExpect(jsonPath("$.active").value(true))
@@ -141,8 +139,7 @@ class WarehouseApiTests {
     mockMvc
         .perform(
             delete("/api/inventory/warehouses/" + id).header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").value("Warehouse deleted : " + id));
+        .andExpect(status().isNoContent());
 
     mockMvc
         .perform(
@@ -161,13 +158,12 @@ class WarehouseApiTests {
   }
 
   @Test
-  void deleteUnknownReturnsOkWithout404() throws Exception {
-    // fidélité contrôleur : la suppression ne vérifie pas l'existence
+  void deleteUnknownIsIdempotent() throws Exception {
     mockMvc
         .perform(
             delete("/api/inventory/warehouses/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk());
+        .andExpect(status().isNoContent());
   }
 
   private static void purge() throws Exception {

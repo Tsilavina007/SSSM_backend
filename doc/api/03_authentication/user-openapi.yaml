@@ -60,7 +60,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AppUserCreateRequest' }
       responses:
-        '200':
+        '201':
           description: Utilisateur créé
           content:
             application/json:
@@ -129,10 +129,10 @@ paths:
     delete:
       tags: [ Users ]
       summary: Supprimer un utilisateur
-      description: Réponse 200 avec corps vide ; aucune erreur si l'identifiant est inconnu.
+      description: Réponse 204 sans corps ; aucune erreur si l'identifiant est inconnu (suppression idempotente).
       responses:
-        '200':
-          description: Suppression effectuée (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -151,11 +151,11 @@ paths:
       tags: [ Users ]
       summary: Attribuer un rôle à un utilisateur
       description: >-
-        Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 200 avec corps
-        vide. Aucun contrôle d'existence : une FK inconnue renvoie 500.
+        Insertion idempotente (ON CONFLICT DO NOTHING). Réponse 204 sans corps.
+        Aucun contrôle d'existence : une FK inconnue renvoie 500.
       responses:
-        '200':
-          description: Rôle attribué (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -167,10 +167,10 @@ paths:
     delete:
       tags: [ Users ]
       summary: Retirer un rôle à un utilisateur
-      description: Réponse 200 avec corps vide, même si l'association n'existe pas.
+      description: Réponse 204 sans corps, même si l'association n'existe pas.
       responses:
-        '200':
-          description: Rôle retiré (corps vide)
+        '204':
+          description: Opération effectuée (sans corps).
         '400':
           $ref: '#/components/responses/BadRequest'
         '403':
@@ -319,7 +319,7 @@ components:
     AppUser:
       type: object
       description: >-
-        Utilisateur sérialisé (entité AppUser). password_hash est toujours omis
+        Utilisateur sérialisé en AppUserResponse. password_hash est toujours omis
         et n'est jamais modifiable via l'API.
       required: [ username ]
       properties:

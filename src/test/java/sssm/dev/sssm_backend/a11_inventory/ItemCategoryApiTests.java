@@ -105,7 +105,7 @@ class ItemCategoryApiTests {
                     .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(notNullValue()))
             .andExpect(jsonPath("$.name").value(marker))
             .andReturn();
@@ -136,8 +136,7 @@ class ItemCategoryApiTests {
         .perform(
             delete("/api/inventory/item-categories/" + id)
                 .header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").value("ItemCategory deleted : " + id));
+        .andExpect(status().isNoContent());
 
     mockMvc
         .perform(

@@ -32,6 +32,17 @@ public class BranchRestMapper {
                             + ".",
                         "NOT_FOUND"));
     return new BranchRest(
-        branch.getId(), branch.getCompany_id(), agencyRestMapper.toRest(agency), branch.getName());
+        branch.getId(),
+        branch.getCompany_id(),
+        agencyRestMapper.toRest(agency),
+        branch.getName(),
+        branch.getCode(),
+        branch.getAddress(),
+        branch.getCity(),
+        branch.getPhone(),
+        branch.getEmail(),
+        branch.getStatus(),
+        branch.getCreated_at(),
+        branch.getUpdated_at());
   }
 }

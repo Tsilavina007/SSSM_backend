@@ -91,7 +91,7 @@ class ItemAssignmentTimestampTests {
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
         .andExpect(jsonPath("$.assigned_at").value(nullValue()));
 
@@ -132,7 +132,7 @@ class ItemAssignmentTimestampTests {
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
         .andExpect(jsonPath("$.assigned_at").value(notNullValue()));
 

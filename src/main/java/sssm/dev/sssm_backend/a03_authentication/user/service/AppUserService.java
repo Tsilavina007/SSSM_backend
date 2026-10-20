@@ -11,6 +11,7 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserCreateRequest;
+import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserResponse;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserUpdateRequest;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.repository.AppUserDAO;
@@ -21,12 +22,13 @@ public class AppUserService {
   private final AppUserDAO dao;
   private final PasswordEncoder passwordEncoder;
 
-  public List<AppUser> findAll(Optional<Integer> page, Optional<Integer> size) {
-    return dao.findAll(page.orElse(1), size.orElse(10));
+  public List<AppUserResponse> findAll(Optional<Integer> page, Optional<Integer> size) {
+    return dao.findAll(page.orElse(1), size.orElse(10)).stream().map(this::toResponse).toList();
   }
 
-  public AppUser findById(String id) {
+  public AppUserResponse findById(String id) {
     return dao.findById(id)
+        .map(this::toResponse)
         .orElseThrow(
             () ->
                 new NotFoundException(
@@ -54,7 +56,7 @@ public class AppUserService {
     dao.updateLastLogin(userId);
   }
 
-  public AppUser create(AppUserCreateRequest request) {
+  public AppUserResponse create(AppUserCreateRequest request) {
     String username = request.getUsername().trim();
     String email = normalizeEmail(request.getEmail());
 
@@ -70,11 +72,11 @@ public class AppUserService {
     user.setLast_name(request.getLast_name());
     user.setPhone(request.getPhone());
     user.setStatus(request.getStatus() == null ? UserStatus.ACTIVE : request.getStatus());
-    return dao.create(user);
+    return toResponse(dao.create(user));
   }
 
-  public AppUser update(String id, AppUserUpdateRequest request) {
-    findById(id);
+  public AppUserResponse update(String id, AppUserUpdateRequest request) {
+    requireUser(id);
 
     String email = normalizeEmail(request.getEmail());
     if (email != null) {
@@ -93,7 +95,7 @@ public class AppUserService {
     user.setLast_name(request.getLast_name());
     user.setPhone(request.getPhone());
     user.setStatus(request.getStatus());
-    return dao.update(user);
+    return toResponse(dao.update(user));
   }
 
   public void delete(String id) {
@@ -106,6 +108,15 @@ public class AppUserService {
 
   public void removeRole(String userId, String roleId) {
     dao.removeRole(userId, roleId);
+  }
+
+  private void requireUser(String id) {
+    if (dao.findById(id).isEmpty()) {
+      throw new NotFoundException(
+          "Utilisateur introuvable",
+          "Aucun utilisateur ne correspond à l'identifiant " + id + ".",
+          "NOT_FOUND");
+    }
   }
 
   private void ensureUsernameAvailable(String username) {
@@ -131,5 +142,20 @@ public class AppUserService {
 
   private static String normalizeEmail(String email) {
     return email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+  }
+
+  private AppUserResponse toResponse(AppUser user) {
+    return new AppUserResponse(
+        user.getId(),
+        user.getCompany_id(),
+        user.getUsername(),
+        user.getEmail(),
+        user.getFirst_name(),
+        user.getLast_name(),
+        user.getPhone(),
+        user.getStatus(),
+        user.getLast_login_at(),
+        user.getCreated_at(),
+        user.getUpdated_at());
   }
 }

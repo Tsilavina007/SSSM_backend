@@ -135,8 +135,6 @@ class ItemApiTests {
   @Test
   void createUpdateDeleteLifecycle() throws Exception {
     String marker = "phase5-item-" + System.nanoTime();
-    // category_id et current_warehouse_id DOIVENT être fournis : le mapper de réponse
-    // famille A n'a pas de null-check (voir createWithoutOptionalFailsWithMapperNpe)
     String body =
         "{\"company_id\":\""
             + companyId
@@ -157,7 +155,7 @@ class ItemApiTests {
                     .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(body))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(notNullValue()))
             .andExpect(jsonPath("$.qr_code").value(marker))
             .andExpect(jsonPath("$.status").value("AVAILABLE"))
@@ -192,8 +190,7 @@ class ItemApiTests {
 
     mockMvc
         .perform(delete("/api/inventory/items/" + id).header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$").value("Item deleted : " + id));
+        .andExpect(status().isNoContent());
 
     mockMvc
         .perform(get("/api/inventory/items/" + id).header("Authorization", "Bearer " + token))
@@ -212,13 +209,12 @@ class ItemApiTests {
   }
 
   @Test
-  void deleteUnknownReturnsOkWithout404() throws Exception {
-    // fidélité contrôleur : la suppression ne vérifie pas l'existence
+  void deleteUnknownIsIdempotent() throws Exception {
     mockMvc
         .perform(
             delete("/api/inventory/items/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + token))
-        .andExpect(status().isOk());
+        .andExpect(status().isNoContent());
   }
 
   @Test
@@ -261,13 +257,7 @@ class ItemApiTests {
   }
 
   @Test
-  void createWithoutOptionalFailsWithMapperNpe() throws Exception {
-    // DETTE PRÉEXISTANTE (découverte par ces tests, module item = référence seule) :
-    // ItemMapper.toRest() appelle UUID.fromString() sans null-check sur category_id ET
-    // current_warehouse_id (lignes 35-39) → NPE, désormais convertie par le gestionnaire
-    // global en 500 {"errors": ItemError}, alors que ces colonnes sont facultatives en base.
-    // Même défaut côté ItemTypeMapper (category_id) et WarehouseMapper (branch_id).
-    // Si un null-check est ajouté, supprimer ce test.
+  void createWithoutOptionalRelationsSucceeds() throws Exception {
     String marker = "phase5-item-npe-" + System.nanoTime();
     String body =
         "{\"company_id\":\""
@@ -284,9 +274,10 @@ class ItemApiTests {
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-        .andExpect(status().isInternalServerError())
-        .andExpect(jsonPath("$.errors.code").value("INTERNAL_ERROR"))
-        .andExpect(jsonPath("$.errors.message").value(notNullValue()));
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.id").value(notNullValue()))
+        .andExpect(jsonPath("$.category_id").doesNotExist())
+        .andExpect(jsonPath("$.current_warehouse_id").doesNotExist());
   }
 
   private static void purge() throws Exception {
