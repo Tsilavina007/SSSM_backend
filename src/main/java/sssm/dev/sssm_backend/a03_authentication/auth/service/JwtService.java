@@ -19,7 +19,8 @@ public class JwtService {
       @Value("${app.jwt.secret}") String secret,
       @Value("${app.jwt.expiration-ms:3600000}") long expirationMs) {
     if (secret.length() < 32)
-      throw new IllegalArgumentException("app.jwt.secret must be at least 32 characters");
+      throw new IllegalArgumentException(
+          "Le secret JWT (app.jwt.secret) doit contenir au moins 32 caractères.");
     this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     this.expirationMs = expirationMs;
   }
@@ -38,9 +39,5 @@ public class JwtService {
 
   public Claims parse(String token) {
     return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-  }
-
-  public SecretKey getKey() {
-    return key;
   }
 }

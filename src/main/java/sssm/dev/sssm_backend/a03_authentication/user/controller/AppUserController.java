@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.a03_authentication.user.controller;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import jakarta.validation.Valid;
 import java.util.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +10,8 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
+import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserCreateRequest;
+import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserUpdateRequest;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 import sssm.dev.sssm_backend.a03_authentication.user.service.AppUserService;
 
@@ -40,8 +43,8 @@ public class AppUserController {
   @GetMapping("/{id}")
   public ResponseEntity<Object> findById(@PathVariable String id) {
     try {
-      Optional<AppUser> user = service.findById(id);
-      return ResponseEntity.ok().body(user.orElseThrow());
+      AppUser user = service.findById(id);
+      return ResponseEntity.ok().body(user);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
     } catch (NotFoundException e) {
@@ -53,9 +56,9 @@ public class AppUserController {
   }
 
   @PostMapping
-  public ResponseEntity<Object> create(@RequestBody AppUser user) {
+  public ResponseEntity<Object> create(@Valid @RequestBody AppUserCreateRequest request) {
     try {
-      AppUser createdUser = service.create(user);
+      AppUser createdUser = service.create(request);
       return ResponseEntity.ok().body(createdUser);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
@@ -66,9 +69,10 @@ public class AppUserController {
   }
 
   @PatchMapping("/{id}")
-  public ResponseEntity<Object> update(@PathVariable String id, @RequestBody AppUser user) {
+  public ResponseEntity<Object> update(
+      @PathVariable String id, @Valid @RequestBody AppUserUpdateRequest request) {
     try {
-      AppUser updatedUser = service.update(id, user);
+      AppUser updatedUser = service.update(id, request);
       return ResponseEntity.ok().body(updatedUser);
     } catch (ClientException e) {
       return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));

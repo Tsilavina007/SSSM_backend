@@ -16,19 +16,19 @@ public class CompanyDAOImpl implements CompanyDAO {
   @Override
   public List<Company> searchCompaniesByName(String searchName, int page, int pageSize) {
     String sql =
-        "SELECT c.* FROM security.company c WHERE name ILIKE '%"
-            + searchName
-            + "%' OR legal_name ILIKE '%"
-            + searchName
-            + "%' LIMIT ? OFFSET ?";
+        "SELECT c.* FROM security.company c "
+            + "WHERE name ILIKE ? OR legal_name ILIKE ? LIMIT ? OFFSET ?";
     List<Company> companies = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-      stmt.setInt(1, pageSize);
-      stmt.setInt(2, offset);
+      String pattern = "%" + searchName + "%";
+      stmt.setString(1, pattern);
+      stmt.setString(2, pattern);
+      stmt.setInt(3, pageSize);
+      stmt.setInt(4, offset);
 
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {

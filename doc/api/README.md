@@ -129,9 +129,10 @@ fichier précise les codes réellement produits par ses routes.
 - **Company** : `PATCH` et `DELETE` sont mappés sur `/{CompanyId}` alors que le
   paramètre lié s'appelle `companyId` ; cette incohérence de casse est signalée
   dans `company-openapi.yaml`.
-- **Users** : `password_hash` est `@JsonIgnore`, donc `POST /api/users` ne peut
-  pas créer de compte avec mot de passe (`500`) ; utiliser
-  `POST /api/auth/register`.
+- **Users** : `POST /api/users` et `PATCH /api/users/{id}` utilisent des DTO
+  dédiés. Le mot de passe est obligatoire à la création, haché avant insertion
+  et jamais renvoyé ; `id`, `password_hash`, `company_id` (en mise à jour) et
+  les horodatages ne sont pas modifiables par le client.
 - **Roles** : `RoleDAO.create` convertit `company_id` sans garde ; un rôle
   global (`company_id = null`) échoue en `500`.
 - **Inventory (11)** : plusieurs ressources utilisent un corps `Map` générique

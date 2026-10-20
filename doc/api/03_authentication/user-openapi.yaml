@@ -6,14 +6,15 @@ info:
     API des utilisateurs (module a03_authentication/user), dérivée du contrôleur
     AppUserController. Toutes les routes exigent le rôle ADMIN
     (hasRole("ADMIN")), en plus du JWT. Toutes les erreurs renvoient l'enveloppe
-    {"errors": {message, detail, code}} : 400 (requête invalide, JSON illisible
-    ou UUID malformé), 401 (JWT absent, invalide ou expiré), 403 (rôle ADMIN
-    manquant), 404 (utilisateur introuvable), 500 (erreur serveur ou SQL).
-    Pagination : page=1, pageSize=10 par défaut. Le champ password_hash est
-    annoté @JsonIgnore : il n'est jamais exposé ni accepté en entrée. En
-    conséquence, POST /api/users ne peut pas fournir de mot de passe et échoue
-    sur la contrainte NOT NULL (password_hash) → 500 ; utiliser
-    /api/auth/register pour créer un compte.
+    {"errors": {message, detail, code}} : 400 (validation, doublon de username
+    ou d'email, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
+    expiré), 403 (rôle ADMIN manquant), 404 (utilisateur introuvable), 500
+    (erreur serveur ou SQL).
+    Pagination : page=1, pageSize=10 par défaut. Les corps de POST et PATCH
+    utilisent des DTO dédiés : id, password_hash et les horodatages ne peuvent
+    pas être fournis par le client. Le mot de passe est haché avant insertion
+    et n'est jamais renvoyé. POST /api/users est réservé aux administrateurs ;
+    les doublons de username ou d'email renvoient 400.
 servers:
   - url: http://localhost:8080
 security:
@@ -47,18 +48,20 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     post:
       tags: [ Users ]
-      summary: Créer un utilisateur (non fonctionnel sans password_hash)
+      summary: Créer un utilisateur
       description: >-
-        Le corps est lié à l'entité AppUser. password_hash étant @JsonIgnore,
-        aucune valeur ne peut être fournie : l'insertion viole la contrainte NOT
-        NULL et renvoie 500. Les autres champs sont insérés tels quels.
+        Crée un compte avec un mot de passe haché. username, email et password
+        sont obligatoires ; status vaut ACTIVE par défaut. Les champs id,
+        password_hash et les horodatages sont ignorés s'ils sont fournis.
+        Un username ou un email déjà utilisé renvoie 400.
       requestBody:
         required: true
         content:
-          application/json: { schema: { $ref: '#/components/schemas/AppUser' } }
+          application/json:
+            schema: { $ref: '#/components/schemas/AppUserCreateRequest' }
       responses:
         '200':
-          description: Utilisateur créé (cas théorique si password_hash était renseigné)
+          description: Utilisateur créé
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AppUser' }
@@ -97,13 +100,16 @@ paths:
       tags: [ Users ]
       summary: Mettre à jour partiellement un utilisateur
       description: >-
-        Seuls les champs non null sont écrits. La réponse est l'objet envoyé
-        (avec id), et non la ligne relue : les champs omis sont donc absents ou
-        null dans la réponse. Un identifiant inconnu renvoie 404.
+        Seuls les champs du DTO de mise à jour sont modifiables : email,
+        password, first_name, last_name, phone et status. Un mot de passe fourni
+        est haché. username, company_id, id et password_hash ne sont pas
+        modifiables. Un identifiant inconnu renvoie 404 et un email déjà utilisé
+        renvoie 400.
       requestBody:
         required: true
         content:
-          application/json: { schema: { $ref: '#/components/schemas/AppUser' } }
+          application/json:
+            schema: { $ref: '#/components/schemas/AppUserUpdateRequest' }
       responses:
         '200':
           description: Utilisateur mis à jour (objet d'entrée complété de l'id)
@@ -258,11 +264,63 @@ components:
     UserStatus:
       type: string
       enum: [ ACTIVE, INACTIVE, LOCKED ]
+    AppUserCreateRequest:
+      type: object
+      required: [ username, email, password ]
+      properties:
+        company_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Identifiant de l'entreprise de rattachement.
+        username:
+          type: string
+          maxLength: 100
+          description: Nom d'utilisateur unique.
+        email:
+          type: string
+          format: email
+          maxLength: 180
+          description: Adresse email unique.
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+          description: Mot de passe en clair, haché avant insertion.
+        first_name: { type: string, maxLength: 100, nullable: true }
+        last_name: { type: string, maxLength: 100, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        status:
+          $ref: '#/components/schemas/UserStatus'
+          description: ACTIVE par défaut si le champ est absent.
+    AppUserUpdateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 180
+          nullable: true
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+          nullable: true
+          description: Nouveau mot de passe, haché avant mise à jour.
+        first_name: { type: string, maxLength: 100, nullable: true }
+        last_name: { type: string, maxLength: 100, nullable: true }
+        phone: { type: string, maxLength: 50, nullable: true }
+        status:
+          $ref: '#/components/schemas/UserStatus'
     AppUser:
       type: object
       description: >-
         Utilisateur sérialisé (entité AppUser). password_hash est toujours omis
-        (@JsonIgnore) et ne peut pas être fourni en entrée.
+        et n'est jamais modifiable via l'API.
       required: [ username ]
       properties:
         id: { type: string, format: uuid, readOnly: true }
