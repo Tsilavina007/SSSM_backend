@@ -1,12 +1,17 @@
 package sssm.dev.sssm_backend.a03_authentication.role.service;
 
 import java.util.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
 
+@Service
+@RequiredArgsConstructor
 public class RoleService {
-  private final RoleDAO dao = new RoleDAOImpl();
+  private final RoleDAO dao;
 
   public List<Role> findAll(Optional<Integer> page, Optional<Integer> size) {
     return dao.findAll(page.orElse(1), size.orElse(10));
@@ -21,7 +26,9 @@ public class RoleService {
   }
 
   public Role update(String id, Role role) {
-    if (dao.findById(id).isEmpty()) throw new NotFoundException("Rôle introuvable", "Aucun rôle ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
+    if (dao.findById(id).isEmpty())
+      throw new NotFoundException(
+          "Rôle introuvable", "Aucun rôle ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
     role.setId(id);
     return dao.update(role);
   }

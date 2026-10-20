@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a11_inventory.item.dto.mapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.company.dto.mapper.CompanyRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.company.entity.Company;
 import sssm.dev.sssm_backend.a02_organisation.company.repository.CompanyDAOImpl;
@@ -31,12 +32,50 @@ public class ItemRestMapper {
   private final WarehouseRestMapper warehouseRestMapper;
 
   public ItemRest toRest(ItemResponse rs) {
-    Company company = companyDAOImpl.getCompanyById(rs.getCompany_id()).get();
+    Company company =
+        companyDAOImpl
+            .getCompanyById(rs.getCompany_id())
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Entreprise introuvable",
+                        "Aucune entreprise ne correspond à l'identifiant "
+                            + rs.getCompany_id()
+                            + ".",
+                        "NOT_FOUND"));
     ItemCategoryResponse category =
-        itemCategoryDAOImpl.getItemCategoryById(rs.getCategory_id()).get();
-    ItemTypeResponse itemType = itemTypeDAOImpl.getItemTypeById(rs.getItem_type_id()).get();
+        itemCategoryDAOImpl
+            .getItemCategoryById(rs.getCategory_id())
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Catégorie d'article introuvable",
+                        "Aucune catégorie d'article ne correspond à l'identifiant "
+                            + rs.getCategory_id()
+                            + ".",
+                        "NOT_FOUND"));
+    ItemTypeResponse itemType =
+        itemTypeDAOImpl
+            .getItemTypeById(rs.getItem_type_id())
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Type d'article introuvable",
+                        "Aucun type d'article ne correspond à l'identifiant "
+                            + rs.getItem_type_id()
+                            + ".",
+                        "NOT_FOUND"));
     WarehouseResponse warehouse =
-        warehouseDAOImpl.getWarehouseById(rs.getCurrent_warehouse_id()).get();
+        warehouseDAOImpl
+            .getWarehouseById(rs.getCurrent_warehouse_id())
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Entrepôt introuvable",
+                        "Aucun entrepôt ne correspond à l'identifiant "
+                            + rs.getCurrent_warehouse_id()
+                            + ".",
+                        "NOT_FOUND"));
 
     return (new ItemRest(
         rs.getId(),

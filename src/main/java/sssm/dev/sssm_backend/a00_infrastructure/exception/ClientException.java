@@ -1,5 +1,4 @@
 package sssm.dev.sssm_backend.a00_infrastructure.exception;
-
 public class ClientException extends RuntimeException {
   private final String detail;
   private final String code;

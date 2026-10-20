@@ -23,18 +23,27 @@ public class ItemTypeService {
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return search.isPresent()
-        ? mapperListResponseToType(
-            itemTypeDAO.searchItemTypesByName(search.get(), pageNumber, pageSizeNumber))
-        : mapperListResponseToType(itemTypeDAO.getAllItemTypes(pageNumber, pageSizeNumber));
+    return search
+        .map(
+            value ->
+                mapperListResponseToType(
+                    itemTypeDAO.searchItemTypesByName(value, pageNumber, pageSizeNumber)))
+        .orElseGet(
+            () ->
+                mapperListResponseToType(itemTypeDAO.getAllItemTypes(pageNumber, pageSizeNumber)));
   }
 
   public Optional<ItemType> getItemTypeById(String itemTypeId) {
-    Optional<ItemTypeResponse> itemTypeResponse = itemTypeDAO.getItemTypeById(itemTypeId);
-    if (itemTypeResponse.isEmpty()) {
-      throw new NotFoundException("Type d'article introuvable", "Aucun type d'article ne correspond à l'identifiant " + itemTypeId + ".", "NOT_FOUND");
-    }
-    return Optional.of(itemTypeMapper.toRest(itemTypeResponse.get()));
+    return Optional.of(
+        itemTypeDAO
+            .getItemTypeById(itemTypeId)
+            .map(itemTypeMapper::toRest)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Type d'article introuvable",
+                        "Aucun type d'article ne correspond à l'identifiant " + itemTypeId + ".",
+                        "NOT_FOUND")));
   }
 
   public List<ItemType> getItemTypesByItemCategoryId(
@@ -51,7 +60,10 @@ public class ItemTypeService {
 
   public ItemType updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType) {
     if (itemTypeDAO.getItemTypeById(itemTypeId).isEmpty()) {
-      throw new NotFoundException("Type d'article introuvable", "Aucun type d'article ne correspond à l'identifiant " + itemTypeId + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Type d'article introuvable",
+          "Aucun type d'article ne correspond à l'identifiant " + itemTypeId + ".",
+          "NOT_FOUND");
     }
     return itemTypeMapper.toRest(itemTypeDAO.updateItemType(itemTypeId, updatedItemType));
   }

@@ -1,5 +1,4 @@
 package sssm.dev.sssm_backend.a01_common.errors;
-
 /**
  * Erreur applicative unique renvoyée par toutes les routes.
  *

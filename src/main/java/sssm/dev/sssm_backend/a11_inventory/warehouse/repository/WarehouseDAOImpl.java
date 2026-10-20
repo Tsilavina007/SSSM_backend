@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.WarehouseResponse;
@@ -141,7 +143,13 @@ public class WarehouseDAOImpl implements WarehouseDAO {
     }
 
     if (parameters.isEmpty()) {
-      return getWarehouseById(id).get();
+      return getWarehouseById(id)
+          .orElseThrow(
+              () ->
+                  new NotFoundException(
+                      "Entrepôt introuvable",
+                      "Aucun entrepôt ne correspond à l'identifiant " + id + ".",
+                      "NOT_FOUND"));
     }
 
     sql.setLength(sql.length() - 2);
@@ -157,7 +165,13 @@ public class WarehouseDAOImpl implements WarehouseDAO {
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return getWarehouseById(id).get();
+    return getWarehouseById(id)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Entrepôt introuvable",
+                    "Aucun entrepôt ne correspond à l'identifiant " + id + ".",
+                    "NOT_FOUND"));
   }
 
   @Override

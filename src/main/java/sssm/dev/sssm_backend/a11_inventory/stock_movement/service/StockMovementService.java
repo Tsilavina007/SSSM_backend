@@ -24,18 +24,26 @@ public class StockMovementService {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
     return mapperListResponseToRest(
-        search.isPresent()
-            ? stockMovementDAO.searchStockMovementsByName(search.get(), pageNumber, pageSizeNumber)
-            : stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber));
+        search
+            .map(
+                value ->
+                    stockMovementDAO.searchStockMovementsByName(value, pageNumber, pageSizeNumber))
+            .orElseGet(() -> stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber)));
   }
 
   public Optional<StockMovementRest> getStockMovementById(String stockMovementId) {
-    Optional<StockMovementResponse> stockMovement =
-        stockMovementDAO.getStockMovementById(stockMovementId);
-    if (stockMovement.isEmpty()) {
-      throw new NotFoundException("Mouvement de stock introuvable", "Aucun mouvement de stock ne correspond à l'identifiant " + stockMovementId + ".", "NOT_FOUND");
-    }
-    return Optional.of(stockMovementRestMapper.toRest(stockMovement.get()));
+    return Optional.of(
+        stockMovementDAO
+            .getStockMovementById(stockMovementId)
+            .map(stockMovementRestMapper::toRest)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Mouvement de stock introuvable",
+                        "Aucun mouvement de stock ne correspond à l'identifiant "
+                            + stockMovementId
+                            + ".",
+                        "NOT_FOUND")));
   }
 
   public StockMovementRest createStockMovement(StockMovementCreateRequest stockMovement) {
@@ -45,7 +53,10 @@ public class StockMovementService {
   public StockMovementRest updateStockMovement(
       String stockMovementId, StockMovementUpdateRequest updatedStockMovement) {
     if (stockMovementDAO.getStockMovementById(stockMovementId).isEmpty()) {
-      throw new NotFoundException("Mouvement de stock introuvable", "Aucun mouvement de stock ne correspond à l'identifiant " + stockMovementId + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Mouvement de stock introuvable",
+          "Aucun mouvement de stock ne correspond à l'identifiant " + stockMovementId + ".",
+          "NOT_FOUND");
     }
     return stockMovementRestMapper.toRest(
         stockMovementDAO.updateStockMovement(stockMovementId, updatedStockMovement));

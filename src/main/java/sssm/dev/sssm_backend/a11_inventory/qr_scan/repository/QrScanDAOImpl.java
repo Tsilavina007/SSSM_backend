@@ -98,7 +98,11 @@ public class QrScanDAOImpl implements QrScanDAO {
         return r.next()
             ? row(r)
             : Map.of(
-                "errors", new ItemError("Article introuvable", "Aucun article ne correspond à l'identifiant " + v + ".", "NOT_FOUND"));
+                "errors",
+                new ItemError(
+                    "Article introuvable",
+                    "Aucun article ne correspond à l'identifiant " + v + ".",
+                    "NOT_FOUND"));
       }
     } catch (SQLException e) {
       throw new ServerException(e);
@@ -109,7 +113,11 @@ public class QrScanDAOImpl implements QrScanDAO {
     try (Connection c = DatabaseConnection.getConnection()) {
       if (b == null || b.isEmpty())
         return Map.of(
-            "errors", new ItemError("Corps de requête obligatoire", "Le corps JSON de la requête est vide ou absent.", "BAD_REQUEST"));
+            "errors",
+            new ItemError(
+                "Corps de requête obligatoire",
+                "Le corps JSON de la requête est vide ou absent.",
+                "BAD_REQUEST"));
       List<String> cs = new ArrayList<>();
       List<Object> vs = new ArrayList<>();
       for (var e : b.entrySet())
@@ -119,7 +127,11 @@ public class QrScanDAOImpl implements QrScanDAO {
         }
       if (cs.isEmpty())
         return Map.of(
-            "errors", new ItemError("Aucun champ modifiable", "Le corps ne contient aucun champ autorisé pour un scan QR.", "BAD_REQUEST"));
+            "errors",
+            new ItemError(
+                "Aucun champ modifiable",
+                "Le corps ne contient aucun champ autorisé pour un scan QR.",
+                "BAD_REQUEST"));
       StringJoiner set = new StringJoiner(","),
           cols = new StringJoiner(","),
           qs = new StringJoiner(",");

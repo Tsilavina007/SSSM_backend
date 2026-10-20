@@ -11,8 +11,7 @@ import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 @Data
 public class AppUserCreateRequest {
   @Pattern(
-      regexp =
-          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
       message = "L'identifiant de l'entreprise doit être un UUID valide")
   private String company_id;
 
@@ -26,10 +25,7 @@ public class AppUserCreateRequest {
   private String email;
 
   @NotBlank(message = "Le mot de passe est obligatoire")
-  @Size(
-      min = 8,
-      max = 128,
-      message = "Le mot de passe doit contenir entre 8 et 128 caractères")
+  @Size(min = 8, max = 128, message = "Le mot de passe doit contenir entre 8 et 128 caractères")
   private String password;
 
   @Size(max = 100, message = "100 caractères maximum")

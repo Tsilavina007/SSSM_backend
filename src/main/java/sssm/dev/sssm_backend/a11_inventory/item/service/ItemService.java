@@ -31,26 +31,38 @@ public class ItemService {
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return search.isPresent()
-        ? mapperListResponseToItem(
-            itemDAO.searchItemsByName(search.get(), pageNumber, pageSizeNumber))
-        : mapperListResponseToItem(itemDAO.getAllItems(pageNumber, pageSizeNumber));
+    return search
+        .map(
+            value ->
+                mapperListResponseToItem(
+                    itemDAO.searchItemsByName(value, pageNumber, pageSizeNumber)))
+        .orElseGet(() -> mapperListResponseToItem(itemDAO.getAllItems(pageNumber, pageSizeNumber)));
   }
 
   public Optional<Item> getItemById(String itemId) {
-    Optional<ItemResponse> itemResponse = itemDAO.getItemById(itemId);
-    if (itemResponse.isEmpty()) {
-      throw new NotFoundException("Article introuvable", "Aucun article ne correspond à l'identifiant " + itemId + ".", "NOT_FOUND");
-    }
-    return Optional.of(itemMapper.toRest(itemResponse.get()));
+    return Optional.of(
+        itemDAO
+            .getItemById(itemId)
+            .map(itemMapper::toRest)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Article introuvable",
+                        "Aucun article ne correspond à l'identifiant " + itemId + ".",
+                        "NOT_FOUND")));
   }
 
   public Optional<ItemQrCodeRest> getQrCodeByItemId(String itemId) {
-    Optional<ItemResponse> itemResponse = itemDAO.getItemById(itemId);
-    if (itemResponse.isEmpty()) {
-      throw new NotFoundException("Article introuvable", "Aucun article ne correspond à l'identifiant " + itemId + ".", "NOT_FOUND");
-    }
-    return Optional.of(itemQrCodeRestMapper.toRest(itemResponse.get()));
+    return Optional.of(
+        itemDAO
+            .getItemById(itemId)
+            .map(itemQrCodeRestMapper::toRest)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Article introuvable",
+                        "Aucun article ne correspond à l'identifiant " + itemId + ".",
+                        "NOT_FOUND")));
   }
 
   public Item createItem(ItemCreateRequest item) {
@@ -74,7 +86,10 @@ public class ItemService {
   public Item updateItem(String itemId, ItemUpdateRequest updatedItem) {
     Optional<ItemResponse> itemResponse = itemDAO.getItemById(itemId);
     if (itemResponse.isEmpty()) {
-      throw new NotFoundException("Article introuvable", "Aucun article ne correspond à l'identifiant " + itemId + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Article introuvable",
+          "Aucun article ne correspond à l'identifiant " + itemId + ".",
+          "NOT_FOUND");
     }
     return itemMapper.toRest(itemDAO.updateItem(itemId, updatedItem));
   }

@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Repository;
 
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentResponse;
@@ -199,7 +200,13 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     }
 
     if (parameters.isEmpty()) {
-      return getItemAssignmentById(id).get();
+      return getItemAssignmentById(id)
+          .orElseThrow(
+              () ->
+                  new NotFoundException(
+                      "Affectation d'article introuvable",
+                      "Aucune affectation d'article ne correspond à l'identifiant " + id + ".",
+                      "NOT_FOUND"));
     }
 
     sql.setLength(sql.length() - 2);
@@ -215,7 +222,13 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return getItemAssignmentById(id).get();
+    return getItemAssignmentById(id)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Affectation d'article introuvable",
+                    "Aucune affectation d'article ne correspond à l'identifiant " + id + ".",
+                    "NOT_FOUND"));
   }
 
   @Override

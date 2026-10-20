@@ -6,7 +6,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.SiteStatus;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchCreateRequest;
@@ -159,7 +161,13 @@ public class BranchDAOImpl implements BranchDAO {
     }
 
     if (parameters.isEmpty()) {
-      return getBranchById(id).get();
+      return getBranchById(id)
+          .orElseThrow(
+              () ->
+                  new NotFoundException(
+                      "Succursale introuvable",
+                      "Aucune succursale ne correspond à l'identifiant " + id + ".",
+                      "NOT_FOUND"));
     }
 
     sql.setLength(sql.length() - 2);
@@ -175,7 +183,13 @@ public class BranchDAOImpl implements BranchDAO {
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return getBranchById(id).get();
+    return getBranchById(id)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Succursale introuvable",
+                    "Aucune succursale ne correspond à l'identifiant " + id + ".",
+                    "NOT_FOUND"));
   }
 
   @Override

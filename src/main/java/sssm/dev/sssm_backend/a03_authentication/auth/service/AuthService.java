@@ -12,20 +12,24 @@ import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.role.repository.*;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
-import sssm.dev.sssm_backend.a03_authentication.user.repository.AppUserDAOImpl;
+import sssm.dev.sssm_backend.a03_authentication.user.repository.AppUserDAO;
 
 @Service
 public class AuthService {
-  private final AppUserDAOImpl users = new AppUserDAOImpl();
-  private final RoleDAO roles = new RoleDAOImpl();
+  private final AppUserDAO users;
+  private final RoleDAO roles;
   private final PasswordEncoder encoder;
   private final JwtService jwt;
   private final String defaultRole;
 
   public AuthService(
+      AppUserDAO users,
+      RoleDAO roles,
       PasswordEncoder encoder,
       JwtService jwt,
       @Value("${app.auth.default-role:USER}") String defaultRole) {
+    this.users = users;
+    this.roles = roles;
     this.encoder = encoder;
     this.jwt = jwt;
     this.defaultRole = defaultRole;
@@ -34,9 +38,7 @@ public class AuthService {
   public AuthResponse register(RegisterRequest request) {
     if (request == null) {
       throw new ClientException(
-          "Corps de requête manquant",
-          "Le corps de la requête est obligatoire.",
-          "CLIENT_ERROR");
+          "Corps de requête manquant", "Le corps de la requête est obligatoire.", "CLIENT_ERROR");
     }
     if (request.email() == null) {
       throw new ClientException(
@@ -44,9 +46,7 @@ public class AuthService {
     }
     if (request.username() == null) {
       throw new ClientException(
-          "Nom d'utilisateur obligatoire",
-          "Le champ 'username' est obligatoire.",
-          "CLIENT_ERROR");
+          "Nom d'utilisateur obligatoire", "Le champ 'username' est obligatoire.", "CLIENT_ERROR");
     }
     if (users.findByUsernameOrEmail(request.username()).isPresent()
         || users.findByUsernameOrEmail(request.email()).isPresent()) {

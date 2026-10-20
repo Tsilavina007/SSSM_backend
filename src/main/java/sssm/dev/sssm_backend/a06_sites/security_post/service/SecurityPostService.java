@@ -2,13 +2,17 @@ package sssm.dev.sssm_backend.a06_sites.security_post.service;
 
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a06_sites.security_post.entity.SecurityPost;
 import sssm.dev.sssm_backend.a06_sites.security_post.repository.SecurityPostDAO;
-import sssm.dev.sssm_backend.a06_sites.security_post.repository.SecurityPostDAOImpl;
 
+@Service
+@RequiredArgsConstructor
 public class SecurityPostService {
-  private final SecurityPostDAO dao = new SecurityPostDAOImpl();
+  private final SecurityPostDAO dao;
 
   public List<SecurityPost> findBySiteId(String siteId) {
     return dao.findBySiteId(siteId);
@@ -24,7 +28,10 @@ public class SecurityPostService {
 
   public SecurityPost update(String id, SecurityPost post) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Poste de sécurité introuvable", "Aucun poste de sécurité ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Poste de sécurité introuvable",
+          "Aucun poste de sécurité ne correspond à l'identifiant " + id + ".",
+          "NOT_FOUND");
     post.setId(id);
     return dao.update(post);
   }

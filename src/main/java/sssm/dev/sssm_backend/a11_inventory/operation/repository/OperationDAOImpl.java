@@ -94,7 +94,11 @@ public class OperationDAOImpl implements OperationDAO {
     try (Connection c = DatabaseConnection.getConnection()) {
       if (b == null || b.isEmpty())
         return Map.of(
-            "errors", new ItemError("Corps de requête obligatoire", "Le corps JSON de la requête est vide ou absent.", "BAD_REQUEST"));
+            "errors",
+            new ItemError(
+                "Corps de requête obligatoire",
+                "Le corps JSON de la requête est vide ou absent.",
+                "BAD_REQUEST"));
       List<String> cs = new ArrayList<>();
       List<Object> vs = new ArrayList<>();
       for (var e : b.entrySet())
@@ -104,7 +108,11 @@ public class OperationDAOImpl implements OperationDAO {
         }
       if (cs.isEmpty())
         return Map.of(
-            "errors", new ItemError("Aucun champ modifiable", "Le corps ne contient aucun champ autorisé pour une opération d'inventaire.", "BAD_REQUEST"));
+            "errors",
+            new ItemError(
+                "Aucun champ modifiable",
+                "Le corps ne contient aucun champ autorisé pour une opération d'inventaire.",
+                "BAD_REQUEST"));
       StringJoiner set = new StringJoiner(","),
           cols = new StringJoiner(","),
           qs = new StringJoiner(",");
@@ -131,7 +139,11 @@ public class OperationDAOImpl implements OperationDAO {
       return r != null
           ? r
           : Map.of(
-              "errors", new ItemError("Opération d'inventaire introuvable", "Aucune opération d'inventaire ne correspond à l'identifiant " + v + ".", "NOT_FOUND"));
+              "errors",
+              new ItemError(
+                  "Opération d'inventaire introuvable",
+                  "Aucune opération d'inventaire ne correspond à l'identifiant " + v + ".",
+                  "NOT_FOUND"));
     } catch (SQLException e) {
       throw new ServerException(e);
     }

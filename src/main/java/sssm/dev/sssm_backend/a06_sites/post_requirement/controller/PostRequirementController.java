@@ -10,7 +10,11 @@ import sssm.dev.sssm_backend.a06_sites.post_requirement.service.PostRequirementS
 @RestController
 @RequestMapping("/api/post-requirements")
 public class PostRequirementController {
-  private final PostRequirementService service = new PostRequirementService();
+  private final PostRequirementService service;
+
+  PostRequirementController(PostRequirementService service) {
+    this.service = service;
+  }
 
   @GetMapping("/post/{postId}")
   public List<PostRequirement> findByPost(@PathVariable String postId) {

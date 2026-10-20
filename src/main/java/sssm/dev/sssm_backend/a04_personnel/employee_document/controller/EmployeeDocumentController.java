@@ -9,7 +9,11 @@ import sssm.dev.sssm_backend.a04_personnel.employee_document.service.EmployeeDoc
 @RestController
 @RequestMapping("/api/employee-documents")
 public class EmployeeDocumentController {
-  private final EmployeeDocumentService service = new EmployeeDocumentService();
+  private final EmployeeDocumentService service;
+
+  EmployeeDocumentController(EmployeeDocumentService service) {
+    this.service = service;
+  }
 
   @GetMapping("/employee/{employeeId}")
   public List<EmployeeDocument> findByEmployeeId(@PathVariable String employeeId) {

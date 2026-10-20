@@ -2,13 +2,17 @@ package sssm.dev.sssm_backend.a06_sites.post_requirement.service;
 
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a06_sites.post_requirement.entity.PostRequirement;
 import sssm.dev.sssm_backend.a06_sites.post_requirement.repository.PostRequirementDAO;
-import sssm.dev.sssm_backend.a06_sites.post_requirement.repository.PostRequirementDAOImpl;
 
+@Service
+@RequiredArgsConstructor
 public class PostRequirementService {
-  private final PostRequirementDAO dao = new PostRequirementDAOImpl();
+  private final PostRequirementDAO dao;
 
   public List<PostRequirement> findByPostId(String postId) {
     return dao.findByPostId(postId);
@@ -24,7 +28,10 @@ public class PostRequirementService {
 
   public PostRequirement update(String id, PostRequirement requirement) {
     if (dao.findById(id).isEmpty())
-      throw new NotFoundException("Exigence de poste introuvable", "Aucune exigence de poste ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Exigence de poste introuvable",
+          "Aucune exigence de poste ne correspond à l'identifiant " + id + ".",
+          "NOT_FOUND");
     requirement.setId(id);
     return dao.update(requirement);
   }

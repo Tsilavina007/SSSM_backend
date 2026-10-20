@@ -9,7 +9,11 @@ import sssm.dev.sssm_backend.a05_clients.client_contact.service.ClientContactSer
 @RestController
 @RequestMapping("/api/client-contacts")
 public class ClientContactController {
-  private final ClientContactService service = new ClientContactService();
+  private final ClientContactService service;
+
+  ClientContactController(ClientContactService service) {
+    this.service = service;
+  }
 
   @GetMapping("/client/{clientId}")
   public List<ClientContact> findByClientId(@PathVariable String clientId) {

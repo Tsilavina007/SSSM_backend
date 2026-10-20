@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a11_inventory.warehouse.dto.mapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.BranchResponse;
 import sssm.dev.sssm_backend.a02_organisation.branch.dto.mapper.BranchRestMapper;
 import sssm.dev.sssm_backend.a02_organisation.branch.repository.BranchDAOImpl;
@@ -21,8 +22,28 @@ public class WarehouseRestMapper {
   private final BranchRestMapper branchRestMapper;
 
   public WarehouseRest toRest(WarehouseResponse rs) {
-    Company company = companyDAOImpl.getCompanyById(rs.getCompany_id()).get();
-    BranchResponse branch = branchDAOImpl.getBranchById(rs.getBranch_id()).get();
+    Company company =
+        companyDAOImpl
+            .getCompanyById(rs.getCompany_id())
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Entreprise introuvable",
+                        "Aucune entreprise ne correspond à l'identifiant "
+                            + rs.getCompany_id()
+                            + ".",
+                        "NOT_FOUND"));
+    BranchResponse branch =
+        branchDAOImpl
+            .getBranchById(rs.getBranch_id())
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Succursale introuvable",
+                        "Aucune succursale ne correspond à l'identifiant "
+                            + rs.getBranch_id()
+                            + ".",
+                        "NOT_FOUND"));
     return (new WarehouseRest(
         rs.getId(),
         companyRestMapper.toRest(company),

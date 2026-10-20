@@ -9,7 +9,11 @@ import sssm.dev.sssm_backend.a03_authentication.permission.service.PermissionSer
 @RestController
 @RequestMapping("/api/permissions")
 public class PermissionController {
-  private final PermissionService service = new PermissionService();
+  private final PermissionService service;
+
+  PermissionController(PermissionService service) {
+    this.service = service;
+  }
 
   @GetMapping
   public List<Permission> findAll(

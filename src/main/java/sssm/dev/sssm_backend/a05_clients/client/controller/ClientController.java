@@ -9,7 +9,11 @@ import sssm.dev.sssm_backend.a05_clients.client.service.ClientService;
 @RestController
 @RequestMapping("/api/clients")
 public class ClientController {
-  private final ClientService service = new ClientService();
+  private final ClientService service;
+
+  ClientController(ClientService service) {
+    this.service = service;
+  }
 
   @GetMapping
   public List<Client> findAll(

@@ -1,6 +1,5 @@
 package sssm.dev.sssm_backend.a11_inventory.item.controller;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,10 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
-import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.rest.ItemQrCodeRest;
@@ -39,122 +34,59 @@ public class ItemController {
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
-    try {
-      List<Item> items = itemService.getItems(search, page, pageSize);
-      return ResponseEntity.ok().body(items);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    List<Item> items = itemService.getItems(search, page, pageSize);
+    return ResponseEntity.ok().body(items);
   }
 
   @GetMapping("/{itemId}")
   public ResponseEntity<Object> getItemById(@PathVariable String itemId) {
-    try {
-      Optional<Item> item = itemService.getItemById(itemId);
-      return ResponseEntity.ok().body(item);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    Optional<Item> item = itemService.getItemById(itemId);
+    return ResponseEntity.ok().body(item);
   }
 
   @GetMapping("/{itemId}/qr-code")
   public ResponseEntity<Object> getQrCodeByItemId(@PathVariable String itemId) {
-    try {
-      Optional<ItemQrCodeRest> item = itemService.getQrCodeByItemId(itemId);
-      return ResponseEntity.ok().body(item);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    Optional<ItemQrCodeRest> item = itemService.getQrCodeByItemId(itemId);
+    return ResponseEntity.ok().body(item);
   }
 
   @PostMapping
   public ResponseEntity<Object> createItem(@RequestBody ItemCreateRequest item) {
-    try {
-      Item itemRes = itemService.createItem(item);
-      return ResponseEntity.ok().body(itemRes);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    Item itemRes = itemService.createItem(item);
+    return ResponseEntity.ok().body(itemRes);
   }
 
   @SuppressWarnings("unchecked")
   @PostMapping("/bulk")
   public ResponseEntity<Object> createItems(@RequestBody List<ItemCreateRequest> items) {
-    try {
-      List<Object> itemsRes = itemService.createItems(items);
-      List<Item> createdItems = (List<Item>) itemsRes.get(0);
-      Map<ItemCreateRequest, String> failedItems = (Map<ItemCreateRequest, String>) itemsRes.get(1);
-      List<Map<String, Object>> failedItemsWithErrors =
-          failedItems.entrySet().stream()
-              .map(
-                  entry ->
-                      Map.of(
-                          "item", entry.getKey(),
-                          "errors", entry.getValue()))
-              .toList();
-      Map<String, Object> response =
-          Map.of(
-              "createdItems", createdItems,
-              "failedItems", failedItemsWithErrors);
-      return ResponseEntity.ok().body(response);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    List<Object> itemsRes = itemService.createItems(items);
+    List<Item> createdItems = (List<Item>) itemsRes.get(0);
+    Map<ItemCreateRequest, String> failedItems = (Map<ItemCreateRequest, String>) itemsRes.get(1);
+    List<Map<String, Object>> failedItemsWithErrors =
+        failedItems.entrySet().stream()
+            .map(
+                entry ->
+                    Map.of(
+                        "item", entry.getKey(),
+                        "errors", entry.getValue()))
+            .toList();
+    Map<String, Object> response =
+        Map.of(
+            "createdItems", createdItems,
+            "failedItems", failedItemsWithErrors);
+    return ResponseEntity.ok().body(response);
   }
 
   @PatchMapping("/{itemId}")
   public ResponseEntity<Object> updateItem(
       @PathVariable String itemId, @RequestBody ItemUpdateRequest updatedItem) {
-    try {
-      Item itemRes = itemService.updateItem(itemId, updatedItem);
-      return ResponseEntity.ok().body(itemRes);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    Item itemRes = itemService.updateItem(itemId, updatedItem);
+    return ResponseEntity.ok().body(itemRes);
   }
 
   @DeleteMapping("/{itemId}")
   public ResponseEntity<Object> deleteItem(@PathVariable String itemId) {
-    try {
-      itemService.deleteItem(itemId);
-      return ResponseEntity.ok().body("Item deleted : " + itemId);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    itemService.deleteItem(itemId);
+    return ResponseEntity.ok().body("Item deleted : " + itemId);
   }
 }

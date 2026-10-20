@@ -10,7 +10,11 @@ import sssm.dev.sssm_backend.a06_sites.site.service.SiteService;
 @RestController
 @RequestMapping("/api/sites")
 public class SiteController {
-  private final SiteService service = new SiteService();
+  private final SiteService service;
+
+  SiteController(SiteService service) {
+    this.service = service;
+  }
 
   @GetMapping
   public List<Site> findAll(

@@ -1,15 +1,10 @@
 package sssm.dev.sssm_backend.a03_authentication.user.controller;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import jakarta.validation.Valid;
 import java.util.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
-import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserCreateRequest;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserUpdateRequest;
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
@@ -27,103 +22,46 @@ public class AppUserController {
   @GetMapping
   public ResponseEntity<Object> findAll(
       @RequestParam Optional<Integer> page, @RequestParam Optional<Integer> pageSize) {
-    try {
-      List<AppUser> users = service.findAll(page, pageSize);
-      return ResponseEntity.ok().body(users);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    List<AppUser> users = service.findAll(page, pageSize);
+    return ResponseEntity.ok().body(users);
   }
 
   @GetMapping("/{id}")
   public ResponseEntity<Object> findById(@PathVariable String id) {
-    try {
-      AppUser user = service.findById(id);
-      return ResponseEntity.ok().body(user);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    AppUser user = service.findById(id);
+    return ResponseEntity.ok().body(user);
   }
 
   @PostMapping
   public ResponseEntity<Object> create(@Valid @RequestBody AppUserCreateRequest request) {
-    try {
-      AppUser createdUser = service.create(request);
-      return ResponseEntity.ok().body(createdUser);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    AppUser createdUser = service.create(request);
+    return ResponseEntity.ok().body(createdUser);
   }
 
   @PatchMapping("/{id}")
   public ResponseEntity<Object> update(
       @PathVariable String id, @Valid @RequestBody AppUserUpdateRequest request) {
-    try {
-      AppUser updatedUser = service.update(id, request);
-      return ResponseEntity.ok().body(updatedUser);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    AppUser updatedUser = service.update(id, request);
+    return ResponseEntity.ok().body(updatedUser);
   }
 
   @DeleteMapping("/{id}")
   public ResponseEntity<Object> delete(@PathVariable String id) {
-    try {
-      service.delete(id);
-      return ResponseEntity.ok().build();
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    service.delete(id);
+    return ResponseEntity.ok().build();
   }
 
   @PostMapping("/{userId}/roles/{roleId}")
   public ResponseEntity<Object> assignRole(
       @PathVariable String userId, @PathVariable String roleId) {
-    try {
-      service.assignRole(userId, roleId);
-      return ResponseEntity.ok().build();
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    service.assignRole(userId, roleId);
+    return ResponseEntity.ok().build();
   }
 
   @DeleteMapping("/{userId}/roles/{roleId}")
   public ResponseEntity<Object> removeRole(
       @PathVariable String userId, @PathVariable String roleId) {
-    try {
-      service.removeRole(userId, roleId);
-      return ResponseEntity.ok().build();
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    service.removeRole(userId, roleId);
+    return ResponseEntity.ok().build();
   }
 }

@@ -1,8 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.item_type.controller;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,10 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
-import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.entity.ItemType;
@@ -38,78 +32,33 @@ public class ItemTypeController {
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
-    try {
-      List<ItemType> types = itemTypeService.getItemTypes(search, page, pageSize);
-      return ResponseEntity.ok().body(types);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    List<ItemType> types = itemTypeService.getItemTypes(search, page, pageSize);
+    return ResponseEntity.ok().body(types);
   }
 
   @GetMapping("/{itemTypeId}")
   public ResponseEntity<Object> getItemTypeById(@PathVariable String itemTypeId) {
-    try {
-      Optional<ItemType> types = itemTypeService.getItemTypeById(itemTypeId);
-      return ResponseEntity.ok().body(types);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    Optional<ItemType> types = itemTypeService.getItemTypeById(itemTypeId);
+    return ResponseEntity.ok().body(types);
   }
 
   @PostMapping
   public ResponseEntity<Object> createItemType(@RequestBody ItemTypeCreateRequest itemType) {
-    try {
-      ItemType types = itemTypeService.createItemType(itemType);
-      return ResponseEntity.ok().body(types);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    ItemType types = itemTypeService.createItemType(itemType);
+    return ResponseEntity.ok().body(types);
   }
 
   @PatchMapping("/{itemTypeId}")
   public ResponseEntity<Object> updateItemType(
       @PathVariable String itemTypeId, @RequestBody ItemTypeUpdateRequest updatedItemType) {
-    try {
-      ItemType types = itemTypeService.updateItemType(itemTypeId, updatedItemType);
-      return ResponseEntity.ok().body(types);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    ItemType types = itemTypeService.updateItemType(itemTypeId, updatedItemType);
+    return ResponseEntity.ok().body(types);
   }
 
   @DeleteMapping("/{itemTypeId}")
   public ResponseEntity<Object> deleteItemType(@PathVariable String itemTypeId) {
-    try {
-      itemTypeService.deleteItemType(itemTypeId);
-      return ResponseEntity.ok().body("ItemType deleted : " + itemTypeId);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    itemTypeService.deleteItemType(itemTypeId);
+    return ResponseEntity.ok().body("ItemType deleted : " + itemTypeId);
   }
 
   @GetMapping("/category/{itemCategoryId}")
@@ -117,18 +66,9 @@ public class ItemTypeController {
       @PathVariable String itemCategoryId,
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize) {
-    try {
-      List<ItemType> types =
-          itemTypeService.getItemTypesByItemCategoryId(itemCategoryId, page, pageSize);
-      return ResponseEntity.ok().body(types);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    List<ItemType> types =
+        itemTypeService.getItemTypesByItemCategoryId(itemCategoryId, page, pageSize);
+    return ResponseEntity.ok().body(types);
   }
 
   @GetMapping("/low-stock")

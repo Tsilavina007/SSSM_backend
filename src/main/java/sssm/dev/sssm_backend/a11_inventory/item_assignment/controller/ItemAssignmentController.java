@@ -1,8 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.item_assignment.controller;
 
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,10 +13,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
-import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
-import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
@@ -38,83 +32,38 @@ public class ItemAssignmentController {
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
-    try {
-      List<ItemAssignmentRest> itemAssignments =
-          itemAssignmentService.getItemAssignments(search, page, pageSize);
-      return ResponseEntity.ok().body(itemAssignments);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    List<ItemAssignmentRest> itemAssignments =
+        itemAssignmentService.getItemAssignments(search, page, pageSize);
+    return ResponseEntity.ok().body(itemAssignments);
   }
 
   @GetMapping("/{itemAssignmentId}")
   public ResponseEntity<Object> getItemAssignmentById(@PathVariable String itemAssignmentId) {
-    try {
-      Optional<ItemAssignmentRest> itemAssignment =
-          itemAssignmentService.getItemAssignmentById(itemAssignmentId);
-      return ResponseEntity.ok().body(itemAssignment);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    Optional<ItemAssignmentRest> itemAssignment =
+        itemAssignmentService.getItemAssignmentById(itemAssignmentId);
+    return ResponseEntity.ok().body(itemAssignment);
   }
 
   @PostMapping
   public ResponseEntity<Object> createItemAssignment(
       @RequestBody ItemAssignmentCreateRequest itemAssignment) {
-    try {
-      ItemAssignmentRest itemAssignmentRes =
-          itemAssignmentService.createItemAssignment(itemAssignment);
-      return ResponseEntity.ok().body(itemAssignmentRes);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    ItemAssignmentRest itemAssignmentRes =
+        itemAssignmentService.createItemAssignment(itemAssignment);
+    return ResponseEntity.ok().body(itemAssignmentRes);
   }
 
   @PatchMapping("/{itemAssignmentId}")
   public ResponseEntity<Object> updateItemAssignment(
       @PathVariable String itemAssignmentId,
       @RequestBody ItemAssignmentUpdateRequest updatedItemAssignment) {
-    try {
-      ItemAssignmentRest itemAssignmentRes =
-          itemAssignmentService.updateItemAssignment(itemAssignmentId, updatedItemAssignment);
-      return ResponseEntity.ok().body(itemAssignmentRes);
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    ItemAssignmentRest itemAssignmentRes =
+        itemAssignmentService.updateItemAssignment(itemAssignmentId, updatedItemAssignment);
+    return ResponseEntity.ok().body(itemAssignmentRes);
   }
 
   @DeleteMapping("/{itemAssignmentId}")
   public ResponseEntity<Object> deleteItemAssignment(@PathVariable String itemAssignmentId) {
-    try {
-      itemAssignmentService.deleteItemAssignment(itemAssignmentId);
-      return ResponseEntity.ok().build();
-    } catch (ClientException e) {
-      return ResponseEntity.badRequest().body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (NotFoundException e) {
-      return ResponseEntity.status(NOT_FOUND).body(Map.of("errors", ErrorMapper.toItemError(e)));
-    } catch (ServerException e) {
-      return ResponseEntity.internalServerError()
-          .body(Map.of("errors", ErrorMapper.toItemError(e)));
-    }
+    itemAssignmentService.deleteItemAssignment(itemAssignmentId);
+    return ResponseEntity.ok().build();
   }
 }

@@ -17,9 +17,10 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
+
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
-import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -73,9 +74,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     if (exception instanceof MalformedJwtException) {
       return new ItemError(
-          "Jeton mal formé",
-          "Le jeton JWT n'est pas au format attendu.",
-          "UNAUTHORIZED");
+          "Jeton mal formé", "Le jeton JWT n'est pas au format attendu.", "UNAUTHORIZED");
     }
     if (exception instanceof SignatureException) {
       return new ItemError(
@@ -98,8 +97,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     return new ItemError(
         "Jeton invalide",
         textOr(
-            exception.getMessage(),
-            "Le jeton JWT est vide ou contient des caractères invalides."),
+            exception.getMessage(), "Le jeton JWT est vide ou contient des caractères invalides."),
         "UNAUTHORIZED");
   }
 

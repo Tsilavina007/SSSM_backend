@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryResponse;
@@ -139,7 +141,13 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
     }
 
     if (parameters.isEmpty()) {
-      return getItemCategoryById(id).get();
+      return getItemCategoryById(id)
+          .orElseThrow(
+              () ->
+                  new NotFoundException(
+                      "Catégorie d'article introuvable",
+                      "Aucune catégorie d'article ne correspond à l'identifiant " + id + ".",
+                      "NOT_FOUND"));
     }
 
     sql.setLength(sql.length() - 2);
@@ -155,7 +163,13 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return getItemCategoryById(id).get();
+    return getItemCategoryById(id)
+        .orElseThrow(
+            () ->
+                new NotFoundException(
+                    "Catégorie d'article introuvable",
+                    "Aucune catégorie d'article ne correspond à l'identifiant " + id + ".",
+                    "NOT_FOUND"));
   }
 
   @Override

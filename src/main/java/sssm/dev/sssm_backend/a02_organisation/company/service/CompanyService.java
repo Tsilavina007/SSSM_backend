@@ -21,11 +21,9 @@ public class CompanyService {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
 
-    if (search.isPresent()) {
-      return companyDAO.searchCompaniesByName(search.get(), pageNumber, pageSizeNumber);
-    } else {
-      return companyDAO.getAllCompanies(pageNumber, pageSizeNumber);
-    }
+    return search
+        .map(value -> companyDAO.searchCompaniesByName(value, pageNumber, pageSizeNumber))
+        .orElseGet(() -> companyDAO.getAllCompanies(pageNumber, pageSizeNumber));
   }
 
   public Optional<Company> getCompanyById(String companyId) {
@@ -41,7 +39,10 @@ public class CompanyService {
       updatedCompany.setId(companyId);
       return companyDAO.updateCompany(updatedCompany);
     } else {
-      throw new NotFoundException("Entreprise introuvable", "Aucune entreprise ne correspond à l'identifiant " + companyId + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Entreprise introuvable",
+          "Aucune entreprise ne correspond à l'identifiant " + companyId + ".",
+          "NOT_FOUND");
     }
   }
 

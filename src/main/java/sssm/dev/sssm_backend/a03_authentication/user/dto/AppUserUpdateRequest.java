@@ -12,10 +12,7 @@ public class AppUserUpdateRequest {
   @Size(max = 180, message = "180 caractères maximum")
   private String email;
 
-  @Size(
-      min = 8,
-      max = 128,
-      message = "Le mot de passe doit contenir entre 8 et 128 caractères")
+  @Size(min = 8, max = 128, message = "Le mot de passe doit contenir entre 8 et 128 caractères")
   private String password;
 
   @Size(max = 100, message = "100 caractères maximum")

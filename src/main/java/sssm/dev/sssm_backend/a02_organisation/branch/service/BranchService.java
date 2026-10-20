@@ -23,13 +23,22 @@ public class BranchService {
   public List<Branch> getBranches(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int p = page.orElse(1), size = pageSize.orElse(10);
-    return search.isPresent()
-        ? mapperListResponseToBranch(branchDAO.searchBranchesByName(search.get(), p, size))
-        : mapperListResponseToBranch(branchDAO.getAllBranches(p, size));
+    return search
+        .map(value -> mapperListResponseToBranch(branchDAO.searchBranchesByName(value, p, size)))
+        .orElseGet(() -> mapperListResponseToBranch(branchDAO.getAllBranches(p, size)));
   }
 
   public Optional<Branch> getBranchById(String id) {
-    return Optional.of(mapperResponseToBranch(branchDAO.getBranchById(id).get()));
+    return Optional.of(
+        branchDAO
+            .getBranchById(id)
+            .map(this::mapperResponseToBranch)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Succursale introuvable",
+                        "Aucune succursale ne correspond à l'identifiant " + id + ".",
+                        "NOT_FOUND")));
   }
 
   public Branch createBranch(BranchCreateRequest branch) {
@@ -38,7 +47,10 @@ public class BranchService {
 
   public Branch updateBranch(String id, BranchUpdateRequest branch) {
     if (branchDAO.getBranchById(id).isEmpty())
-      throw new NotFoundException("Succursale introuvable", "Aucune succursale ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Succursale introuvable",
+          "Aucune succursale ne correspond à l'identifiant " + id + ".",
+          "NOT_FOUND");
     return mapperResponseToBranch(branchDAO.updateBranch(id, branch));
   }
 
@@ -50,7 +62,15 @@ public class BranchService {
     if (rs == null || rs.getAgence_id() == null) {
       return null;
     }
-    Agency c = agencyService.getAgencyById(rs.getAgence_id()).get();
+    Agency c =
+        agencyService
+            .getAgencyById(rs.getAgence_id())
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Agence introuvable",
+                        "Aucune agence ne correspond à l'identifiant " + rs.getAgence_id() + ".",
+                        "NOT_FOUND"));
     return (new Branch(
         rs.getId(),
         rs.getCompany_id(),

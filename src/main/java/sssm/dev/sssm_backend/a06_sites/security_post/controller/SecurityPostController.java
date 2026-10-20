@@ -10,7 +10,11 @@ import sssm.dev.sssm_backend.a06_sites.security_post.service.SecurityPostService
 @RestController
 @RequestMapping("/api/security-posts")
 public class SecurityPostController {
-  private final SecurityPostService service = new SecurityPostService();
+  private final SecurityPostService service;
+
+  SecurityPostController(SecurityPostService service) {
+    this.service = service;
+  }
 
   @GetMapping("/site/{siteId}")
   public List<SecurityPost> findBySite(@PathVariable String siteId) {

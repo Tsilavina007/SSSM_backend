@@ -23,20 +23,30 @@ public class ItemCategoryService {
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return search.isPresent()
-        ? mapperListResponseToCategory(
-            itemCategoryDAO.searchItemCategoriesByName(search.get(), pageNumber, pageSizeNumber))
-        : mapperListResponseToCategory(
-            itemCategoryDAO.getAllItemCategories(pageNumber, pageSizeNumber));
+    return search
+        .map(
+            value ->
+                mapperListResponseToCategory(
+                    itemCategoryDAO.searchItemCategoriesByName(value, pageNumber, pageSizeNumber)))
+        .orElseGet(
+            () ->
+                mapperListResponseToCategory(
+                    itemCategoryDAO.getAllItemCategories(pageNumber, pageSizeNumber)));
   }
 
   public Optional<ItemCategory> getItemCategoryById(String itemCategoryId) {
-    Optional<ItemCategoryResponse> itemCategoryResponse =
-        itemCategoryDAO.getItemCategoryById(itemCategoryId);
-    if (itemCategoryResponse.isEmpty()) {
-      throw new NotFoundException("Catégorie d'article introuvable", "Aucune catégorie d'article ne correspond à l'identifiant " + itemCategoryId + ".", "NOT_FOUND");
-    }
-    return Optional.of(itemCategoryMapper.toRest(itemCategoryResponse.get()));
+    return Optional.of(
+        itemCategoryDAO
+            .getItemCategoryById(itemCategoryId)
+            .map(itemCategoryMapper::toRest)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Catégorie d'article introuvable",
+                        "Aucune catégorie d'article ne correspond à l'identifiant "
+                            + itemCategoryId
+                            + ".",
+                        "NOT_FOUND")));
   }
 
   public ItemCategory createItemCategory(ItemCategoryCreateRequest itemCategoryCreateRequest) {
@@ -46,7 +56,10 @@ public class ItemCategoryService {
   public ItemCategory updateItemCategory(
       String itemCategoryId, ItemCategoryUpdateRequest updatedItemCategory) {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
-      throw new NotFoundException("Catégorie d'article introuvable", "Aucune catégorie d'article ne correspond à l'identifiant " + itemCategoryId + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Catégorie d'article introuvable",
+          "Aucune catégorie d'article ne correspond à l'identifiant " + itemCategoryId + ".",
+          "NOT_FOUND");
     }
     return itemCategoryMapper.toRest(
         itemCategoryDAO.updateItemCategory(itemCategoryId, updatedItemCategory));

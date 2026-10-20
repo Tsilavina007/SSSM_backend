@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a02_organisation.agency.entity.Agency;
 import sssm.dev.sssm_backend.a02_organisation.agency.repository.AgencyDAO;
@@ -16,9 +17,9 @@ public class AgencyService {
   public List<Agency> getAgencies(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int p = page.orElse(1), size = pageSize.orElse(10);
-    return search.isPresent()
-        ? agencyDAO.searchAgenciesByName(search.get(), p, size)
-        : agencyDAO.getAllAgencies(p, size);
+    return search
+        .map(value -> agencyDAO.searchAgenciesByName(value, p, size))
+        .orElseGet(() -> agencyDAO.getAllAgencies(p, size));
   }
 
   public Optional<Agency> getAgencyById(String id) {
@@ -31,7 +32,10 @@ public class AgencyService {
 
   public Agency updateAgency(String id, Agency agency) {
     if (agencyDAO.getAgencyById(id).isEmpty())
-      throw new NotFoundException("Agence introuvable", "Aucune agence ne correspond à l'identifiant " + id + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Agence introuvable",
+          "Aucune agence ne correspond à l'identifiant " + id + ".",
+          "NOT_FOUND");
     agency.setId(id);
     return agencyDAO.updateAgency(agency);
   }

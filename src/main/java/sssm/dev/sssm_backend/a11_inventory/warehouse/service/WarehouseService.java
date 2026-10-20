@@ -23,18 +23,28 @@ public class WarehouseService {
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    return search.isPresent()
-        ? mapperListResponseToWarehouse(
-            warehouseDAO.searchWarehousesByName(search.get(), pageNumber, pageSizeNumber))
-        : mapperListResponseToWarehouse(warehouseDAO.getAllWarehouses(pageNumber, pageSizeNumber));
+    return search
+        .map(
+            value ->
+                mapperListResponseToWarehouse(
+                    warehouseDAO.searchWarehousesByName(value, pageNumber, pageSizeNumber)))
+        .orElseGet(
+            () ->
+                mapperListResponseToWarehouse(
+                    warehouseDAO.getAllWarehouses(pageNumber, pageSizeNumber)));
   }
 
   public Optional<Warehouse> getWarehouseById(String warehouseId) {
-    Optional<WarehouseResponse> warehouseResponse = warehouseDAO.getWarehouseById(warehouseId);
-    if (warehouseResponse.isEmpty()) {
-      throw new NotFoundException("Entrepôt introuvable", "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".", "NOT_FOUND");
-    }
-    return Optional.of(warehouseMapper.toRest(warehouseResponse.get()));
+    return Optional.of(
+        warehouseDAO
+            .getWarehouseById(warehouseId)
+            .map(warehouseMapper::toRest)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Entrepôt introuvable",
+                        "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".",
+                        "NOT_FOUND")));
   }
 
   public Warehouse createWarehouse(WarehouseCreateRequest warehouse) {
@@ -43,7 +53,10 @@ public class WarehouseService {
 
   public Warehouse updateWarehouse(String warehouseId, WarehouseUpdateRequest updatedWarehouse) {
     if (warehouseDAO.getWarehouseById(warehouseId).isEmpty()) {
-      throw new NotFoundException("Entrepôt introuvable", "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".", "NOT_FOUND");
+      throw new NotFoundException(
+          "Entrepôt introuvable",
+          "Aucun entrepôt ne correspond à l'identifiant " + warehouseId + ".",
+          "NOT_FOUND");
     }
     return warehouseMapper.toRest(warehouseDAO.updateWarehouse(warehouseId, updatedWarehouse));
   }

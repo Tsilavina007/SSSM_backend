@@ -9,7 +9,11 @@ import sssm.dev.sssm_backend.a03_authentication.role.service.RoleService;
 @RestController
 @RequestMapping("/api/roles")
 public class RoleController {
-  private final RoleService service = new RoleService();
+  private final RoleService service;
+
+  RoleController(RoleService service) {
+    this.service = service;
+  }
 
   @GetMapping
   public List<Role> findAll(

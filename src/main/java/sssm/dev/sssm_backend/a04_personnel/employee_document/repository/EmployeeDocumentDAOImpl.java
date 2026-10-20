@@ -5,10 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.stereotype.Repository;
+
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a04_personnel.employee_document.entity.EmployeeDocument;
 
+@Repository
 public class EmployeeDocumentDAOImpl implements EmployeeDocumentDAO {
 
   @Override

@@ -9,7 +9,11 @@ import sssm.dev.sssm_backend.a04_personnel.employee.service.EmployeeService;
 @RestController
 @RequestMapping("/api/employees")
 public class EmployeeController {
-  private final EmployeeService service = new EmployeeService();
+  private final EmployeeService service;
+
+  EmployeeController(EmployeeService service) {
+    this.service = service;
+  }
 
   @GetMapping
   public List<Employee> findAll(
