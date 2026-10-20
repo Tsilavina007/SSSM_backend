@@ -98,7 +98,6 @@ public class AuthService {
     // Valider le token et en créer un nouveau
     io.jsonwebtoken.Claims claims = jwt.parse(token);
     String userId = claims.get("uid", String.class);
-    String username = claims.getSubject();
     @SuppressWarnings("unchecked")
     List<String> roles = claims.get("roles", List.class);
     if (roles == null) roles = List.of();
