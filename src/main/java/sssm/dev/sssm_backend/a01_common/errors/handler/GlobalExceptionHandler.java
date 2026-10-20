@@ -137,6 +137,7 @@ public class GlobalExceptionHandler {
         .body(Map.of("errors", new ItemError("Route introuvable", detail, "NOT_FOUND")));
   }
 
+  @SuppressWarnings("null")
   @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
   public ResponseEntity<Map<String, ItemError>> handleMethodNotAllowed(
       HttpRequestMethodNotSupportedException exception) {
@@ -159,6 +160,7 @@ public class GlobalExceptionHandler {
                 new ItemError("Méthode HTTP non autorisée", detail, "METHOD_NOT_ALLOWED")));
   }
 
+  @SuppressWarnings("null")
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
   public ResponseEntity<Map<String, ItemError>> handleUnsupportedMediaType(
       HttpMediaTypeNotSupportedException exception) {
