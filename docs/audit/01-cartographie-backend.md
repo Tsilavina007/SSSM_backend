@@ -1,0 +1,244 @@
+# 01 — Cartographie du backend
+
+**Objectif :** décrire l'architecture réelle du backend, ses couches, ses modules, ses dépendances et le chemin d'une requête HTTP, afin de situer les anomalies dans le code.
+
+---
+
+## 1. Vue d'ensemble
+
+Le backend est une application Spring Boot monolithique, organisée par domaines métier, avec un accès direct à PostgreSQL via JDBC. Il n'utilise ni JPA, ni Hibernate, ni MyBatis. Les contrôleurs exposent du JSON, les services portent une partie des règles métier, et les DAO écrivent le SQL à la main.
+
+```text
+Client HTTP
+   |
+   v
+Spring Security (JwtAuthenticationFilter)
+   |
+   v
+@RestController  (26 contrôleurs, 130 routes)
+   |
+   v
+@Service         (règles métier, parfois @Transactional)
+   |
+   v
+@Repository      (DAO JDBC, SQL manuel)
+   |
+   v
+DatabaseConnection.getConnection()
+   |
+   v
+PostgreSQL — base sssm_db, schéma security
+```
+
+Le point critique de cette chaîne est le dernier maillon : `DatabaseConnection` est une classe utilitaire statique qui appelle `DriverManager.getConnection(...)` à chaque opération. Elle ne passe pas par le `DataSource` configuré par Spring. Les transactions Spring ne peuvent donc pas englober les écritures des DAO.
+
+---
+
+## 2. Stack technique
+
+| Composant | Version / choix | Fichier de référence |
+|---|---|---|
+| Framework | Spring Boot `4.1.1` | `pom.xml` |
+| Langage | Java `17` | `pom.xml` |
+| Web | `spring-boot-starter-web` | `pom.xml` |
+| Sécurité | `spring-boot-starter-security` | `pom.xml` |
+| Validation | `spring-boot-starter-validation` | `pom.xml` |
+| JDBC | `spring-boot-starter-jdbc` | `pom.xml` |
+| Driver PostgreSQL | `42.7.13` | `pom.xml` |
+| JWT | JJWT `0.12.6` (`api`, `impl`, `jackson`) | `pom.xml` |
+| QR Code | ZXing `core` et `javase` `3.5.3` | `pom.xml` |
+| Hash de mot de passe | BCrypt via Spring Security | `SecurityConfig` |
+| Mapping | Lombok, mappers manuels | `pom.xml`, packages `dto.mapper` |
+| Formatage | `fmt-maven-plugin` `2.9.1` | `pom.xml` |
+| Tests | `spring-boot-starter-test` | `pom.xml` |
+
+Le starter JDBC est présent, mais il n'est pas utilisé pour les DAO : il sert uniquement à l'auto-configuration d'un `DataSource` que le code applicatif contourne.
+
+---
+
+## 3. Organisation des packages
+
+Le code est rangé sous `sssm.dev.sssm_backend`, avec une convention de préfixes numériques.
+
+| Package | Rôle | Contrôleurs |
+|---|---|---|
+| `a00_infrastructure` | connexion base, exceptions techniques | 0 |
+| `a01_common` | énumérations, enveloppe d'erreur, gestion globale des exceptions | 1 (`ItemErrorController`, sans route) |
+| `a02_organisation` | entreprises, agences, succursales | 3 |
+| `a03_authentication` | authentification, utilisateurs, rôles, permissions | 4 |
+| `a04_personnel` | employés, documents employés | 2 |
+| `a05_clients` | clients, contacts clients | 2 |
+| `a06_sites` | sites, postes de sécurité, exigences de poste | 3 |
+| `a11_inventory` | inventaire, stock, QR, affectations, comptages, dashboard, rapports | 13 |
+| `controller_test` | contrôleurs de test (`Hello`, `Ping`) | 2 |
+
+Total : **26 contrôleurs REST métier**, plus deux contrôleurs de test, et **130 routes applicatives** (132 en incluant `Hello` et `Ping`).
+
+### 3.1. Détail du module inventaire
+
+| Sous-module | Contrôleur | Service | DAO | Table(s) principale(s) |
+|---|---|---|---|---|
+| `item` | `ItemController` | `ItemService`, `QrCodeService` | `ItemDAOImpl` | `item` |
+| `item_type` | `ItemTypeController` | `ItemTypeService` | `ItemTypeDAOImpl` | `item_type` |
+| `item_category` | `ItemCategoryController` | `ItemCategoryService` | `ItemCategoryDAOImpl` | `item_category` |
+| `warehouse` | `WarehouseController` | `WarehouseService` | `WarehouseDAOImpl` | `warehouse` |
+| `stock_movement` | `StockMovementController` | `StockMovementService` | `StockMovementDAOImpl` | `stock_movement` |
+| `item_assignment` | `ItemAssignmentController` | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | `item_assignment` |
+| `assignment` | `AssignmentController` | `AssignmentService` | `AssignmentDAOImpl` | `item_assignment` |
+| `qr_scan` | `QrScanController` | `QrScanService` | `QrScanDAOImpl` | `item` |
+| `inventory_count` | `InventoryCountController` | `InventoryCountService` | `InventoryCountDAOImpl` | `inventory_count`, `inventory_count_scan` |
+| `operation` | `OperationController` | `OperationService` | `OperationDAOImpl` | `inventory_operation` |
+| `dashboard` | `DashboardController` | `DashboardService` | `DashboardDAOImpl` | `item`, `warehouse`, `inventory_operation`, `item_type` |
+| `report` | `ReportController` | `ReportService` | `ReportDAOImpl` | `stock_movement` |
+
+Deux modules distincts manipulent la même table `item_assignment` : `item_assignment` (API typée `/api/item-assignments`) et `assignment` (API générique `/api/inventory/assignments`). Cette duplication est une dette d'architecture majeure, détaillée dans le rapport 08.
+
+---
+
+## 4. Chemin d'une requête
+
+### 4.1. Requête authentifiée
+
+1. Le client envoie `Authorization: Bearer <JWT>`.
+2. `JwtAuthenticationFilter` lit l'en-tête, appelle `JwtService.parse`, extrait `sub`, `uid` et `roles`, puis crée un `UsernamePasswordAuthenticationToken` avec des autorités `ROLE_<role>`.
+3. `SecurityConfig` applique les règles d'URL.
+4. Le contrôleur reçoit la requête, valide éventuellement le DTO avec `@Valid`.
+5. Le service applique les règles métier et appelle un ou plusieurs DAO.
+6. Chaque DAO ouvre sa propre connexion avec `DatabaseConnection.getConnection()`.
+7. Le DAO exécute le SQL, mappe le `ResultSet` vers un DTO de réponse, puis ferme la connexion.
+8. Le service convertit éventuellement le DTO interne en objet REST via un mapper.
+9. Le contrôleur renvoie du JSON.
+
+### 4.2. Requête en erreur
+
+- Les exceptions `ClientException` deviennent des **400**.
+- Les `NotFoundException` deviennent des **404**.
+- Les `ServerException` deviennent des **500**.
+- Les erreurs de validation Spring deviennent des **400** avec `VALIDATION_ERROR`.
+- Les erreurs PostgreSQL sont converties par `ErrorMapper` en **500** avec le SQLSTATE dans `errors.code` et un message PostgreSQL dans `errors.detail`.
+
+Certains modules génériques (`assignment`, `inventory_count`, `operation`) ne lèvent pas d'exception pour les cas « introuvable » ou « corps vide » : ils renvoient **200** avec une enveloppe `errors`. Ce comportement est décrit dans le rapport 02.
+
+---
+
+## 5. Configuration
+
+### 5.1. Fichiers
+
+| Fichier | Contenu | Remarque |
+|---|---|---|
+| `src/main/resources/application.properties` | port, secret JWT de développement, expiration, rôle par défaut, `spring.datasource.*` | Les propriétés `spring.datasource` ne sont pas utilisées par les DAO. |
+| `src/main/resources/application-prod.properties` | secret JWT et identifiants base sans valeur par défaut | Le profil prod exige les variables d'environnement, mais `DatabaseConnection` a ses propres valeurs par défaut. |
+| `src/main/java/.../a00_infrastructure/database/DatabaseConnection.java` | `DB_URL`, `DB_USER`, `DB_PASSWORD` via `System.getenv`, avec valeurs de repli | Aucun pool, aucune intégration Spring. |
+
+### 5.2. Conséquence
+
+Le couple `application-prod.properties` + `DatabaseConnection` est incohérent :
+
+- Spring configure un `DataSource` avec les variables d'environnement ;
+- les DAO ignorent ce `DataSource` et utilisent `DriverManager` ;
+- si les variables ne sont pas définies, `DatabaseConnection` retombe sur des valeurs locales ;
+- `@Transactional` s'applique au gestionnaire de transactions Spring, pas aux connexions ouvertes par `DriverManager`.
+
+Ce point est une cause racine des états partiels observés dans les modules composés.
+
+---
+
+## 6. Patterns et conventions
+
+### 6.1. Ce qui est homogène
+
+- Les contrôleurs sont fins et délèguent aux services.
+- Les DTO de création et de mise à jour sont séparés.
+- Les réponses REST sont des classes dédiées (`*Rest`), souvent distinctes des DTO internes (`*Response`).
+- Les erreurs utilisent une enveloppe unique `{"errors": {"message", "detail", "code"}}`.
+- Les noms de colonnes sont en `snake_case`, y compris dans les DTO Java (`company_id`, `item_type_id`, `qr_code`).
+- Les routes d'inventaire sont majoritairement préfixées par `/api/inventory`.
+- Les listes paginées utilisent `page` et `pageSize`, avec des valeurs par défaut variables.
+
+### 6.2. Ce qui est hétérogène
+
+| Sujet | Variations observées |
+|---|---|
+| Pagination | `page`/`pageSize` (inventaire typé), `page`/`size` (modules génériques), valeurs par défaut 10, 50 ou 500 |
+| Plafond de pagination | absent sur les modules typés, plafonné à 500 sur les modules génériques |
+| Codes de création | `201` pour les modules typés, `200` pour `assignment`, `inventory_count` et `operation` |
+| Erreurs « introuvable » | `404` pour les modules typés, `200` avec `errors` pour `assignment` et `inventory_count` |
+| Réponses de liste | objets imbriqués pour `ItemRest`, identifiants plats pour les mouvements et affectations |
+| Champs d'audit | `assigned_by`/`returned_by` dans le module générique, absents du module typé |
+| Nommage | `/api/item-assignments` contre `/api/inventory/assignments` |
+
+---
+
+## 7. Accès aux données
+
+### 7.1. Caractéristiques
+
+- SQL écrit à la main dans les DAO.
+- `PreparedStatement` utilisé pour les valeurs, ce qui limite l'injection SQL directe.
+- certains modules génériques construisent des noms de colonnes à partir des clés JSON, après une regex `[A-Za-z_][A-Za-z0-9_]*` ; les valeurs restent paramétrées, mais le schéma n'est pas filtré par une liste blanche de colonnes.
+- Aucune pagination par curseur, aucun `ORDER BY` stable sur les dates (souvent `ORDER BY id`).
+- Aucun verrou pessimiste, aucune colonne de version, aucun `SELECT ... FOR UPDATE`.
+- Aucune connexion partagée ni pool : chaque appel ouvre et ferme une connexion TCP.
+
+### 7.2. Conséquences
+
+- Les listes d'articles déclenchent une chaîne de requêtes par article (N+1), décrite dans le rapport 10.
+- Les opérations qui écrivent dans deux tables (article + affectation, article + mouvement) ne sont pas atomiques.
+- Une erreur en cours de chaîne laisse la première écriture validée.
+- Le coût d'une liste augmente fortement avec le nombre d'articles et la profondeur des relations.
+
+---
+
+## 8. Sécurité applicative
+
+| Élément | Implémentation | Limite |
+|---|---|---|
+| Authentification | JWT HMAC, algorithme déduit de la clé par JJWT, filtre `OncePerRequestFilter` | Pas de révocation, pas de refresh token persistant |
+| Mots de passe | BCrypt | Pas de politique de complexité au-delà de 8 caractères |
+| Autorisation | `SecurityConfig` par URL | Pas de `@PreAuthorize`, pas de permissions fines |
+| Rôles | table `role`, `user_role` | Rôles globaux ou par entreprise, non filtrés dans les routes |
+| CORS | `allowedOriginPatterns("*")` + `allowCredentials(true)` | Combinaison permissive |
+| CSRF | désactivé | Acceptable pour une API stateless, à condition de ne pas utiliser de cookies |
+| Erreurs SQL | SQLSTATE et message PostgreSQL renvoyés | Fuite d'information technique |
+
+Le détail est dans le rapport 09.
+
+---
+
+## 9. Documentation et artefacts
+
+| Artefact | Nombre | État |
+|---|---|---|
+| Scripts SQL | 18 (`00` à `17`) | Présents, non migrés automatiquement |
+| Fichiers OpenAPI | 26 | Présents, structure valide, 183 avertissements Redocly |
+| Fichiers OpenAPI inventaire | 14 | Présents, cohérents avec les routes principales |
+| Tests | 21 classes, 105 tests | Verts dans le dernier rapport, intégration sur base réelle |
+| Rapport Surefire | `target/surefire-reports` | Présent, non régénéré pendant l'audit |
+
+Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquibase). Le schéma est créé manuellement ou par un script externe. Il n'existe pas de table de version de schéma applicative.
+
+---
+
+## 10. Dettes architecturales structurantes
+
+| Dette | Preuve | Impact |
+|---|---|---|
+| Absence de couche de tenancy | Aucun filtre `company_id` dans les DAO d'inventaire | Fuite et mélange de données entre entreprises |
+| Absence de transactions effectives | `DatabaseConnection` + `DriverManager` | États partiels, incohérences |
+| Deux modules d'affectation | `item_assignment` et `assignment` | Contrats et règles divergents |
+| DAO génériques à colonnes libres | `AssignmentDAOImpl.save`, `InventoryCountDAOImpl.save`, `OperationDAOImpl.save` | Contournement des DTO et des validations |
+| Stock déclaratif | `item_type.quantity_total` manuel | Stock non fiable |
+| Opérations vides | `inventory_operation` sans lignes ni mouvements | Faux sentiment de traçabilité |
+| N+1 | `ItemRestMapper` | Performance dégradée |
+| Pas de pool | `DriverManager` | Latence et saturation |
+| Pas de version de schéma | scripts SQL manuels | Déploiements non reproductibles |
+| Documentation API partielle | 183 avertissements | Contrats incomplets pour les frontends |
+
+---
+
+## 11. Synthèse
+
+Le backend est **structuré** : les responsabilités sont globalement séparées, les modules sont identifiables et les routes sont nombreuses. Il est en revanche **fragile sur les fondations** : tenancy, transactions, stock et autorisations ne sont pas garantis par l'architecture.
+
+Les rapports suivants examinent chaque domaine. Le rapport 12 consolide les risques et le rapport 14 propose un ordre de correction qui respecte les dépendances entre ces fondations.
