@@ -13,6 +13,8 @@ vérifie chaque push et chaque pull request ciblant `dev` ou `main`. Il peut aus
 - Création du schéma avec `doc/database/sssm_schema2_v01.sql`.
 - Chargement des données de démonstration avec
   `doc/database/mock_data/sssm_mock_data.sql`.
+- Garde-fou de schéma : vérification que l'enum `security.movement_type`
+  contient bien `DESTRUCTION` (utilisé par les mouvements et l'openapi).
 - Exécution de `./mvnw -B -q test` avec `DB_URL`, `DB_USER`, `DB_PASSWORD` et
   `JWT_SECRET` fournis par l'environnement du job.
 - Publication des rapports Surefire en artefact, même en cas d'échec.

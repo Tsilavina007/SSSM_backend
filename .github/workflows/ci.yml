@@ -59,6 +59,15 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f doc/database/sssm_schema2_v01.sql
           psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f doc/database/mock_data/sssm_mock_data.sql
 
+      - name: Verify schema enum values
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # Garde-fou : le schéma doit couvrir les types utilisés par l'API.
+          psql -h 127.0.0.1 -U postgres -d sssm_db -tAc \
+            "SELECT enumlabel FROM pg_enum WHERE enumtypid = 'security.movement_type'::regtype ORDER BY enumsortorder" \
+            | grep -qx DESTRUCTION
+
       - name: Run tests
         env:
           DB_URL: "jdbc:postgresql://127.0.0.1:5432/sssm_db"
