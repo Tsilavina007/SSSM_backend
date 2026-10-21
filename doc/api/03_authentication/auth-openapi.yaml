@@ -133,9 +133,10 @@ paths:
       summary: Renouveler un jeton JWT
       description: >-
         Valide le jeton fourni (même expiré) et en émet un nouveau pour le même
-        utilisateur et les mêmes rôles. Le compte doit être actif.
-      security:
-        - bearerAuth: []
+        utilisateur et les mêmes rôles. Le compte doit être actif. Le jeton est
+        transmis dans le corps : aucun en-tête Authorization n'est requis, ce qui
+        permet de renouveler un jeton expiré.
+      security: []
       requestBody:
         required: true
         content:

@@ -6,17 +6,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.AssignmentResponse;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.mapper.AssignmentRestMapper;
 import sssm.dev.sssm_backend.a11_inventory.assignment.dto.rest.AssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.assignment.repository.AssignmentDAO;
+import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
 
 @Service
 @RequiredArgsConstructor
 public class AssignmentService {
   private final AssignmentDAO assignmentDAO;
   private final AssignmentRestMapper assignmentRestMapper;
+  private final ItemDAO itemDAO;
 
   public List<AssignmentRest> listActive(Integer page, Integer size) {
     return mapperListResponseToRest(assignmentDAO.listActive(page, size));
@@ -45,6 +48,16 @@ public class AssignmentService {
   @Transactional
   public Object save(String id, Map<String, Object> b, boolean u) {
     Object r = assignmentDAO.save(id, b, u);
+    if (r instanceof AssignmentResponse rs && rs.getItem_id() != null) {
+      if (!u) {
+        // Nouvelle affectation : l'article quitte le stock disponible.
+        itemDAO.updateItemStatus(rs.getItem_id(), ItemStatus.ASSIGNED);
+        itemDAO.updateItemLocation(rs.getItem_id(), null);
+      } else if (rs.getReturned_at() != null) {
+        // Restitution : l'article redevient disponible.
+        itemDAO.updateItemStatus(rs.getItem_id(), ItemStatus.AVAILABLE);
+      }
+    }
     return r instanceof AssignmentResponse rs ? assignmentRestMapper.toRest(rs) : r;
   }
 

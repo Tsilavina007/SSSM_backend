@@ -12,6 +12,8 @@ public interface ItemAssignmentDAO {
 
   List<ItemAssignmentResponse> searchItemAssignmentsByName(String value, int page, int pageSize);
 
+  List<ItemAssignmentResponse> getItemAssignmentsByItem(String itemId, int page, int pageSize);
+
   Optional<ItemAssignmentResponse> getItemAssignmentById(String id);
 
   ItemAssignmentResponse createItemAssignment(ItemAssignmentCreateRequest value);

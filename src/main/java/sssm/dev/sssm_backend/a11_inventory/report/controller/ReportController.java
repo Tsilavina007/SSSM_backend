@@ -24,6 +24,15 @@ public class ReportController {
       @RequestParam(required = false) Integer pageSize,
       @RequestParam(required = false) String itemId,
       @RequestParam(required = false) String warehouseId) {
+    if (itemId != null && warehouseId != null) {
+      return reportService.list(
+          page,
+          pageSize,
+          null,
+          "item_id = ? AND warehouse_id = ?",
+          java.util.UUID.fromString(itemId),
+          java.util.UUID.fromString(warehouseId));
+    }
     if (itemId != null) {
       return reportService.list(
           page, pageSize, null, "item_id = ?", java.util.UUID.fromString(itemId));

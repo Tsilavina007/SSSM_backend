@@ -62,20 +62,15 @@ public class ItemController {
 
   @GetMapping("/{itemId}/history")
   public Map<String, Object> getItemHistory(@PathVariable String itemId) {
-    List<StockMovementRest> movements =
-        stockMovementService.getStockMovements(Optional.empty(), Optional.of(1), Optional.of(100));
+    // Vérifie l'existence de l'article (404 sinon) avant de charger l'historique.
+    itemService.getItemById(itemId);
+    List<StockMovementRest> movements = stockMovementService.getStockMovementsByItem(itemId, 1, 500);
     List<ItemAssignmentRest> assignments =
-        itemAssignmentService.getItemAssignments(
-            Optional.empty(), Optional.of(1), Optional.of(100));
-    // Filter by item_id
-    List<StockMovementRest> itemMovements =
-        movements.stream().filter(m -> itemId.equals(m.getItem_id())).toList();
-    List<ItemAssignmentRest> itemAssignments =
-        assignments.stream().filter(a -> itemId.equals(a.getItem_id())).toList();
+        itemAssignmentService.getItemAssignmentsByItem(itemId, 1, 500);
     Map<String, Object> history = new java.util.LinkedHashMap<>();
     history.put("item_id", itemId);
-    history.put("movements", itemMovements);
-    history.put("assignments", itemAssignments);
+    history.put("movements", movements);
+    history.put("assignments", assignments);
     return history;
   }
 

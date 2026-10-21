@@ -44,7 +44,12 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             auth ->
                 auth.requestMatchers(
-                        "/", "/ping", "/error", "/api/auth/register", "/api/auth/login")
+                        "/",
+                        "/ping",
+                        "/error",
+                        "/api/auth/register",
+                        "/api/auth/login",
+                        "/api/auth/refresh")
                     .permitAll()
                     .requestMatchers("/api/inventory/**")
                     .authenticated()

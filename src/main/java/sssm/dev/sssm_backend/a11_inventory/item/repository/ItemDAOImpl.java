@@ -120,6 +120,47 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
+  public List<ItemResponse> getItemsFiltered(
+      String search, String warehouseId, String status, int page, int pageSize) {
+    StringBuilder sql = new StringBuilder("SELECT * FROM security.item WHERE 1 = 1");
+    List<Object> parameters = new ArrayList<>();
+
+    if (search != null && !search.isBlank()) {
+      sql.append(" AND (qr_code ILIKE ? OR description ILIKE ?)");
+      String pattern = "%" + search + "%";
+      parameters.add(pattern);
+      parameters.add(pattern);
+    }
+    if (warehouseId != null) {
+      sql.append(" AND current_warehouse_id = ?");
+      parameters.add(UUID.fromString(warehouseId));
+    }
+    if (status != null) {
+      sql.append(" AND status = CAST(? AS security.item_status)");
+      parameters.add(status);
+    }
+    sql.append(" ORDER BY id LIMIT ? OFFSET ?");
+    parameters.add(pageSize);
+    parameters.add((page - 1) * pageSize);
+
+    List<ItemResponse> values = new ArrayList<>();
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          values.add(mapRowToItemResponse(rs));
+        }
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return values;
+  }
+
+  @Override
   public Optional<ItemResponse> getItemById(String id) {
     String sql = "SELECT * FROM security.item WHERE id = ?";
     UUID uuid = UUID.fromString(id);
@@ -241,6 +282,34 @@ public class ItemDAOImpl implements ItemDAO {
                     "Article introuvable",
                     "Aucun article ne correspond à l'identifiant " + id + ".",
                     "NOT_FOUND"));
+  }
+
+  @Override
+  public void updateItemStatus(String id, ItemStatus status) {
+    String sql = "UPDATE security.item SET status = CAST(? AS security.item_status) WHERE id = ?";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setString(1, status.name());
+      stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public void updateItemLocation(String id, String warehouseId) {
+    String sql = "UPDATE security.item SET current_warehouse_id = ? WHERE id = ?";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, warehouseId == null ? null : UUID.fromString(warehouseId));
+      stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
   }
 
   @Override

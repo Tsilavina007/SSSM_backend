@@ -36,16 +36,13 @@ public class ItemService {
       Optional<String> status) {
     int pageNumber = page.orElse(1);
     int pageSizeNumber = pageSize.orElse(10);
-    List<ItemResponse> items;
-    if (search.isPresent()) {
-      items = itemDAO.searchItemsByName(search.get(), pageNumber, pageSizeNumber);
-    } else if (warehouseId.isPresent()) {
-      items = itemDAO.getItemsByWarehouse(warehouseId.get(), pageNumber, pageSizeNumber);
-    } else if (status.isPresent()) {
-      items = itemDAO.getItemsByStatus(status.get(), pageNumber, pageSizeNumber);
-    } else {
-      items = itemDAO.getAllItems(pageNumber, pageSizeNumber);
-    }
+    List<ItemResponse> items =
+        itemDAO.getItemsFiltered(
+            search.orElse(null),
+            warehouseId.orElse(null),
+            status.orElse(null),
+            pageNumber,
+            pageSizeNumber);
     return items.stream().map(itemRestMapper::toRest).toList();
   }
 

@@ -72,6 +72,31 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
+  public List<StockMovementResponse> getStockMovementsByItem(
+      String itemId, int page, int pageSize) {
+    String sql =
+        "SELECT * FROM security.stock_movement WHERE item_id = ? ORDER BY id LIMIT ? OFFSET ?";
+    List<StockMovementResponse> values = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(itemId));
+      stmt.setInt(2, pageSize);
+      stmt.setInt(3, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          values.add(mapRowToStockMovementResponse(rs));
+        }
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return values;
+  }
+
+  @Override
   public Optional<StockMovementResponse> getStockMovementById(String id) {
     String sql = "SELECT * FROM security.stock_movement WHERE id = ?";
     UUID uuid = UUID.fromString(id);

@@ -196,6 +196,18 @@ public class GlobalExceptionHandler {
                     "FORBIDDEN")));
   }
 
+  @ExceptionHandler(io.jsonwebtoken.JwtException.class)
+  public ResponseEntity<Map<String, ItemError>> handleJwt(io.jsonwebtoken.JwtException exception) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(
+            Map.of(
+                "errors",
+                new ItemError(
+                    "Jeton invalide",
+                    "Le jeton JWT est invalide, mal formé ou a expiré.",
+                    "UNAUTHORIZED")));
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, ItemError>> handleIllegalArgument(
       IllegalArgumentException exception) {

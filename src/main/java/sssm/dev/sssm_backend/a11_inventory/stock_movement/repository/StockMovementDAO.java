@@ -12,6 +12,8 @@ public interface StockMovementDAO {
 
   List<StockMovementResponse> searchStockMovementsByName(String value, int page, int pageSize);
 
+  List<StockMovementResponse> getStockMovementsByItem(String itemId, int page, int pageSize);
+
   Optional<StockMovementResponse> getStockMovementById(String id);
 
   StockMovementResponse createStockMovement(StockMovementCreateRequest value);

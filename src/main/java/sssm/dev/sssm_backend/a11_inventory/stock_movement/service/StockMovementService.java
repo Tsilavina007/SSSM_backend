@@ -10,7 +10,6 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
-import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementResponse;
@@ -37,6 +36,13 @@ public class StockMovementService {
                     stockMovementDAO.searchStockMovementsByName(value, pageNumber, pageSizeNumber))
             .orElseGet(() -> stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber));
     return movements.stream().map(stockMovementRestMapper::toRest).toList();
+  }
+
+  public List<StockMovementRest> getStockMovementsByItem(
+      String itemId, int page, int pageSize) {
+    return stockMovementDAO.getStockMovementsByItem(itemId, page, pageSize).stream()
+        .map(stockMovementRestMapper::toRest)
+        .toList();
   }
 
   public StockMovementRest getStockMovementById(String stockMovementId) {
@@ -89,33 +95,29 @@ public class StockMovementService {
         stockMovementRestMapper.toRest(stockMovementDAO.createStockMovement(stockMovement));
 
     // Mettre à jour l'état de l'item selon le type de mouvement
-    ItemUpdateRequest update = new ItemUpdateRequest();
     switch (type) {
       case IN:
-        update.setStatus(ItemStatus.AVAILABLE);
-        update.setCurrent_warehouse_id(stockMovement.getWarehouse_id());
+        itemDAO.updateItemStatus(stockMovement.getItem_id(), ItemStatus.AVAILABLE);
+        itemDAO.updateItemLocation(stockMovement.getItem_id(), stockMovement.getWarehouse_id());
         break;
       case OUT:
-        update.setStatus(ItemStatus.ASSIGNED);
-        update.setCurrent_warehouse_id(null);
+        itemDAO.updateItemStatus(stockMovement.getItem_id(), ItemStatus.ASSIGNED);
+        itemDAO.updateItemLocation(stockMovement.getItem_id(), null);
         break;
       case TRANSFER:
-        update.setCurrent_warehouse_id(stockMovement.getWarehouse_id());
+        itemDAO.updateItemLocation(stockMovement.getItem_id(), stockMovement.getWarehouse_id());
         break;
       case RETURN:
-        update.setStatus(ItemStatus.AVAILABLE);
-        update.setCurrent_warehouse_id(stockMovement.getWarehouse_id());
+        itemDAO.updateItemStatus(stockMovement.getItem_id(), ItemStatus.AVAILABLE);
+        itemDAO.updateItemLocation(stockMovement.getItem_id(), stockMovement.getWarehouse_id());
         break;
       case DESTRUCTION:
-        update.setStatus(ItemStatus.RETIRED);
-        update.setCurrent_warehouse_id(null);
+        itemDAO.updateItemStatus(stockMovement.getItem_id(), ItemStatus.RETIRED);
+        itemDAO.updateItemLocation(stockMovement.getItem_id(), null);
         break;
       case ADJUSTMENT:
         // Pas de mise à jour automatique
         break;
-    }
-    if (update.getStatus() != null || update.getCurrent_warehouse_id() != null) {
-      itemDAO.updateItem(stockMovement.getItem_id(), update);
     }
 
     return result;

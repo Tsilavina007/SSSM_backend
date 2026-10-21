@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
-import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentResponse;
@@ -37,6 +36,13 @@ public class ItemAssignmentService {
                         value, pageNumber, pageSizeNumber))
             .orElseGet(() -> itemAssignmentDAO.getAllItemAssignments(pageNumber, pageSizeNumber));
     return assignments.stream().map(itemAssignmentRestMapper::toRest).toList();
+  }
+
+  public List<ItemAssignmentRest> getItemAssignmentsByItem(
+      String itemId, int page, int pageSize) {
+    return itemAssignmentDAO.getItemAssignmentsByItem(itemId, page, pageSize).stream()
+        .map(itemAssignmentRestMapper::toRest)
+        .toList();
   }
 
   public ItemAssignmentRest getItemAssignmentById(String itemAssignmentId) {
@@ -82,10 +88,8 @@ public class ItemAssignmentService {
         itemAssignmentRestMapper.toRest(itemAssignmentDAO.createItemAssignment(itemAssignment));
 
     // Mettre à jour l'état de l'item
-    ItemUpdateRequest update = new ItemUpdateRequest();
-    update.setStatus(ItemStatus.ASSIGNED);
-    update.setCurrent_warehouse_id(null);
-    itemDAO.updateItem(itemAssignment.getItem_id(), update);
+    itemDAO.updateItemStatus(itemAssignment.getItem_id(), ItemStatus.ASSIGNED);
+    itemDAO.updateItemLocation(itemAssignment.getItem_id(), null);
 
     return result;
   }
@@ -111,9 +115,7 @@ public class ItemAssignmentService {
 
     // Si la restitution est enregistrée, remettre l'item en AVAILABLE
     if (updatedItemAssignment.getReturned_at() != null) {
-      ItemUpdateRequest update = new ItemUpdateRequest();
-      update.setStatus(ItemStatus.AVAILABLE);
-      itemDAO.updateItem(existing.getItem_id(), update);
+      itemDAO.updateItemStatus(existing.getItem_id(), ItemStatus.AVAILABLE);
     }
 
     return result;
