@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** aucun test n'a été relancé pendant l'audit. Un `PASS` signifie « cohérent avec le code et les rapports existants », pas « rejoué aujourd'hui ».
+**Important :** aucune suite complète n'a été relancée pendant l'audit ; le seul artefact courant est un run ciblé de 7 tests QR. Un `PASS` signifie « cohérent avec le code et les rapports existants », pas « rejoué aujourd'hui ».
 
 ### 1.2. Règle de décision
 
@@ -315,7 +315,7 @@ Et un comptage déjà clôturé renvoie 409
 | API-10 | Les créations sensibles acceptent `Idempotency-Key` | **FAIL** | Absent |
 | API-11 | Les `PATCH` sensibles utilisent `If-Match`/ETag | **FAIL** | Absent |
 | API-12 | Les erreurs ont un `code` stable et documenté | **FAIL** | Codes génériques + SQLSTATE |
-| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 26 fichiers, 183 avertissements |
+| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 26 fichiers, 183 avertissements à l'audit initial (non rejoués après `7e3f196`) |
 | API-14 | Le CORS est restreint par environnement | **FAIL** | `*` |
 | API-15 | Les filtres couvrent les besoins des écrans | **FAIL** | Voir rapports 02 et 10 |
 | API-16 | Chaque réponse d'erreur contient un `traceId` | **FAIL** | Absent |
@@ -397,11 +397,14 @@ Et un comptage déjà clôturé renvoie 409
 | Stock | 1 | 0 | 17 | 0 |
 | Affectations | 0 | 1 | 17 | 0 |
 | QR | 2 | 0 | 13 | 0 |
-| Comptages / opérations | 0 | 1 | 18 | 0 |
+| Comptages / opérations | 0 | 1 | 19 | 0 |
 | Contrat HTTP | 0 | 4 | 13 | 1 |
 | Performance / sécurité | 0 | 1 | 10 | 2 |
 | Tests / CI | 0 | 2 | 11 | 1 |
 | Frontend | 0 | 2 | 12 | 0 |
+| **Total** | **7** | **16** | **165** | **4** |
+
+**Total : 192 critères** (7 `PASS`, 16 `PARTIEL`, 165 `FAIL`, 4 `NON VÉRIFIÉ`). La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
 **Lecture :** les seuls `PASS` concernent des mécanismes isolés (JWT filtre, BCrypt, unicité SQL, PNG, 404 d'un mouvement, blocage anonyme). Aucun domaine métier n'est validé de bout en bout.
 

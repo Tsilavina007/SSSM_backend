@@ -3,7 +3,8 @@
 **Date de l'audit :** 21 octobre 2026  
 **Périmètre :** backend Spring Boot, API HTTP, PostgreSQL, modules inventaire / stock / QR Code / affectations / authentification  
 **Nature :** audit statique et vérifications en lecture seule  
-**Statut de la mission :** audit terminé, aucune correction appliquée, aucun frontend démarré
+**Statut de la mission :** audit initial terminé, aucune correction applicative effectuée par l'audit ou la revue, aucun frontend démarré. Le correctif QR `7e3f196` est postérieur à l'audit initial.  
+**Revue de cohérence :** 21 octobre 2026 — voir [`16-revue-coherence.md`](16-revue-coherence.md)
 
 ---
 
@@ -35,8 +36,8 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | QR Code | génération, image PNG, résolution, scan |
 | Affectations | deux modules distincts (`item_assignment` et `assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 21 classes de tests, 105 tests, rapports Surefire disponibles |
-| OpenAPI | 26 fichiers YAML, dont 14 pour l'inventaire |
+| Tests | 21 classes / 105 tests lors de l'audit initial ; 22 classes / 112 tests dans l'arbre courant, suite complète non rejouée |
+| OpenAPI | 26 fichiers YAML, dont 12 pour l'inventaire |
 
 ## 3. Périmètre exclu
 
@@ -60,11 +61,11 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
 | Base contrôlée | `sssm_db`, schéma `security`, en lecture seule |
-| Rapports de tests | `target/surefire-reports` - 105 tests, 0 échec, 0 erreur, 0 ignoré au dernier rapport disponible |
+| Rapports de tests | Rapport complet historique : 105 tests, 0 échec, 0 erreur, 0 ignoré. Artefact courant : `ItemControllerQrCodeImageTest`, 7 tests, 0 échec. Aucun rapport complet pour `7e3f196`. |
 | Documentation API | `doc/api/**/*.yaml` — 26 fichiers |
 | Scripts SQL | `doc/database/schema/00_init.sql` à `17_seed_permissions.sql` — 18 fichiers |
 
-Le dépôt n'étant pas initialisé en tant que dépôt Git dans l'environnement d'exécution, aucun hash de commit n'est cité. L'audit porte sur l'état des fichiers présents au 21 octobre 2026.
+Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196` et signale explicitement les constats qui datent de l'audit initial.
 
 ---
 
@@ -100,6 +101,7 @@ Aucun test destructif, aucune migration, aucune insertion, aucune modification d
 | [`13-endpoints-manquants-proposes.md`](13-endpoints-manquants-proposes.md) | Contrats proposés, non implémentés, pour combler les manques | Proposition |
 | [`14-plan-corrections.md`](14-plan-corrections.md) | Plan par phases, dépendances, critères de sortie | Proposition |
 | [`15-criteres-validation-api.md`](15-criteres-validation-api.md) | Critères testables pour déclarer l'API prête | Proposition |
+| [`16-revue-coherence.md`](16-revue-coherence.md) | Revue de cohérence, matrice de preuves, contradictions, tableau final des anomalies et ordre de correction | Consolidation |
 
 ---
 
@@ -127,12 +129,12 @@ Les priorités utilisées dans le registre sont :
 
 ## 8. Limites de l'audit
 
-- **Aucun test n'a été relancé.** Les résultats cités proviennent des rapports `target/surefire-reports` déjà présents. Cela évite de modifier la base de démonstration partagée, mais ne garantit pas que la suite passerait à l'instant exact de la lecture.
+- **Aucune suite complète n'a été relancée pendant l'audit initial ni pendant la revue.** Les résultats complets cités (105 tests) proviennent d'un rapport Surefire historique. L'artefact encore présent dans `target/surefire-reports` ne contient que les 7 tests QR de `ItemControllerQrCodeImageTest`, exécutés lors du correctif. Aucune exécution complète n'a été faite sur `7e3f196`, et le test `ItemApiTests.historyUnknownReturnsNotFound` attend un 404 alors que le contrôleur courant renvoie 200. L'état de la suite complète sur HEAD est donc **NON VÉRIFIÉ**.
 - **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise et il était interdit de créer des données.
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
 - **Les secrets réels n'ont pas été lus.** Les conclusions portent sur la présence de valeurs par défaut et sur la configuration, pas sur la divulgation d'un secret d'exploitation.
-- **OpenAPI** a été vérifié structurellement. Les 183 avertissements Redocly relevés lors de la vérification ne sont pas corrigés dans ce dossier ; ils sont signalés comme dette de documentation.
+- **OpenAPI** a été vérifié structurellement. Les 183 avertissements Redocly relevés lors de l'audit initial ne sont pas corrigés dans ce dossier ; ils sont signalés comme dette de documentation. Ce décompte n'a pas été rejoué après le commit `7e3f196`.
 - **Les propositions** des fichiers 13 à 15 sont des spécifications. Elles ne constituent ni du code livré, ni un engagement de délai.
 
 ---
@@ -141,7 +143,7 @@ Les priorités utilisées dans le registre sont :
 
 **Le backend n'est pas prêt pour la production.** Il est partiellement utilisable pour un prototype mono-entreprise, en lecture et CRUD encadré, mais il ne permet pas aujourd'hui de garantir un stock fiable, une isolation entre entreprises, une traçabilité des affectations ou un contrôle d'accès par rôle.
 
-Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout frontend sont dans [`00-resume-executif.md`](00-resume-executif.md). Les preuves sont dans les rapports 01 à 11, et les corrections proposées dans les rapports 12 à 15.
+Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout frontend sont dans [`00-resume-executif.md`](00-resume-executif.md). Les preuves sont dans les rapports 01 à 11, la revue de cohérence dans le rapport 16, et les corrections proposées dans les rapports 12 à 15.
 
 ---
 
@@ -154,6 +156,7 @@ Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout fr
 5. Rapports 04 à 09 — dettes métier et sécurité.
 6. Rapports 10 et 11 — adéquation frontend et fiabilité.
 7. Rapports 12 à 15 — risques, propositions, plan, critères d'acceptation.
+8. [`16-revue-coherence.md`](16-revue-coherence.md) — vérification croisée, contradictions, tableau final et ordre corrigé.
 
 ---
 
@@ -170,6 +173,6 @@ Cette passe d'audit n'a modifié :
 - aucune donnée en base ;
 - aucun fichier OpenAPI.
 
-Les seuls fichiers créés sont les dix-sept fichiers Markdown de ce dossier `docs/audit/`.
+Les seuls fichiers créés ou modifiés sont les fichiers Markdown de ce dossier `docs/audit/` (dix-huit après ajout du rapport 16).
 
 Toute correction et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.

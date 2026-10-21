@@ -8,7 +8,7 @@
 
 | Catégorie | Contrôleurs | Routes |
 |---|---|---|
-| Inventaire | 13 | 57 |
+| Inventaire | 12 | 57 |
 | Authentification / administration | 4 | 23 |
 | Organisation | 3 | 15 |
 | Personnel | 2 | 10 |

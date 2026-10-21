@@ -35,7 +35,7 @@ Base : `/api/inventory/items`
 | GET | `/{itemId}` | 200 / 404 | **IMPLÉMENTÉ** | 404 si UUID inconnu ; 400 si UUID invalide. |
 | GET | `/{itemId}/qr-code` | 200 / 404 | **IMPLÉMENTÉ** | Retourne `id`, `company_id`, `category_id`, `item_type_id`, `current_warehouse_id`, `qr_code`. |
 | GET | `/{itemId}/history` | 200 | **PARTIEL** | Retourne `movements` et `assignments`, limités aux 100 premières lignes **globales** de chaque table puis filtrés en mémoire. Aucun contrôle d'existence : un UUID inconnu renvoie 200 avec des listes vides. Le test `historyUnknownReturnsNotFound` attend pourtant 404. |
-| GET | `/{itemId}/qr-code/image` | 200 PNG / 404 | **IMPLÉMENTÉ** | PNG 300 × 300 généré à la demande. |
+| GET | `/{itemId}/qr-code/image` | 200 PNG / 400 / 404 / 500 | **IMPLÉMENTÉ** | PNG 300 × 300 généré à la demande. UUID invalide → 400 `BAD_REQUEST` ; article inconnu → 404 `NOT_FOUND` ; contenu QR absent → 500 `QR_CODE_MISSING` ; échec d'encodage/flux → 500 `QR_CODE_GENERATION_FAILED`. Les erreurs restent en JSON même avec `Accept: image/png` strict (correctif `7e3f196`). |
 | POST | `/` | 201 | **IMPLÉMENTÉ** | `company_id` et `item_type_id` obligatoires. QR auto si absent. |
 | POST | `/bulk` | 200 | **PARTIEL** | Liste d'articles ; succès partiel dans `created` / `failed`. Pas de `@Valid` sur les éléments. |
 | PATCH | `/{itemId}` | 200 / 404 | **PARTIEL** | Champs non nuls uniquement ; impossible d'effacer une relation. |
@@ -333,7 +333,7 @@ Toutes ces routes sont accessibles à **tout utilisateur authentifié**, car `Se
 
 ## 6. Cohérence avec OpenAPI
 
-Les 26 fichiers OpenAPI couvrent les 26 contrôleurs métier. Les 14 fichiers d'inventaire décrivent les mêmes routes que les contrôleurs, avec plusieurs dettes explicitement documentées :
+Les 26 fichiers OpenAPI couvrent les 26 contrôleurs métier, dont 12 fichiers pour les 12 contrôleurs d'inventaire. Ces 12 fichiers décrivent les mêmes routes que les contrôleurs, avec plusieurs dettes explicitement documentées :
 
 - le double module d'affectation ;
 - l'absence de déduction de `operation_type` depuis la route ;
@@ -343,7 +343,7 @@ Les 26 fichiers OpenAPI couvrent les 26 contrôleurs métier. Les 14 fichiers d'
 
 Aucune route fantôme majeure n'a été détectée dans les spécifications. En revanche, la documentation ne compense pas les incohérences de comportement : elle les décrit parfois, ce qui confirme qu'elles sont connues.
 
-La vérification OpenAPI a relevé **183 avertissements Redocly non bloquants**, principalement des réponses d'erreur incomplètes, des exemples manquants et des `operationId` absents. Ils ne sont pas corrigés dans cette passe.
+La vérification OpenAPI de l'audit initial a relevé **183 avertissements Redocly non bloquants**, principalement des réponses d'erreur incomplètes, des exemples manquants et des `operationId` absents. Ce décompte n'a pas été rejoué après `7e3f196` ; il n'est pas corrigé dans cette passe.
 
 ---
 

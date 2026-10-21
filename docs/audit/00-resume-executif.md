@@ -8,7 +8,7 @@
 
 ## 1. Décision
 
-Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Le dernier rapport disponible mentionne 105 tests sans échec, et plusieurs parcours nominaux sont couverts ; la suite n'a pas été relancée pendant l'audit.
+Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Le dernier rapport complet historique mentionne 105 tests sans échec, et plusieurs parcours nominaux sont couverts ; la suite complète n'a pas été relancée pendant l'audit. Le HEAD courant (`7e3f196`) contient 22 classes et 112 tests dans l'arbre, mais aucun rapport complet ne couvre ce HEAD et un test d'historique est en divergence avec le contrôleur.
 
 En revanche, quatre garanties fondamentales manquent :
 
@@ -37,8 +37,8 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Comptages d'inventaire | **PARTIEL** | Élevé | Saisie d'écarts sans calcul, clôture sans réconciliation, `last_inventory_at` jamais mis à jour. |
 | Contrat API | **PARTIEL** | Élevé | Routes cohérentes dans l'ensemble, mais erreurs douces en 200, conflits en 500, pagination non bornée. |
 | Performance | **PARTIEL** | Élevé | Chaîne N+1 sur chaque article, aucun pool de connexions utilisé par les DAO, pas de plafond de pagination. |
-| Tests | **PARTIEL** | Élevé | 105 tests verts au dernier rapport, mais aucune couverture multi-entreprise, RBAC, concurrence, quantités ou réconciliation ; suite non relancée. |
-| Documentation OpenAPI | **PARTIEL** | Moyen | 26 fichiers cohérents avec les routes, mais 183 avertissements non bloquants et plusieurs dettes documentées. |
+| Tests | **PARTIEL** | Élevé | 105 tests verts dans le dernier rapport complet historique, mais aucune couverture multi-entreprise, RBAC, concurrence, quantités ou réconciliation ; suite non relancée et état complet de `7e3f196` non vérifié. |
+| Documentation OpenAPI | **PARTIEL** | Moyen | 26 fichiers cohérents avec les routes, mais 183 avertissements non bloquants relevés à l'audit initial (non rejoués après `7e3f196`) et plusieurs dettes documentées. |
 
 ---
 
@@ -129,7 +129,7 @@ Limites : le code est modifiable par `PATCH`, aucune étiquette PDF n'est produi
 - Comptage : création d'en-tête, scan d'article, clôture de statut.
 - Authentification JWT, BCrypt, `whoami`, refresh.
 - Enveloppe d'erreur homogène `{"errors": {...}}` pour les exceptions.
-- 105 tests sans échec au dernier rapport, dont des tests d'intégration sur base réelle.
+- 105 tests sans échec dans le dernier rapport complet historique, dont des tests d'intégration sur base réelle ; ce rapport ne couvre pas le HEAD `7e3f196`.
 
 Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquantes.
 
@@ -155,10 +155,10 @@ Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquant
 | Routes applicatives | 130 |
 | Routes d'inventaire | 57 |
 | Fichiers OpenAPI | 26 |
-| Fichiers OpenAPI inventaire | 14 |
+| Fichiers OpenAPI inventaire | 12 |
 | Scripts SQL | 18 |
-| Tests | 105 |
-| Échecs de tests (dernier rapport) | 0 |
+| Tests | 105 (rapport complet historique) ; 112 dans l'arbre `7e3f196`, suite complète non rejouée |
+| Échecs de tests (dernier rapport complet) | 0 ; état de `7e3f196` **NON VÉRIFIÉ** |
 | Entreprises en base de démonstration | 1 |
 | Articles en base de démonstration | 10 |
 | Mouvements en base de démonstration | 8 |
@@ -187,6 +187,7 @@ Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquant
 - Endpoints proposés : [`13-endpoints-manquants-proposes.md`](13-endpoints-manquants-proposes.md)
 - Plan de correction : [`14-plan-corrections.md`](14-plan-corrections.md)
 - Critères de validation : [`15-criteres-validation-api.md`](15-criteres-validation-api.md)
+- Revue de cohérence et tableau final : [`16-revue-coherence.md`](16-revue-coherence.md)
 
 ---
 

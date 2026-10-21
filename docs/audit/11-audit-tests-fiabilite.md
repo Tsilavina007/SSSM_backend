@@ -1,6 +1,6 @@
 ﻿# 11 — Audit des tests et de la fiabilité
 
-**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. Aucun test n'a été relancé pendant cet audit.
+**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. Aucune suite complète n'a été relancée pendant cet audit ; le seul artefact courant est un run ciblé de 7 tests QR.
 
 ---
 
@@ -8,12 +8,12 @@
 
 | Indicateur | Valeur |
 |---|---|
-| Classes de tests | 21 |
-| Tests | 105 |
+| Classes de tests | 21 (audit initial) |
+| Tests | 105 (rapport complet historique) |
 | Échecs | 0 |
 | Erreurs | 0 |
 | Tests ignorés | 0 |
-| Source | `target/surefire-reports` |
+| Source | Rapport complet `target/surefire-reports` de l'audit initial ; ce rapport n'est plus présent dans le `target` courant |
 
 Répartition :
 
@@ -41,7 +41,20 @@ Répartition :
 | `PingControllerTest` | 1 |
 | `SssmBackendApplicationTests` | 1 |
 
-**Limite :** ces résultats sont ceux du dernier rapport présent. Ils ne garantissent pas que la suite passerait sur l'état actuel du code, notamment à cause de la divergence décrite au point 6.
+**Limite :** ces résultats sont ceux du dernier rapport complet historique. Ils ne garantissent pas que la suite passerait sur l'état actuel du code, notamment à cause de la divergence décrite au point 6.
+
+### 1.1. État vérifié au HEAD `7e3f196` (revue de cohérence)
+
+| Indicateur | Valeur |
+|---|---|
+| Classes de tests dans l'arbre | 22 |
+| Tests dans l'arbre | 112 (105 historiques + 7 tests QR) |
+| Rapport complet pour `7e3f196` | **ABSENT** |
+| Artefact Surefire courant | `ItemControllerQrCodeImageTest` uniquement : 7 tests, 0 échec, 0 erreur, 0 ignoré |
+| Exécution complète sur HEAD | **NON VÉRIFIÉE** (aucune suite complète relancée ; base de démonstration partagée non modifiée) |
+| Divergence connue | `ItemApiTests.historyUnknownReturnsNotFound` attend 404 ; `ItemController` renvoie 200 avec des listes vides |
+
+Le commit `7e3f196` ajoute `ItemControllerQrCodeImageTest` et son rapport de 7 tests. Il ne fournit pas de rapport pour les 21 autres classes. On ne peut donc pas conclure que les 105 tests historiques passent sur HEAD, et la lecture statique indique au moins un test qui devrait échouer.
 
 ---
 
@@ -160,9 +173,9 @@ Or `ItemController.getItemHistory` :
 
 Aucune exception 404 n'est levée.
 
-**Conclusion :** si la suite était relancée sur le code actuel, ce test devrait échouer. Le rapport vert est donc antérieur à un changement de code, ou le contrôle d'existence a été retiré après l'exécution. C'est un signal de **désynchronisation entre les tests et le code**, pas une preuve que le test est faux.
+**Conclusion :** si la suite était relancée sur le HEAD `7e3f196`, ce test devrait échouer : le rapport vert de 105 tests est antérieur à l'état courant du contrôleur. C'est une **désynchronisation certaine entre le test et le code**, pas une preuve que le test est faux. Le contrôle d'existence a été retiré du contrôleur, ou le test a été ajouté sans être aligné.
 
-Ce constat renforce la limite principale de l'audit : les 105 tests verts ne sont pas une garantie sur l'état courant.
+Ce constat renforce la limite principale de l'audit : les 105 tests verts ne sont pas une garantie sur l'état courant. Aucune exécution complète n'a été faite sur HEAD, conformément à l'interdiction de modifier la base de démonstration.
 
 ---
 

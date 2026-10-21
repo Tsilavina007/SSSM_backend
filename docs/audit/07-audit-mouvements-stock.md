@@ -246,9 +246,9 @@ Conséquences :
 - un article dont les mouvements sont plus anciens ou plus nombreux n'apparaît pas ;
 - aucun tri par date ;
 - aucune pagination ;
-- aucun contrôle d'existence de l'article : un UUID inconnu renvoie probablement **200** avec des listes vides.
+- aucun contrôle d'existence de l'article : un UUID inconnu renvoie **200** avec des listes vides.
 
-**Divergence de test :** `ItemApiTests.historyUnknownReturnsNotFound` attend un **404**. Le contrôleur actuel ne contient aucun appel à `getItemById` avant de construire l'historique. Si la suite était relancée, ce test devrait échouer, sauf si le code a changé après le dernier rapport Surefire. C'est un signal de désynchronisation entre le code et les tests.
+**Divergence de test :** `ItemApiTests.historyUnknownReturnsNotFound` attend un **404**. Le contrôleur actuel ne contient aucun appel à `getItemById` avant de construire l'historique : sur le HEAD `7e3f196`, ce test devrait donc échouer s'il est exécuté. C'est une désynchronisation certaine entre le code et ce test, même si aucun rapport complet courant n'est disponible.
 
 ---
 

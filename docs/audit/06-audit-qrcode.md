@@ -2,6 +2,8 @@
 
 **Objectif :** évaluer la génération, la lecture, l'impression et la résolution des QR Codes, ainsi que leur utilisabilité pour un frontend web ou mobile. Les rapports 04 et 05 traitent du catalogue et du stock ; ce rapport se concentre sur le contrat QR.
 
+**État de référence :** HEAD `7e3f196`, qui corrige la livraison des erreurs JSON sur l'image QR. Les constats de l'audit initial antérieurs à ce commit sont signalés comme tels.
+
 ---
 
 ## 1. Ce qui existe
@@ -102,6 +104,7 @@ renvoie `Content-Type: image/png` et le tableau d'octets.
 - Le contenu encode exactement la valeur `qr_code`.
 - Le test `ItemApiTests.qrCodeImageReturnsPng` vérifie le type et la présence d'octets.
 - Le test `ItemApiTests.qrCodeImageUnknownReturnsNotFound` vérifie le 404 sur un identifiant inconnu.
+- La classe `ItemControllerQrCodeImageTest` (7 tests, 7/7 dans le rapport Surefire courant) vérifie le PNG exact, le 404, le 400 sur UUID invalide, le 500 `QR_CODE_MISSING`, les 500 `QR_CODE_GENERATION_FAILED` et la livraison d'un corps JSON même avec `Accept: image/png` strict.
 
 ### 3.3. Limites
 
@@ -111,7 +114,7 @@ renvoie `Content-Type: image/png` et le tableau d'octets.
 - pas de nom d'article, d'entrepôt ou de type dans l'image ;
 - pas de planche d'étiquettes, de PDF ou d'impression en lot ;
 - pas de stockage de l'image : elle est régénérée à chaque appel ;
-- si le contenu est vide, ZXing peut lever une exception et la route renvoie **500 sans corps** ;
+- si le contenu est vide, la route renvoie désormais **500** avec l'enveloppe JSON `QR_CODE_MISSING` (et non plus un corps perdu) ; un UUID invalide renvoie **400** `BAD_REQUEST` et un article inconnu **404** `NOT_FOUND` ; un échec d'encodage ou de flux renvoie **500** `QR_CODE_GENERATION_FAILED` (correctif `7e3f196`) ;
 - pas de contrôle d'accès autre que le JWT : toute personne authentifiée peut demander l'image de n'importe quel article.
 
 ---
@@ -235,13 +238,19 @@ Le scan est donc une **recherche d'article**, pas un **workflow mobile**.
 | `QrScanApiTests.malformedBodyReturnsBadRequest` | Le JSON invalide est rejeté. | Les doublons inter-entreprises. |
 | `ItemApiTests.qrCodeEndpointReturnsCode` | La lecture des métadonnées. | L'immutabilité. |
 | `ItemApiTests.qrCodeImageReturnsPng` | L'image est un PNG. | La taille, le contenu, le cache. |
+| `ItemApiTests.qrCodeImageUnknownReturnsNotFound` | Le 404 sur un article inconnu. | Le filtrage par entreprise. |
+| `ItemControllerQrCodeImageTest.returnsPngImageForKnownItem` | Les octets PNG exacts et le `Content-Type`. | Le cache, les variantes de taille. |
+| `ItemControllerQrCodeImageTest.returnsNotFoundEnvelopeForUnknownItem` | Le 404 et l'enveloppe `NOT_FOUND`. | Le filtrage par entreprise. |
+| `ItemControllerQrCodeImageTest.returnsBadRequestForInvalidItemId` | Le 400 `BAD_REQUEST` sur UUID invalide. | Les autres paramètres invalides. |
+| `ItemControllerQrCodeImageTest.deliversJsonErrorBodyEvenWithStrictImagePngAccept` | Le corps JSON malgré `Accept: image/png`. | Les autres negotiateurs HTTP. |
+| `ItemControllerQrCodeImageTest.returnsQrCodeMissingWhenQrCodeContentIsEmpty` | Le 500 `QR_CODE_MISSING`. | La régénération ou la correction du code. |
+| `ItemControllerQrCodeImageTest.returnsGenerationFailedOnIoError` / `...OnEncodingError` | Les 500 `QR_CODE_GENERATION_FAILED`. | Les incidents matériels réels. |
 
 Aucun test ne couvre :
 
 - deux entreprises avec le même code ;
 - un code modifié après création ;
 - un code vide via `PATCH` ;
-- l'image d'un code vide ;
 - l'impression en lot ;
 - le scan avec action ;
 - l'énumération ou le rate limiting.

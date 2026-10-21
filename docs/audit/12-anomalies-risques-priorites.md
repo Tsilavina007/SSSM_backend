@@ -375,7 +375,7 @@ Le PNG est disponible, mais il n'existe ni PDF, ni planche, ni file d'impression
 
 ### P2-06 — CI, couverture et documentation de contrat
 
-Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 éphémère, initialisation du schéma et des données de démonstration, tests, lint OpenAPI et packaging. Il ne couvre cependant ni la tenancy, ni le RBAC, ni les transactions, ni la concurrence, et la couverture n'est pas mesurée. L'OpenAPI contient 183 avertissements Redocly non bloquants ; les erreurs et les exemples ne sont pas contractuels.
+Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 éphémère, initialisation du schéma et des données de démonstration, tests, lint OpenAPI et packaging. Il ne couvre cependant ni la tenancy, ni le RBAC, ni les transactions, ni la concurrence, et la couverture n'est pas mesurée. L'OpenAPI contenait 183 avertissements Redocly non bloquants lors de l'audit initial (non rejoués après `7e3f196`) ; les erreurs et les exemples ne sont pas contractuels.
 
 ---
 
@@ -390,6 +390,7 @@ Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 �
 | P0-05 | Stock non fiable | 5 | 5 | 25 | Critique |
 | P0-06 | États d'affectation incohérents | 5 | 5 | 25 | Critique |
 | P1-01 | 500 + SQLSTATE exposés | 5 | 4 | 20 | Élevé |
+| P1-02 | Création de type/employé fragile (défauts SQL) | 4 | 3 | 12 | Moyen |
 | P1-03 | Journal de mouvements non auditable | 5 | 4 | 20 | Élevé |
 | P1-04 | Scan QR global et brut | 5 | 4 | 20 | Élevé |
 | P1-05 | Deux contrats d'affectation | 5 | 3 | 15 | Élevé |
@@ -408,6 +409,8 @@ Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 �
 | P2-04 | Dashboard non représentatif | 5 | 3 | 15 | Moyen |
 | P2-05 | Étiquettes non imprimables en lot | 4 | 2 | 8 | Faible |
 | P2-06 | CI présent mais insuffisant | 5 | 2 | 10 | Faible |
+
+La matrice contient les **26 anomalies** du registre : 6 P0, 14 P1 et 6 P2. Les identifiants sont uniques. `P1-02` reste classé P1 malgré un score de 12 : la défaillance est reproductible sur un formulaire minimal et bloque un parcours de création courant.
 
 ---
 
