@@ -2,12 +2,14 @@ package sssm.dev.sssm_backend.a11_inventory;
 
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -130,6 +132,124 @@ class ItemApiTests {
             get("/api/inventory/items/" + UUID.randomUUID() + "/qr-code")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void qrCodeImageReturnsPng() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(
+                get("/api/inventory/items/" + itemId + "/qr-code/image")
+                    .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.IMAGE_PNG))
+            .andReturn();
+
+    byte[] body = result.getResponse().getContentAsByteArray();
+    assertTrue(body.length > 8, "l'image PNG doit contenir des données");
+    assertEquals((byte) 0x89, body[0], "signature PNG attendue");
+    assertEquals((byte) 0x50, body[1], "signature PNG attendue");
+    assertEquals((byte) 0x4E, body[2], "signature PNG attendue");
+    assertEquals((byte) 0x47, body[3], "signature PNG attendue");
+  }
+
+  @Test
+  void qrCodeImageUnknownReturnsNotFound() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/inventory/items/" + UUID.randomUUID() + "/qr-code/image")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void historyReturnsItemMovements() throws Exception {
+    String marker = "phase5-item-history-" + System.nanoTime();
+    String id = createItem(marker, "AVAILABLE", warehouseId);
+
+    mockMvc
+        .perform(
+            post("/api/inventory/movements")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"warehouse_id\":\""
+                        + warehouseId
+                        + "\",\"item_id\":\""
+                        + id
+                        + "\",\"movement_type\":\"IN\",\"notes\":\""
+                        + marker
+                        + "\"}"))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            get("/api/inventory/items/" + id + "/history")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.item_id").value(id))
+        .andExpect(jsonPath("$.movements.length()").value(1))
+        .andExpect(jsonPath("$.movements[0].item_id").value(id))
+        .andExpect(jsonPath("$.movements[0].movement_type").value("IN"))
+        .andExpect(jsonPath("$.assignments").isArray());
+  }
+
+  @Test
+  void historyUnknownReturnsNotFound() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/inventory/items/" + UUID.randomUUID() + "/history")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void createWithoutQrCodeGeneratesOne() throws Exception {
+    String marker = "phase5-autoqr-" + System.nanoTime();
+    String body =
+        "{\"company_id\":\""
+            + companyId
+            + "\",\"item_type_id\":\""
+            + itemTypeId
+            + "\",\"description\":\""
+            + marker
+            + "\"}";
+
+    mockMvc
+        .perform(
+            post("/api/inventory/items")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.qr_code").value(org.hamcrest.Matchers.startsWith("QR-")));
+  }
+
+  @Test
+  void listCombinesWarehouseAndStatusFilters() throws Exception {
+    String availableMarker = "phase5-item-filter-a-" + System.nanoTime();
+    String retiredMarker = "phase5-item-filter-r-" + System.nanoTime();
+    String availableId = createItem(availableMarker, "AVAILABLE", warehouseId);
+    String retiredId = createItem(retiredMarker, "RETIRED", warehouseId);
+
+    MvcResult result =
+        mockMvc
+            .perform(
+                get("/api/inventory/items")
+                    .param("warehouseId", warehouseId)
+                    .param("status", "AVAILABLE")
+                    .param("pageSize", "500")
+                    .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    List<String> ids = JsonPath.read(result.getResponse().getContentAsString(), "$[*].id");
+    assertTrue(ids.contains(availableId), "l'article AVAILABLE doit être retourné");
+    assertFalse(ids.contains(retiredId), "l'article RETIRED doit être exclu");
+
+    List<String> statuses =
+        JsonPath.read(result.getResponse().getContentAsString(), "$[*].status");
+    assertTrue(statuses.stream().allMatch("AVAILABLE"::equals), "tous les statuts filtrés");
   }
 
   @Test
@@ -280,10 +400,44 @@ class ItemApiTests {
         .andExpect(jsonPath("$.current_warehouse_id").doesNotExist());
   }
 
+  private String createItem(String qrCode, String status, String warehouse) throws Exception {
+    String body =
+        "{\"company_id\":\""
+            + companyId
+            + "\",\"item_type_id\":\""
+            + itemTypeId
+            + "\",\"current_warehouse_id\":\""
+            + warehouse
+            + "\",\"qr_code\":\""
+            + qrCode
+            + "\",\"description\":\"cree par test phase5\",\"status\":\""
+            + status
+            + "\"}";
+
+    MvcResult created =
+        mockMvc
+            .perform(
+                post("/api/inventory/items")
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andReturn();
+    return JsonPath.read(created.getResponse().getContentAsString(), "$.id");
+  }
+
   private static void purge() throws Exception {
     execute(
+        "DELETE FROM security.stock_movement WHERE item_id IN ("
+            + "SELECT id FROM security.item WHERE qr_code LIKE 'phase5-item-%'"
+            + " OR qr_code LIKE 'phase5-bulk-%' OR description LIKE 'phase5-autoqr-%')");
+    execute(
+        "DELETE FROM security.item_assignment WHERE item_id IN ("
+            + "SELECT id FROM security.item WHERE qr_code LIKE 'phase5-item-%'"
+            + " OR qr_code LIKE 'phase5-bulk-%' OR description LIKE 'phase5-autoqr-%')");
+    execute(
         "DELETE FROM security.item WHERE qr_code LIKE 'phase5-item-%'"
-            + " OR qr_code LIKE 'phase5-bulk-%'");
+            + " OR qr_code LIKE 'phase5-bulk-%' OR description LIKE 'phase5-autoqr-%'");
   }
 
   private static String firstValue(Connection conn, String sql) throws Exception {

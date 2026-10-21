@@ -1,13 +1,21 @@
 package sssm.dev.sssm_backend.a11_inventory;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.Filter;
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +25,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 
 /**
@@ -33,12 +42,18 @@ class DashboardApiTests {
   private String token;
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws Exception {
     mockMvc =
         MockMvcBuilders.webAppContextSetup(context)
             .addFilters(context.getBean("springSecurityFilterChain", Filter.class))
             .build();
     token = jwtService.createToken("test-user", "phase5-tester", List.of("ADMIN"));
+    purge();
+  }
+
+  @AfterEach
+  void cleanUp() throws Exception {
+    purge();
   }
 
   @Test
@@ -74,6 +89,74 @@ class DashboardApiTests {
       Map<?, ?> first = (Map<?, ?>) rows.get(0);
       assertNotNull(first.get("id"), "identifiant de l'article attendu");
       assertNotNull(first.get("stock_quantity"), "quantité en stock attendue");
+    }
+  }
+
+  @Test
+  void lowStockFlagsOnlyTypesBelowThreshold() throws Exception {
+    String lowCode = "phase5-lowstock-low-" + System.nanoTime();
+    String okCode = "phase5-lowstock-ok-" + System.nanoTime();
+    String lowId = insertItemType(lowCode, new BigDecimal("2"), new BigDecimal("5"));
+    String okId = insertItemType(okCode, new BigDecimal("10"), new BigDecimal("5"));
+
+    MvcResult result =
+        mockMvc
+            .perform(
+                get("/api/inventory/alerts/low-stock").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    List<Map<String, Object>> rows =
+        JsonPath.read(result.getResponse().getContentAsString(), "$");
+    Map<String, Object> lowRow =
+        rows.stream().filter(row -> lowId.equals(row.get("id"))).findFirst().orElse(null);
+    assertNotNull(lowRow, "le type sous le seuil doit être signalé");
+    assertTrue(
+        new BigDecimal(String.valueOf(lowRow.get("stock_quantity")))
+                .compareTo(new BigDecimal(String.valueOf(lowRow.get("minimum_stock"))))
+            < 0,
+        "stock_quantity doit être inférieur à minimum_stock");
+    assertFalse(
+        rows.stream().anyMatch(row -> okId.equals(row.get("id"))),
+        "le type au-dessus du seuil ne doit pas être signalé");
+  }
+
+  private String insertItemType(String code, BigDecimal quantity, BigDecimal minimum)
+      throws Exception {
+    String id;
+    try (Connection conn = DatabaseConnection.getConnection()) {
+      String companyId;
+      try (PreparedStatement stmt =
+          conn.prepareStatement("SELECT id FROM security.company ORDER BY id LIMIT 1");
+          ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next(), "une entreprise de démonstration est requise");
+        companyId = rs.getString(1);
+      }
+      try (PreparedStatement stmt =
+          conn.prepareStatement(
+              "INSERT INTO security.item_type "
+                  + "(company_id, code, name, quantity_total, minimum_stock) "
+                  + "VALUES (?, ?, ?, ?, ?) RETURNING id")) {
+        stmt.setObject(1, java.util.UUID.fromString(companyId));
+        stmt.setString(2, code);
+        stmt.setString(3, code);
+        stmt.setBigDecimal(4, quantity);
+        stmt.setBigDecimal(5, minimum);
+        try (ResultSet rs = stmt.executeQuery()) {
+          assertTrue(rs.next());
+          id = rs.getString(1);
+        }
+      }
+    }
+    return id;
+  }
+
+  private static void purge() throws Exception {
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt =
+            conn.prepareStatement(
+                "DELETE FROM security.item_type WHERE code LIKE 'phase5-lowstock-%'")) {
+      stmt.executeUpdate();
     }
   }
 }

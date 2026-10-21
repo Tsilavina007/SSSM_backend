@@ -40,6 +40,8 @@ class StockMovementTimestampTests {
   private String token;
   private String warehouseId;
   private String itemId;
+  private String originalStatus;
+  private String originalWarehouseId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -52,6 +54,19 @@ class StockMovementTimestampTests {
     try (Connection conn = DatabaseConnection.getConnection()) {
       warehouseId = firstId(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 1");
       itemId = firstId(conn, "SELECT id FROM security.item ORDER BY id LIMIT 1");
+      if (itemId != null) {
+        try (PreparedStatement stmt =
+            conn.prepareStatement(
+                "SELECT status, current_warehouse_id FROM security.item WHERE id = ?")) {
+          stmt.setObject(1, java.util.UUID.fromString(itemId));
+          try (ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+              originalStatus = rs.getString("status");
+              originalWarehouseId = rs.getString("current_warehouse_id");
+            }
+          }
+        }
+      }
     }
     Assumptions.assumeTrue(
         warehouseId != null && itemId != null,
@@ -61,6 +76,23 @@ class StockMovementTimestampTests {
   @AfterEach
   void cleanUp() throws Exception {
     execute("DELETE FROM security.stock_movement WHERE notes LIKE 'phase2-ts-%'");
+    // Les mouvements OUT modifient l'article partagé : restaurer l'état initial.
+    if (itemId != null && originalStatus != null) {
+      try (Connection conn = DatabaseConnection.getConnection();
+          PreparedStatement stmt =
+              conn.prepareStatement(
+                  "UPDATE security.item SET status = CAST(? AS security.item_status),"
+                      + " current_warehouse_id = ? WHERE id = ?")) {
+        stmt.setString(1, originalStatus);
+        stmt.setObject(
+            2,
+            originalWarehouseId == null
+                ? null
+                : java.util.UUID.fromString(originalWarehouseId));
+        stmt.setObject(3, java.util.UUID.fromString(itemId));
+        stmt.executeUpdate();
+      }
+    }
   }
 
   @Test

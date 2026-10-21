@@ -41,6 +41,8 @@ class ItemAssignmentTimestampTests {
   private String itemId;
   private String employeeId;
   private String postId;
+  private String originalStatus;
+  private String originalWarehouseId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -54,12 +56,26 @@ class ItemAssignmentTimestampTests {
       itemId =
           firstId(
               conn,
-              "SELECT i.id FROM security.item i WHERE NOT EXISTS ("
+              "SELECT i.id FROM security.item i"
+                  + " WHERE i.status = 'AVAILABLE' AND NOT EXISTS ("
                   + "SELECT 1 FROM security.item_assignment a"
                   + " WHERE a.item_id = i.id AND a.returned_at IS NULL)"
                   + " ORDER BY i.id LIMIT 1");
       employeeId = firstId(conn, "SELECT id FROM security.employee ORDER BY id LIMIT 1");
       postId = firstId(conn, "SELECT id FROM security.security_post ORDER BY id LIMIT 1");
+      if (itemId != null) {
+        try (PreparedStatement stmt =
+            conn.prepareStatement(
+                "SELECT status, current_warehouse_id FROM security.item WHERE id = ?")) {
+          stmt.setObject(1, java.util.UUID.fromString(itemId));
+          try (ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+              originalStatus = rs.getString("status");
+              originalWarehouseId = rs.getString("current_warehouse_id");
+            }
+          }
+        }
+      }
     }
     Assumptions.assumeTrue(
         itemId != null && employeeId != null && postId != null,
@@ -68,8 +84,23 @@ class ItemAssignmentTimestampTests {
 
   @AfterEach
   void cleanUp() throws Exception {
-    execute("UPDATE security.item SET status = 'AVAILABLE' WHERE id IN (SELECT item_id FROM security.item_assignment WHERE notes LIKE 'phase2-ia-%')");
     execute("DELETE FROM security.item_assignment WHERE notes LIKE 'phase2-ia-%'");
+    if (itemId != null && originalStatus != null) {
+      try (Connection conn = DatabaseConnection.getConnection();
+          PreparedStatement stmt =
+              conn.prepareStatement(
+                  "UPDATE security.item SET status = CAST(? AS security.item_status),"
+                      + " current_warehouse_id = ? WHERE id = ?")) {
+        stmt.setString(1, originalStatus);
+        stmt.setObject(
+            2,
+            originalWarehouseId == null
+                ? null
+                : java.util.UUID.fromString(originalWarehouseId));
+        stmt.setObject(3, java.util.UUID.fromString(itemId));
+        stmt.executeUpdate();
+      }
+    }
   }
 
   @Test

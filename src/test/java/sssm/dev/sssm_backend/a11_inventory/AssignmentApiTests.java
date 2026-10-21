@@ -51,6 +51,8 @@ class AssignmentApiTests {
   private String employeeId;
   private String postId;
   private String unassignedItemId;
+  private String originalStatus;
+  private String originalWarehouseId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -60,6 +62,7 @@ class AssignmentApiTests {
             .build();
     token = jwtService.createToken("test-user", "phase5-tester", List.of("ADMIN"));
 
+    purge();
     try (Connection conn = DatabaseConnection.getConnection()) {
       employeeId = firstValue(conn, "SELECT id FROM security.employee ORDER BY id LIMIT 1");
       postId = firstValue(conn, "SELECT id FROM security.security_post ORDER BY id LIMIT 1");
@@ -71,16 +74,44 @@ class AssignmentApiTests {
                   + "SELECT 1 FROM security.item_assignment a"
                   + " WHERE a.item_id = i.id AND a.returned_at IS NULL)"
                   + " ORDER BY i.id LIMIT 1");
+      if (unassignedItemId != null) {
+        try (PreparedStatement stmt =
+            conn.prepareStatement(
+                "SELECT status, current_warehouse_id FROM security.item WHERE id = ?")) {
+          stmt.setObject(1, UUID.fromString(unassignedItemId));
+          try (ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+              originalStatus = rs.getString("status");
+              originalWarehouseId = rs.getString("current_warehouse_id");
+            }
+          }
+        }
+      }
     }
     Assumptions.assumeTrue(
         employeeId != null && postId != null,
         "base initialisée avec des données de démonstration requise");
-    purge();
   }
 
   @AfterEach
   void cleanUp() throws Exception {
     purge();
+    if (unassignedItemId != null && originalStatus != null) {
+      try (Connection conn = DatabaseConnection.getConnection();
+          PreparedStatement stmt =
+              conn.prepareStatement(
+                  "UPDATE security.item SET status = CAST(? AS security.item_status),"
+                      + " current_warehouse_id = ? WHERE id = ?")) {
+        stmt.setString(1, originalStatus);
+        stmt.setObject(
+            2,
+            originalWarehouseId == null
+                ? null
+                : UUID.fromString(originalWarehouseId));
+        stmt.setObject(3, UUID.fromString(unassignedItemId));
+        stmt.executeUpdate();
+      }
+    }
   }
 
   @Test
@@ -250,7 +281,6 @@ class AssignmentApiTests {
   }
 
   private static void purge() throws Exception {
-    execute("UPDATE security.item SET status = 'AVAILABLE' WHERE id IN (SELECT item_id FROM security.item_assignment WHERE notes LIKE 'phase5-asg%')");
     execute("DELETE FROM security.item_assignment WHERE notes LIKE 'phase5-asg%'");
   }
 
