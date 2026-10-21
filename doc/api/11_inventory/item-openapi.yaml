@@ -175,6 +175,28 @@ paths:
     get:
       tags: [ Items ]
       summary: Générer l'image PNG du QR code d'un article
+      description: >-
+        En cas de succès le corps est toujours une image PNG
+        (Content-Type image/png). En cas d'erreur l'enveloppe ItemError
+        {"errors": {message, detail, code}} est renvoyée en application/json :
+
+        * 400 (code BAD_REQUEST) : itemId n'est pas un UUID valide
+        (ex. "1", détail : "La valeur '1' n'est pas un UUID valide.") ;
+
+        * 404 (code NOT_FOUND) : aucun article ne correspond à itemId ;
+
+        * 500 (code QR_CODE_MISSING) : l'article existe mais sa colonne
+        qr_code est absente ou vide (incohérence de données) ;
+
+        * 500 (code QR_CODE_GENERATION_FAILED) : l'encodage ZXing ou
+        l'écriture du flux PNG a échoué (détail technique dans detail).
+
+        Négociation de contenu : les erreurs sont gérées localement et
+        sérialisées en application/json avec un Content-Type explicite, de
+        sorte que l'enveloppe reste lisible même si le client n'accepte que
+        Accept: image/png (sinon le GlobalExceptionHandler échouerait avec une
+        HttpMediaTypeNotAcceptableException). L'attribut Accept doit néanmoins
+        contenir image/png pour que la route elle-même soit sélectionnée.
       responses:
         '200':
           description: Image PNG du QR code
