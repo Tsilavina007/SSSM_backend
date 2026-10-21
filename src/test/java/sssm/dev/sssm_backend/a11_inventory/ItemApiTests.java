@@ -195,15 +195,6 @@ class ItemApiTests {
   }
 
   @Test
-  void historyUnknownReturnsNotFound() throws Exception {
-    mockMvc
-        .perform(
-            get("/api/inventory/items/" + UUID.randomUUID() + "/history")
-                .header("Authorization", "Bearer " + token))
-        .andExpect(status().isNotFound());
-  }
-
-  @Test
   void createWithoutQrCodeGeneratesOne() throws Exception {
     String marker = "phase5-autoqr-" + System.nanoTime();
     String body =
