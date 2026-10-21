@@ -2,8 +2,8 @@
 
 **Date de l'audit :** 21 octobre 2026  
 **Périmètre :** backend Spring Boot, API HTTP, PostgreSQL, modules inventaire / stock / QR Code / affectations / authentification  
-**Nature :** audit statique et vérifications en lecture seule  
-**Statut de la mission :** audit initial terminé, aucune correction applicative effectuée par l'audit ou la revue, aucun frontend démarré. Le correctif QR `7e3f196` est postérieur à l'audit initial.  
+**Nature :** audit statique initial, puis exécution du Lot 1 (identité, tenancy mono-entreprise, RBAC, durcissement de l'authentification)
+**Statut de la mission :** audit initial et revue de cohérence terminés ; **Lot 1 exécuté le 21 octobre 2026** ; lots 2 à 9 non démarrés ; aucun frontend démarré. Le correctif QR `7e3f196` est postérieur à l'audit initial.
 **Revue de cohérence :** 21 octobre 2026 — voir [`16-revue-coherence.md`](16-revue-coherence.md)
 
 ---
@@ -29,14 +29,14 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Domaine | Éléments examinés |
 |---|---|
 | Cartographie | packages, contrôleurs, services, DAO, DTO, mappers, configuration, dépendances |
-| API | 26 contrôleurs REST, 130 routes applicatives, codes HTTP, validation, erreurs, pagination |
-| Base de données | schéma `security`, scripts `00_init.sql` à `17_seed_permissions.sql`, contraintes, index, triggers |
+| API | 26 contrôleurs REST, 131 routes applicatives après le Lot 1 (130 à l'audit initial), codes HTTP, validation, erreurs, pagination |
+| Base de données | schéma `security`, scripts `00_init.sql` à `18_lot1_security.sql`, contraintes, index, triggers |
 | Catalogue | catégories, types de matériel, entrepôts, articles |
 | Stock | mouvements, opérations, comptages, tableau de bord, rapports |
 | QR Code | génération, image PNG, résolution, scan |
 | Affectations | deux modules distincts (`item_assignment` et `assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 21 classes / 105 tests lors de l'audit initial ; 22 classes / 112 tests dans l'arbre courant, suite complète non rejouée |
+| Tests | 23 classes / 120 tests après le Lot 1 ; suite complète exécutée : 119 succès, 1 échec préexistant |
 | OpenAPI | 26 fichiers YAML, dont 12 pour l'inventaire |
 
 ## 3. Périmètre exclu
@@ -60,12 +60,12 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Sécurité | Spring Security, JJWT `0.12.6`, BCrypt |
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
-| Base contrôlée | `sssm_db`, schéma `security`, en lecture seule |
-| Rapports de tests | Rapport complet historique : 105 tests, 0 échec, 0 erreur, 0 ignoré. Artefact courant : `ItemControllerQrCodeImageTest`, 7 tests, 0 échec. Aucun rapport complet pour `7e3f196`. |
+| Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migration Lot 1 appliquée ensuite |
+| Rapports de tests | Exécution complète du 21 octobre 2026 : 120 tests, 119 succès, 1 échec (`ItemApiTests.historyUnknownReturnsNotFound`). Tests ciblés authentification/RBAC : 29 succès. |
 | Documentation API | `doc/api/**/*.yaml` — 26 fichiers |
-| Scripts SQL | `doc/database/schema/00_init.sql` à `17_seed_permissions.sql` — 18 fichiers |
+| Scripts SQL | `doc/database/schema/00_init.sql` à `18_lot1_security.sql` — 19 fichiers |
 
-Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196` et signale explicitement les constats qui datent de l'audit initial.
+Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196`. Le Lot 1 a ensuite été exécuté sur le HEAD `13bb79b` (`docs(audit): reconcile reports with current HEAD`), sans commit de correction à ce stade.
 
 ---
 
@@ -74,10 +74,11 @@ Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond a
 1. **Lecture statique** des contrôleurs, services, DAO, DTO, mappers, filtres de sécurité et fichiers de configuration.
 2. **Lecture croisée** du schéma PostgreSQL, des scripts SQL, des index, des triggers et des spécifications OpenAPI.
 3. **Vérifications en lecture seule** sur la base locale : tables, colonnes, contraintes, index, triggers, valeurs d'énumérations et comptages agrégés.
-4. **Analyse des rapports de tests existants** dans `target/surefire-reports`, sans relancer la suite.
+4. **Analyse des rapports de tests existants** dans `target/surefire-reports`, puis **exécution complète** de la suite après le Lot 1.
 5. **Consolidation** des anomalies, de leur impact et de leur priorité, puis rédaction des propositions et des critères de validation.
+6. **Exécution du Lot 1** : migration additive, code d'authentification/RBAC, tests ciblés et mise à jour des rapports.
 
-Aucun test destructif, aucune migration, aucune insertion, aucune modification de données n'a été effectué pendant cette passe.
+L'audit initial n'a effectué aucun test destructif, aucune migration, aucune insertion, aucune modification de données. Le Lot 1 a appliqué la migration `18_lot1_security.sql` à la base de démonstration (colonnes, backfill, index, tables de jetons, permissions) et exécuté les tests ; aucun reset ni suppression de données n'a été effectué.
 
 ---
 
@@ -94,7 +95,7 @@ Aucun test destructif, aucune migration, aucune insertion, aucune modification d
 | [`06-audit-qrcode.md`](06-audit-qrcode.md) | Génération, PNG, unicité, scan, limites pour le mobile | Statique + tests |
 | [`07-audit-mouvements-stock.md`](07-audit-mouvements-stock.md) | Règles IN/OUT/TRANSFER/RETURN/DESTRUCTION/ADJUSTMENT, journal, erreurs | Statique + tests |
 | [`08-audit-affectations-employes.md`](08-audit-affectations-employes.md) | Deux modules d'affectation, cohérence d'état, restitution, suppressions | Statique + tests |
-| [`09-audit-authentification-securite.md`](09-audit-authentification-securite.md) | Inscription, JWT, refresh, RBAC, CORS, fuites d'erreurs | Statique + tests |
+| [`09-audit-authentification-securite.md`](09-audit-authentification-securite.md) | Inscription, JWT, refresh, RBAC, CORS, fuites d'erreurs — état initial et corrections du Lot 1 | Statique + tests |
 | [`10-audit-architecture-api-frontend.md`](10-audit-architecture-api-frontend.md) | Adéquation de l'API aux frontends web/mobile, conventions, performance | Statique |
 | [`11-audit-tests-fiabilite.md`](11-audit-tests-fiabilite.md) | Couverture réelle, limites, tests qui figent des comportements douteux | Rapports + code |
 | [`12-anomalies-risques-priorites.md`](12-anomalies-risques-priorites.md) | Registre priorisé des anomalies et matrice de risque | Consolidation |
@@ -129,8 +130,8 @@ Les priorités utilisées dans le registre sont :
 
 ## 8. Limites de l'audit
 
-- **Aucune suite complète n'a été relancée pendant l'audit initial ni pendant la revue.** Les résultats complets cités (105 tests) proviennent d'un rapport Surefire historique. L'artefact encore présent dans `target/surefire-reports` ne contient que les 7 tests QR de `ItemControllerQrCodeImageTest`, exécutés lors du correctif. Aucune exécution complète n'a été faite sur `7e3f196`, et le test `ItemApiTests.historyUnknownReturnsNotFound` attend un 404 alors que le contrôleur courant renvoie 200. L'état de la suite complète sur HEAD est donc **NON VÉRIFIÉ**.
-- **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise et il était interdit de créer des données.
+- **La suite complète a été exécutée après le Lot 1** : 120 tests, 119 succès, 1 échec. L'échec `ItemApiTests.historyUnknownReturnsNotFound` (404 attendu, 200 obtenu) est une divergence préexistante du contrôleur d'historique, hors Lot 1. Les résultats historiques (105 tests) proviennent d'un rapport Surefire antérieur et ne couvrent pas le HEAD courant.
+- **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise. Le Lot 1 applique l'hypothèse mono-entreprise et ajoute le scope entreprise sur les utilisateurs et rôles, mais les DAO d'inventaire ne filtrent pas encore par `company_id`.
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
 - **Les secrets réels n'ont pas été lus.** Les conclusions portent sur la présence de valeurs par défaut et sur la configuration, pas sur la divulgation d'un secret d'exploitation.
@@ -141,7 +142,7 @@ Les priorités utilisées dans le registre sont :
 
 ## 9. Verdict en une phrase
 
-**Le backend n'est pas prêt pour la production.** Il est partiellement utilisable pour un prototype mono-entreprise, en lecture et CRUD encadré, mais il ne permet pas aujourd'hui de garantir un stock fiable, une isolation entre entreprises, une traçabilité des affectations ou un contrôle d'accès par rôle.
+**Le backend n'est pas prêt pour la production.** Il est partiellement utilisable pour un prototype mono-entreprise, en lecture et CRUD encadré. Le Lot 1 a fermé l'inscription publique, ajouté le RBAC sur l'inventaire et l'administration, et durci les jetons (refresh rotatif, révocation, logout). Il ne permet pas encore de garantir un stock fiable, une isolation multi-entreprise complète, une traçabilité des affectations ou un RBAC sur tous les modules métier.
 
 Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout frontend sont dans [`00-resume-executif.md`](00-resume-executif.md). Les preuves sont dans les rapports 01 à 11, la revue de cohérence dans le rapport 16, et les corrections proposées dans les rapports 12 à 15.
 
@@ -160,19 +161,18 @@ Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout fr
 
 ---
 
-## 11. Déclaration de non-modification
+## 11. Déclaration de modification
 
-Cette passe d'audit n'a modifié :
+L'**audit initial et la revue de cohérence** n'ont modifié aucun fichier Java applicatif, test, script SQL, migration, configuration, dépendance, donnée ou fichier OpenAPI. Leurs seuls fichiers créés ou modifiés étaient les Markdown de ce dossier.
 
-- aucun fichier Java applicatif ;
-- aucun fichier de test ;
-- aucun script SQL ;
-- aucune migration ;
-- aucune configuration ;
-- aucune dépendance ;
-- aucune donnée en base ;
-- aucun fichier OpenAPI.
+Le **Lot 1**, exécuté après la revue, a modifié :
 
-Les seuls fichiers créés ou modifiés sont les fichiers Markdown de ce dossier `docs/audit/` (dix-huit après ajout du rapport 16).
+- des fichiers Java d'authentification, de sécurité, d'utilisateurs et de rôles ;
+- des tests d'authentification et de RBAC ;
+- la configuration `application.properties` / `application-prod.properties` ;
+- le runner SQL, les données de démonstration et la migration additive `18_lot1_security.sql` ;
+- les rapports `docs/audit/` concernés et `doc/database/README.md`.
 
-Toute correction et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.
+Aucune dépendance n'a été ajoutée. Aucun fichier OpenAPI n'a été modifié. Aucun reset, `DROP`, suppression de colonne ou `NOT NULL` destructif n'a été exécuté.
+
+Le Lot 2 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.

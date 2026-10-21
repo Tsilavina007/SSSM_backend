@@ -10,6 +10,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,18 +18,21 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import tools.jackson.databind.ObjectMapper;
-
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
+import sssm.dev.sssm_backend.a03_authentication.auth.repository.RevokedAccessTokenDAO;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
   private final JwtService jwt;
+  private final RevokedAccessTokenDAO revokedAccessTokens;
   private final ObjectMapper objectMapper;
 
-  public JwtAuthenticationFilter(JwtService jwt, ObjectMapper objectMapper) {
+  public JwtAuthenticationFilter(
+      JwtService jwt, RevokedAccessTokenDAO revokedAccessTokens, ObjectMapper objectMapper) {
     this.jwt = jwt;
+    this.revokedAccessTokens = revokedAccessTokens;
     this.objectMapper = objectMapper;
   }
 
@@ -40,19 +44,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     if (header != null && header.startsWith("Bearer ")) {
       try {
         Claims claims = jwt.parse(header.substring(7));
+        String jti = claims.getId();
+        if (jti == null || jti.isBlank() || revokedAccessTokens.isRevoked(jti)) {
+          throw new JwtException("Le jeton JWT a été révoqué.");
+        }
+
         @SuppressWarnings("unchecked")
         List<String> roles = claims.get("roles", List.class);
-        var authorities =
-            roles == null
-                ? List.<SimpleGrantedAuthority>of()
-                : roles.stream()
-                    .map(
-                        role ->
-                            new SimpleGrantedAuthority(
-                                role.startsWith("ROLE_") ? role : "ROLE_" + role))
-                    .toList();
-        var authentication =
-            new UsernamePasswordAuthenticationToken(claims.getSubject(), null, authorities);
+        @SuppressWarnings("unchecked")
+        List<String> permissions = claims.get("permissions", List.class);
+        boolean platformAdmin = Boolean.TRUE.equals(claims.get("platform_admin", Boolean.class));
+
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+        if (roles != null) {
+          roles.stream()
+              .filter(role -> role != null && !role.isBlank())
+              .map(
+                  role ->
+                      new SimpleGrantedAuthority(role.startsWith("ROLE_") ? role : "ROLE_" + role))
+              .forEach(authorities::add);
+        }
+        if (permissions != null) {
+          permissions.stream()
+              .filter(permission -> permission != null && !permission.isBlank())
+              .map(SimpleGrantedAuthority::new)
+              .forEach(authorities::add);
+        }
+        if (platformAdmin) {
+          authorities.add(new SimpleGrantedAuthority("PLATFORM_ADMIN"));
+        }
+
+        JwtPrincipal principal =
+            new JwtPrincipal(
+                claims.get("uid", String.class),
+                claims.getSubject(),
+                claims.get("company_id", String.class),
+                platformAdmin);
+        var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       } catch (RuntimeException e) {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

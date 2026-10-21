@@ -15,7 +15,7 @@ Client HTTP
 Spring Security (JwtAuthenticationFilter)
    |
    v
-@RestController  (26 contrôleurs, 130 routes)
+@RestController  (26 contrôleurs, 131 routes après le Lot 1)
    |
    v
 @Service         (règles métier, parfois @Transactional)
@@ -72,7 +72,7 @@ Le code est rangé sous `sssm.dev.sssm_backend`, avec une convention de préfixe
 | `a11_inventory` | inventaire, stock, QR, affectations, comptages, dashboard, rapports | 12 |
 | `controller_test` | contrôleurs de test (`Hello`, `Ping`) | 2 |
 
-Total : **26 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **130 routes applicatives** (132 en incluant `Hello` et `Ping`).
+Total : **26 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **131 routes applicatives après le Lot 1** (130 à l'audit initial ; 133 en incluant `Hello` et `Ping`).
 
 ### 3.1. Détail du module inventaire
 
@@ -213,7 +213,7 @@ Le détail est dans le rapport 09.
 | Scripts SQL | 18 (`00` à `17`) | Présents, non migrés automatiquement |
 | Fichiers OpenAPI | 26 | Présents, structure valide, 183 avertissements Redocly relevés à l'audit initial (non rejoués après `7e3f196`) |
 | Fichiers OpenAPI inventaire | 12 | Présents, cohérents avec les routes principales |
-| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests | Les 105 tests verts sont un rapport complet historique. Aucun rapport complet ne couvre `7e3f196` ; seul l'artefact QR de 7 tests est présent. |
+| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests | Les 105 tests verts sont un rapport complet historique. Après Lot 1, suite exécutée : 119 succès, 1 échec préexistant (`historyUnknownReturnsNotFound`). |
 | Rapport Surefire | `target/surefire-reports` | Contient uniquement `ItemControllerQrCodeImageTest` (7 tests) ; rapport complet historique non présent |
 
 Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquibase). Le schéma est créé manuellement ou par un script externe. Il n'existe pas de table de version de schéma applicative.

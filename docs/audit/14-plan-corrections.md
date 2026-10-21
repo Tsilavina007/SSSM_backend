@@ -1,6 +1,6 @@
 ﻿# 14 — Plan de correction
 
-**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Ce plan n'est pas exécuté : aucune correction n'a été appliquée pendant l'audit.
+**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Le Lot 1 a été exécuté le 21 octobre 2026 ; les autres lots restent à planifier. Le détail de l'exécution du Lot 1 est consigné dans la section 4.6.
 
 **Principe directeur :** ne pas ajouter d'écran sur un contrat faux. La stabilité de la tenancy, des transactions et du stock précède le frontend.
 
@@ -133,9 +133,40 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - un refresh rejoué est rejeté ;
 - les tests de tenancy et RBAC passent sur deux entreprises.
 
+### 4.6. Compte rendu d'exécution — 21 octobre 2026
+
+**Décisions appliquées :** D-02 (mono-entreprise), D-03 (inscription fermée, comptes créés par un administrateur), D-08 (séparation admin entreprise / admin plateforme).
+
+**Migration :** `doc/database/schema/18_lot1_security.sql`, ajoutée au runner `doc/database/sssm_schema2_v01.sql`. Elle est additive : colonnes nullables, backfill, index, tables `refresh_token` et `revoked_access_token`, permissions `users.manage` et `roles.manage`. Aucun `NOT NULL`, aucune suppression, aucun reset. Appliquée à la base de démonstration ; les volumes de backfill ont été contrôlés après exécution.
+
+**Implémenté :**
+
+- inscription réservée à `ROLE_ADMIN` ou `users.manage`, entreprise déduite du jeton ;
+- refresh token distinct, haché, rotation à usage unique, révocation et logout ;
+- JWT avec `jti`, `iss`, `aud`, `company_id`, `roles`, `permissions`, `platform_admin` ;
+- rechargement des rôles et permissions au refresh ;
+- RBAC sur inventaire, utilisateurs, rôles et catalogue de permissions ;
+- scope entreprise sur `/api/users/**` et `/api/roles/**`, admin plateforme non filtré ;
+- CORS à origines explicites par environnement ;
+- tests `AuthHardeningApiTests`, `RefreshTokenApiTests`, `WhoAmIApiTests`, `AppUserApiTests`, `ErrorFormatTests`.
+
+**Non réalisé dans le Lot 1 :**
+
+- filtres `company_id` dans les DAO d'inventaire et FK/contraintes composites ;
+- `NOT NULL` sur `app_user.company_id` et les nouvelles colonnes ;
+- RLS PostgreSQL, rate limiting, politique de mot de passe, reset, journal d'audit ;
+- RBAC des routes organisation, personnel, clients et sites ;
+- tests croisés sur deux entreprises ;
+- purge automatique des refresh tokens et des jetons révoqués ;
+- statuts 401/403 du login et traduction des erreurs SQL (Lot 2/Lot 7).
+
+**Vérifications :** suite complète `mvn test` exécutée : **120 tests, 119 succès, 1 échec**. L'échec est `ItemApiTests.historyUnknownReturnsNotFound` (404 attendu, 200 obtenu), divergence préexistante du contrôleur d'historique, hors Lot 1. Les tests ciblés d'authentification et de RBAC passent (29 tests).
+
 ---
 
 ## 5. Lot 2 — Accès aux données et transactions
+
+**Statut : NON DÉMARRÉ.** Ce lot ne doit pas être lancé sans autorisation explicite après le Lot 1.
 
 ### 5.1. Remplacer `DriverManager`
 

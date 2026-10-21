@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
@@ -29,6 +28,29 @@ public class RoleDAOImpl implements RoleDAO {
         while (rs.next()) {
           Role role = mapRowToRole(rs);
           roles.add(role);
+        }
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return roles;
+  }
+
+  @Override
+  public List<Role> findAllByCompany(String companyId, int page, int pageSize) {
+    String sql = "SELECT * FROM security.role WHERE company_id = ? ORDER BY name LIMIT ? OFFSET ?";
+    List<Role> roles = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setInt(2, pageSize);
+      stmt.setInt(3, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          roles.add(mapRowToRole(rs));
         }
       }
     } catch (SQLException e) {
@@ -77,7 +99,8 @@ public class RoleDAOImpl implements RoleDAO {
     String sql = "INSERT INTO security.role (company_id, name, description) VALUES (?, ?, ?)";
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, UUID.fromString(role.getCompany_id()));
+      stmt.setObject(
+          1, role.getCompany_id() == null ? null : UUID.fromString(role.getCompany_id()));
       stmt.setString(2, role.getName());
       stmt.setString(3, role.getDescription());
       stmt.executeUpdate();

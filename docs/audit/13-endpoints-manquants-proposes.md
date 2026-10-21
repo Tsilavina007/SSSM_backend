@@ -95,9 +95,11 @@ Format `application/problem+json` :
 
 ## 2. Tableau des endpoints proposés
 
+**Note Lot 1 :** les routes `/api/auth/**` existantes ont été durcies (inscription fermée, refresh rotatif, logout, claims), mais aucun endpoint `/api/v1` n'a été créé. E-01 à E-05 restent des propositions de contrat cible.
+
 | ID | Priorité | Méthode | Chemin | Remplace / comble |
 |---|---|---|---|---|
-| E-01 | P0 | POST | `/api/v1/auth/register` | Inscription publique actuelle |
+| E-01 | P0 | POST | `/api/v1/auth/register` | Inscription actuelle, désormais réservée aux administrateurs |
 | E-02 | P0 | POST | `/api/v1/auth/login` | Login actuel, contrat durci |
 | E-03 | P0 | POST | `/api/v1/auth/refresh` | Refresh actuel, rôles rechargés |
 | E-04 | P0 | POST | `/api/v1/auth/logout` | Pas de logout JWT avec révocation |
@@ -166,7 +168,7 @@ POST /api/v1/auth/register
 - **409** si username/email déjà utilisé ;
 - **422** si l'invitation est expirée ou consommée.
 
-**Alternative si l'inscription publique est conservée :** compte `PENDING`, aucune entreprise, aucun accès aux routes métier avant validation par un administrateur. Un utilisateur sans entreprise ne doit jamais passer `authenticated()` sur l'inventaire.
+**Décision appliquée au Lot 1 :** l'inscription publique n'est pas conservée. Les comptes sont créés par un administrateur d'entreprise ou un admin plateforme, avec une entreprise explicite. Un compte sans rôle ne peut pas accéder à l'inventaire.
 
 ### E-02 — Connexion
 

@@ -8,7 +8,7 @@ Le schéma SQL est organisé par domaine fonctionnel dans le dossier `schema/`.
 database/
 ├── sssm_schema2_v01.sql
 ├── mock_data/
-│   └── 00_mock_data.sql
+│   └── sssm_mock_data.sql
 ├── README.md
 └── schema/
     ├── 00_init.sql
@@ -28,8 +28,37 @@ database/
     ├── 14_audit.sql
     ├── 15_indexes.sql
     ├── 16_triggers.sql
-    └── 17_seed_permissions.sql
+    ├── 17_seed_permissions.sql
+    └── 18_lot1_security.sql
 ```
+
+## Migration Lot 1
+
+`18_lot1_security.sql` est une migration **additive** appliquée après
+`17_seed_permissions.sql` :
+
+- ajout de `company_id` nullable à `stock_movement`, `item_assignment` et
+  `inventory_count_scan` ;
+- backfill de `app_user.company_id` et des nouvelles colonnes à partir de
+  l'entreprise unique de démonstration ;
+- index de filtrage par entreprise ;
+- tables `security.refresh_token` et `security.revoked_access_token` ;
+- permissions `users.manage` et `roles.manage`, affectées au rôle
+  d'administration de l'entreprise.
+
+La migration ne contient ni `DROP`, ni `DELETE`, ni `TRUNCATE`, ni ajout de
+`NOT NULL`, ni contrainte composite destructive. Elle est incluse dans
+`sssm_schema2_v01.sql` pour les installations neuves et peut être appliquée
+seule sur une base existante :
+
+```bash
+cd sssm_backend
+psql -d sssm_db -f doc/database/schema/18_lot1_security.sql -U your_user
+```
+
+Après application, les comptes non-plateforme existants sont rattachés à
+l'entreprise de démonstration. Un administrateur plateforme conserve
+`company_id = NULL`.
 
 ## Exécution complète
 

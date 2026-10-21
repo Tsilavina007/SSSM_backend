@@ -4,16 +4,18 @@
 **Verdict global :** **NON PRÊT POUR LA PRODUCTION**  
 **Nuance :** **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, sans promesse de stock fiable ni de traçabilité complète.
 
+**Mise à jour du 21 octobre 2026 (Lot 1) :** inscription publique fermée, comptes créés par un administrateur ; entreprise et permissions dans le JWT ; refresh distinct, rotatif et révocable ; logout ; RBAC sur l'inventaire et l'administration ; scope entreprise sur les utilisateurs et rôles ; CORS explicite. **P0-03 est corrigé**, **P0-02 est partiel** (RBAC non étendu aux modules hors inventaire) et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Les autres P0 restent ouverts.
+
 ---
 
 ## 1. Décision
 
-Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Le dernier rapport complet historique mentionne 105 tests sans échec, et plusieurs parcours nominaux sont couverts ; la suite complète n'a pas été relancée pendant l'audit. Le HEAD courant (`7e3f196`) contient 22 classes et 112 tests dans l'arbre, mais aucun rapport complet ne couvre ce HEAD et un test d'historique est en divergence avec le contrôleur.
+Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 1, la suite complète compte **120 tests, 119 succès et 1 échec préexistant** (`ItemApiTests.historyUnknownReturnsNotFound`, hors périmètre). Les 29 tests ciblés d'authentification et de RBAC passent.
 
-En revanche, quatre garanties fondamentales manquent :
+En revanche, quatre garanties fondamentales restent incomplètes :
 
-1. **Aucune isolation entre entreprises.** Les requêtes d'inventaire ne filtrent pas par `company_id` ; l'entreprise est fournie dans le corps de la requête ou déduite d'un objet chargé globalement.
-2. **Aucun contrôle d'accès métier.** Un utilisateur authentifié, même inscrit publiquement sans entreprise, peut lire et modifier tout l'inventaire. Les permissions existent en base mais ne sont pas consommées.
+1. **Isolation mono-entreprise seulement.** Les colonnes `company_id` ont été ajoutées et backfillées, mais les requêtes d'inventaire ne filtrent pas encore par entreprise ; l'entreprise est fournie dans le corps de la requête ou déduite d'un objet chargé globalement. Aucune seconde entreprise ne doit être exposée tant que ce filtrage n'est pas fait.
+2. **RBAC partiel.** L'inscription publique est fermée et l'inventaire, les utilisateurs, les rôles et le catalogue des permissions sont protégés. Les modules organisation, personnel, clients et sites restent seulement `authenticated`, sans permission métier.
 3. **Aucune transaction réelle.** Les DAO ouvrent chacun leur propre connexion via `DatabaseConnection` ; les annotations `@Transactional` ne couvrent pas les écritures. Les opérations composées peuvent laisser des états partiels.
 4. **Aucun stock fiable.** La quantité `item_type.quantity_total` est saisie manuellement et n'est jamais dérivée des mouvements. La quantité d'un mouvement vaut toujours `1`, faute de champ exposé. Les opérations et comptages ne produisent ni lignes détaillées ni écritures de stock.
 
@@ -25,9 +27,9 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 
 | Domaine | Statut | Risque | Constat principal |
 |---|---|---|---|
-| Authentification | **PARTIEL** | Élevé | JWT et BCrypt présents, mais inscription publique sans entreprise, pas de révocation, rôles figés dans le jeton. |
-| Autorisations / RBAC | **ABSENT** | Critique | Aucun `@PreAuthorize` ; seul `/api/users`, `/api/roles`, `/api/permissions` exige `ADMIN`. |
-| Isolation multi-entreprise | **ABSENT** | Critique | Aucun filtre `company_id` dans les DAO d'inventaire ; `company_id` vient du client. |
+| Authentification | **PARTIEL / DURCI** | Moyen | JWT avec `jti`/`iss`/`aud`/entreprise/permissions, refresh rotatif, logout et révocation. Restent rate limiting, verrouillage et statuts 401/403 du login. |
+| Autorisations / RBAC | **PARTIEL** | Élevé | RBAC sur inventaire, utilisateurs, rôles et permissions ; modules organisation/personnel/clients/sites encore seulement authentifiés. |
+| Isolation multi-entreprise | **PARTIEL — MONO-ENTREPRISE** | Critique | Colonnes et index ajoutés, scope entreprise sur utilisateurs/rôles ; DAO d'inventaire non filtrés. |
 | Catalogue matériel | **PARTIEL** | Élevé | CRUD présent, mais intégrité inter-entreprises non contrôlée et création de type fragile. |
 | Stock / quantités | **ABSENT** | Critique | Pas de solde de stock, pas de journal de quantités, `quantity_total` manuel. |
 | Mouvements | **PARTIEL** | Critique | Les statuts changent, mais les quantités, sources, destinations et acteurs ne sont pas enregistrés. |
@@ -37,7 +39,7 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Comptages d'inventaire | **PARTIEL** | Élevé | Saisie d'écarts sans calcul, clôture sans réconciliation, `last_inventory_at` jamais mis à jour. |
 | Contrat API | **PARTIEL** | Élevé | Routes cohérentes dans l'ensemble, mais erreurs douces en 200, conflits en 500, pagination non bornée. |
 | Performance | **PARTIEL** | Élevé | Chaîne N+1 sur chaque article, aucun pool de connexions utilisé par les DAO, pas de plafond de pagination. |
-| Tests | **PARTIEL** | Élevé | 105 tests verts dans le dernier rapport complet historique, mais aucune couverture multi-entreprise, RBAC, concurrence, quantités ou réconciliation ; suite non relancée et état complet de `7e3f196` non vérifié. |
+| Tests | **PARTIEL** | Élevé | Suite complète exécutée : 120 tests, 119 succès, 1 échec préexistant. Couverture RBAC, scope entreprise et révocation ajoutée ; pas de scénario à deux entreprises, de concurrence, de quantités ou de réconciliation. |
 | Documentation OpenAPI | **PARTIEL** | Moyen | 26 fichiers cohérents avec les routes, mais 183 avertissements non bloquants relevés à l'audit initial (non rejoués après `7e3f196`) et plusieurs dettes documentées. |
 
 ---
@@ -87,18 +89,20 @@ Limites : le code est modifiable par `PATCH`, aucune étiquette PDF n'est produi
 
 ### 3.6. Quelles sont les anomalies les plus critiques ?
 
-| Rang | Anomalie | Référence |
-|---|---|---|
-| 1 | Absence d'isolation multi-entreprise | 09, 12 |
-| 2 | Inscription publique + RBAC inopérant | 09, 12 |
-| 3 | Transactions inopérantes et écritures non atomiques | 01, 03, 12 |
-| 4 | Stock non dérivé des mouvements, quantités fixes | 05, 07, 12 |
-| 5 | Machines à états des affectations et retours incohérentes | 08, 12 |
-| 6 | Opérations d'inventaire creuses | 05, 07, 12 |
-| 7 | QR Code global et modifiable | 06, 12 |
-| 8 | Fuite de SQLSTATE et de messages PostgreSQL | 02, 09, 12 |
+| Rang | Anomalie | Référence | Statut Lot 1 |
+|---|---|---|---|
+| 1 | Isolation multi-entreprise incomplète | 09, 12 | Partiel — mono-entreprise assumée |
+| 2 | Inscription publique + RBAC inopérant | 09, 12 | Inscription corrigée ; RBAC partiel |
+| 3 | Transactions inopérantes et écritures non atomiques | 01, 03, 12 | Ouvert |
+| 4 | Stock non dérivé des mouvements, quantités fixes | 05, 07, 12 | Ouvert |
+| 5 | Machines à états des affectations et retours incohérentes | 08, 12 | Ouvert |
+| 6 | Opérations d'inventaire creuses | 05, 07, 12 | Ouvert |
+| 7 | QR Code global et modifiable | 06, 12 | Ouvert |
+| 8 | Fuite de SQLSTATE et de messages PostgreSQL | 02, 09, 12 | Ouvert |
 
 ### 3.7. Quelles sont les cinq actions à mener avant toute nouvelle phase ?
+
+**État Lot 1 :** l'action 1 est partiellement réalisée (mono-entreprise, inscription fermée, RBAC inventaire/administration, jetons durcis). Les actions 2 à 5 restent à mener ; le Lot 2 ne doit pas démarrer sans autorisation.
 
 1. **Trancher le modèle de tenancy et le contrôle d'accès.**  
    Décider si l'entreprise est un tenant strict, comment elle est portée par le jeton, et quelles permissions sont réellement appliquées. Fermer ou encadrer l'inscription publique. Tant que ce point n'est pas décidé, tout développement frontend reposera sur un contrat faux.
@@ -127,9 +131,10 @@ Limites : le code est modifiable par `PATCH`, aucune étiquette PDF n'est produi
 - Affectation typée avec contrôle de disponibilité et index unique d'affectation active.
 - Restitution typée avec `returned_at` et remise à `AVAILABLE`.
 - Comptage : création d'en-tête, scan d'article, clôture de statut.
-- Authentification JWT, BCrypt, `whoami`, refresh.
+- Authentification JWT, BCrypt, `whoami`, refresh rotatif, logout et révocation.
+- Inscription fermée aux administrateurs, scope entreprise sur les utilisateurs et rôles, RBAC sur l'inventaire et l'administration.
 - Enveloppe d'erreur homogène `{"errors": {...}}` pour les exceptions.
-- 105 tests sans échec dans le dernier rapport complet historique, dont des tests d'intégration sur base réelle ; ce rapport ne couvre pas le HEAD `7e3f196`.
+- 120 tests exécutés après le Lot 1 : 119 succès, 1 échec préexistant sur l'historique d'article.
 
 Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquantes.
 
@@ -141,9 +146,10 @@ Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquant
 - Un écran de stock avec quantités présentées comme fiables.
 - Un écran d'affectation avec suppression ou retour partiel.
 - Un parcours mobile de scan avec action directe.
-- Un portail public d'inscription.
+- Un portail public d'inscription (fermé au Lot 1).
 - Un tableau de bord de stock basé sur `quantity_total`.
-- Toute API accessible avec un simple compte `USER` non rattaché à une entreprise.
+- Un écran d'administration multi-entreprise tant que les DAO d'inventaire ne filtrent pas par `company_id`.
+- Les routes organisation/personnel/clients/sites avec un simple compte authentifié, sans RBAC métier.
 
 ---
 
@@ -152,13 +158,13 @@ Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquant
 | Indicateur | Valeur |
 |---|---|
 | Contrôleurs REST | 26 |
-| Routes applicatives | 130 |
+| Routes applicatives | 131 après le Lot 1 (130 à l'audit initial, plus `POST /api/auth/logout`) |
 | Routes d'inventaire | 57 |
 | Fichiers OpenAPI | 26 |
 | Fichiers OpenAPI inventaire | 12 |
-| Scripts SQL | 18 |
-| Tests | 105 (rapport complet historique) ; 112 dans l'arbre `7e3f196`, suite complète non rejouée |
-| Échecs de tests (dernier rapport complet) | 0 ; état de `7e3f196` **NON VÉRIFIÉ** |
+| Scripts SQL | 19 (dont `18_lot1_security.sql`) |
+| Tests | 120 après le Lot 1 (23 classes) |
+| Échecs de tests | 1 préexistant (`ItemApiTests.historyUnknownReturnsNotFound`) |
 | Entreprises en base de démonstration | 1 |
 | Articles en base de démonstration | 10 |
 | Mouvements en base de démonstration | 8 |
@@ -193,10 +199,10 @@ Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquant
 
 ## 8. Décision attendue
 
-L'audit ne demande pas de choisir immédiatement une solution technique. Il demande de valider trois orientations avant toute correction :
+Trois orientations ont été tranchées pour le Lot 1 :
 
-1. **Tenancy :** mono-entreprise assumée ou multi-entreprise stricte ?
-2. **Stock :** journal de mouvements avec solde calculé, ou stock déclaratif manuel ?
-3. **Accès :** RBAC par permission, ou rôles simples suffisamment encadrés ?
+1. **Tenancy :** mono-entreprise assumée pour le runtime, avec colonnes et scope entreprise préparés pour la suite.
+2. **Accès :** RBAC par permission, inscription fermée, admin entreprise séparé de l'admin plateforme.
+3. **Stock :** décision toujours ouverte. Le journal de mouvements avec solde calculé n'est pas encore implémenté.
 
-Tant que ces trois orientations ne sont pas explicites, les corrections risques d'être incompatibles entre elles. Le plan du fichier 14 est structuré pour permettre cette décision avant les développements.
+Les corrections du Lot 2 (DataSource, transactions, filtres `company_id` dans les DAO d'inventaire) ne doivent pas démarrer sans validation explicite. Le plan du fichier 14 est structuré pour cette décision.

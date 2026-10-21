@@ -2,7 +2,7 @@
 
 **Objectif :** dresser le contrat HTTP réel du backend, route par route, avec les statuts, les paramètres, les règles de validation et les écarts visibles. Les propositions de nouvelles routes sont dans le rapport 13 ; ce rapport ne décrit que l'existant.
 
-**Périmètre :** 26 contrôleurs REST, 130 routes applicatives, dont 57 routes d'inventaire. Les deux contrôleurs de test `HelloController` et `PingController` sont exclus du décompte métier.
+**Périmètre :** 26 contrôleurs REST, **131 routes applicatives après le Lot 1** (130 lors de l'audit initial, plus `POST /api/auth/logout`), dont 57 routes d'inventaire. Les deux contrôleurs de test `HelloController` et `PingController` sont exclus du décompte métier.
 
 ---
 
@@ -11,8 +11,8 @@
 | Sujet | Comportement réel |
 |---|---|
 | Format | JSON, `Content-Type: application/json`, sauf l'image PNG |
-| Authentification | `Authorization: Bearer <JWT>` sur toutes les routes, sauf `/api/auth/register`, `/api/auth/login`, `/api/auth/refresh`, `/ping`, `/error` |
-| Autorisation | `/api/inventory/**` : simple authentification ; `/api/users/**`, `/api/roles/**`, `/api/permissions/**` : `ROLE_ADMIN` ; reste : authentification |
+| Authentification | `Authorization: Bearer <JWT>` sur toutes les routes, sauf `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/ping`, `/error`. `/api/auth/register` exige un admin. |
+| Autorisation | `/api/inventory/**` : `ROLE_ADMIN`, `ROLE_INVENTORY` ou `inventory.manage` ; `/api/users/**` et `/api/auth/register` : `ROLE_ADMIN` ou `users.manage` ; `/api/roles/**` : `ROLE_ADMIN` ou `roles.manage` ; `/api/permissions/**` : `ROLE_ADMIN` ; reste : authentification |
 | Enveloppe d'erreur | `{"errors":{"message":"...","detail":"...","code":"..."}}` |
 | Erreurs de validation | **400**, code `VALIDATION_ERROR`, détail par champ |
 | Erreurs SQL | **500**, code = SQLSTATE (`23505`, `23503`, `23502`, `23514`, etc.), détail = message PostgreSQL |
@@ -243,7 +243,7 @@ Base : `/api/inventory/reports`
 
 ---
 
-## 3. Routes d'authentification et d'administration (23)
+## 3. Routes d'authentification et d'administration (24)
 
 ### 3.1. Authentification — `AuthController`
 
@@ -251,14 +251,15 @@ Base : `/api/auth`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
-| POST | `/register` | 201 | **PARTIEL** | Public. Crée un `USER` sans entreprise. Ne renvoie pas de jeton (`token: null`). |
-| POST | `/login` | 200 | **PARTIEL** | Login/email + mot de passe. Identifiants invalides → **400**, pas 401. |
+| POST | `/register` | 201 | **IMPLÉMENTÉ** | Réservé à `ROLE_ADMIN` ou `users.manage` ; entreprise déduite du jeton. Ne renvoie pas de jeton (`token: null`). |
+| POST | `/login` | 200 | **IMPLÉMENTÉ** | Login/email + mot de passe. Identifiants invalides → **400**, pas 401. |
 | GET | `/whoami` | 200 | **IMPLÉMENTÉ** | JWT requis ; 404 si l'utilisateur du jeton n'existe plus. |
-| POST | `/refresh` | 200 | **PARTIEL** | Public ; jeton dans le corps ; réutilise les rôles du jeton. |
+| POST | `/refresh` | 200 | **IMPLÉMENTÉ** | Public ; `refreshToken` dans le corps ; rotation, rechargement des rôles/permissions, révocation de l'ancien token. |
+| POST | `/logout` | 204 | **IMPLÉMENTÉ** | Révoque le refresh token fourni et le `jti` de l'access token courant. |
 
 ### 3.2. Utilisateurs — `AppUserController`
 
-Base : `/api/users`, réservé à `ROLE_ADMIN`.
+Base : `/api/users`, réservé à `ROLE_ADMIN` ou `users.manage` ; scope entreprise pour un admin d'entreprise.
 
 | Méthode | Chemin | Succès | Statut |
 |---|---|---|---|
@@ -272,7 +273,7 @@ Base : `/api/users`, réservé à `ROLE_ADMIN`.
 
 ### 3.3. Rôles — `RoleController`
 
-Base : `/api/roles`, réservé à `ROLE_ADMIN`.
+Base : `/api/roles`, réservé à `ROLE_ADMIN` ou `roles.manage` ; scope entreprise pour un admin d'entreprise.
 
 | Méthode | Chemin | Succès | Statut |
 |---|---|---|---|
@@ -296,7 +297,7 @@ Base : `/api/permissions`, réservé à `ROLE_ADMIN`.
 | PATCH | `/{id}` | 200 / 404 | **IMPLÉMENTÉ** |
 | DELETE | `/{id}` | 204 | **IMPLÉMENTÉ** |
 
-**Constat transversal :** les permissions sont stockées et affectées aux rôles, mais aucun contrôle de route ou de méthode ne les consomme. Le seul contrôle effectif est `hasRole("ADMIN")` sur les trois bases ci-dessus.
+**Constat transversal après le Lot 1 :** les permissions `inventory.manage`, `users.manage` et `roles.manage` sont consommées par `SecurityConfig`. `/api/permissions/**` reste réservé à `ROLE_ADMIN`. Les modules organisation, personnel, clients et sites restent seulement `authenticated` ; le RBAC n'y est pas encore appliqué.
 
 ---
 

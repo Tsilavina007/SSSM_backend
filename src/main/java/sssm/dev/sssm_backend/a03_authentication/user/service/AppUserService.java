@@ -6,10 +6,12 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
+import sssm.dev.sssm_backend.a03_authentication.auth.security.CurrentUser;
+import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
+import sssm.dev.sssm_backend.a03_authentication.role.repository.RoleDAO;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserCreateRequest;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserResponse;
 import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserUpdateRequest;
@@ -20,21 +22,22 @@ import sssm.dev.sssm_backend.a03_authentication.user.repository.AppUserDAO;
 @RequiredArgsConstructor
 public class AppUserService {
   private final AppUserDAO dao;
+  private final RoleDAO roles;
   private final PasswordEncoder passwordEncoder;
+  private final CurrentUser currentUser;
 
   public List<AppUserResponse> findAll(Optional<Integer> page, Optional<Integer> size) {
-    return dao.findAll(page.orElse(1), size.orElse(10)).stream().map(this::toResponse).toList();
+    int requestedPage = page.orElse(1);
+    int requestedSize = size.orElse(10);
+    List<AppUser> users =
+        currentUser.isPlatformAdmin()
+            ? dao.findAll(requestedPage, requestedSize)
+            : dao.findAllByCompany(currentUser.requireCompanyId(), requestedPage, requestedSize);
+    return users.stream().map(this::toResponse).toList();
   }
 
   public AppUserResponse findById(String id) {
-    return dao.findById(id)
-        .map(this::toResponse)
-        .orElseThrow(
-            () ->
-                new NotFoundException(
-                    "Utilisateur introuvable",
-                    "Aucun utilisateur ne correspond à l'identifiant " + id + ".",
-                    "NOT_FOUND"));
+    return toResponse(requireAccessibleUser(id));
   }
 
   public List<String> findRoleNames(String userId) {
@@ -64,7 +67,7 @@ public class AppUserService {
     ensureEmailAvailable(email, null);
 
     AppUser user = new AppUser();
-    user.setCompany_id(request.getCompany_id());
+    user.setCompany_id(resolveCompanyForCreate(request.getCompany_id()));
     user.setUsername(username);
     user.setEmail(email);
     user.setPassword_hash(passwordEncoder.encode(request.getPassword()));
@@ -76,7 +79,7 @@ public class AppUserService {
   }
 
   public AppUserResponse update(String id, AppUserUpdateRequest request) {
-    requireUser(id);
+    requireAccessibleUser(id);
 
     String email = normalizeEmail(request.getEmail());
     if (email != null) {
@@ -99,24 +102,77 @@ public class AppUserService {
   }
 
   public void delete(String id) {
+    requireAccessibleUser(id);
     dao.delete(id);
   }
 
   public void assignRole(String userId, String roleId) {
+    requireAccessibleUser(userId);
+    requireAssignableRole(roleId);
     dao.assignRole(userId, roleId);
   }
 
   public void removeRole(String userId, String roleId) {
+    requireAccessibleUser(userId);
+    requireAssignableRole(roleId);
     dao.removeRole(userId, roleId);
   }
 
-  private void requireUser(String id) {
-    if (dao.findById(id).isEmpty()) {
+  private String resolveCompanyForCreate(String requestedCompanyId) {
+    if (currentUser.isPlatformAdmin()) {
+      return requestedCompanyId;
+    }
+    String companyId = currentUser.requireCompanyId();
+    if (requestedCompanyId != null && !requestedCompanyId.equals(companyId)) {
+      throw new ClientException(
+          "Entreprise non autorisée",
+          "Un administrateur d'entreprise ne peut créer que des comptes dans sa propre entreprise.",
+          "CLIENT_ERROR");
+    }
+    return companyId;
+  }
+
+  private AppUser requireAccessibleUser(String id) {
+    AppUser user =
+        dao.findById(id)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Utilisateur introuvable",
+                        "Aucun utilisateur ne correspond à l'identifiant " + id + ".",
+                        "NOT_FOUND"));
+    if (currentUser.isPlatformAdmin()) return user;
+
+    String companyId = currentUser.requireCompanyId();
+    if (!companyId.equals(user.getCompany_id())) {
       throw new NotFoundException(
           "Utilisateur introuvable",
           "Aucun utilisateur ne correspond à l'identifiant " + id + ".",
           "NOT_FOUND");
     }
+    return user;
+  }
+
+  private Role requireAssignableRole(String roleId) {
+    Role role =
+        roles
+            .findById(roleId)
+            .orElseThrow(
+                () ->
+                    new NotFoundException(
+                        "Rôle introuvable",
+                        "Aucun rôle ne correspond à l'identifiant " + roleId + ".",
+                        "NOT_FOUND"));
+    if (currentUser.isPlatformAdmin()) return role;
+
+    String companyId = currentUser.requireCompanyId();
+    if (!companyId.equals(role.getCompany_id())) {
+      throw new NotFoundException(
+          "Rôle introuvable",
+          "Aucun rôle ne correspond à l'identifiant " + roleId + ".",
+          "NOT_FOUND");
+    }
+    return role;
   }
 
   private void ensureUsernameAvailable(String username) {

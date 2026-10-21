@@ -35,6 +35,7 @@ class WhoAmIApiTests {
   @Autowired private JwtService jwtService;
 
   private MockMvc mockMvc;
+  private String adminToken;
   private String username;
   private String email;
   private String password;
@@ -45,6 +46,7 @@ class WhoAmIApiTests {
         MockMvcBuilders.webAppContextSetup(context)
             .addFilters(context.getBean("springSecurityFilterChain", Filter.class))
             .build();
+    adminToken = jwtService.createToken("test-admin", "whoami-admin", List.of("ADMIN"));
     String marker = "whoami-test-" + System.nanoTime();
     username = marker;
     email = marker + "@example.test";
@@ -61,7 +63,8 @@ class WhoAmIApiTests {
   void whoAmIReturnsCurrentUser() throws Exception {
     mockMvc
         .perform(
-            post("/api/auth/register")
+            post("/api/users")
+                .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     "{\"username\":\""

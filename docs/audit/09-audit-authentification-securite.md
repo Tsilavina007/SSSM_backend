@@ -2,6 +2,8 @@
 
 **Objectif :** évaluer l'inscription, la connexion, les JWT, le refresh, les rôles, les permissions, le CORS et la protection des données. Les routes d'inventaire sont supposées authentifiées ; ce rapport vérifie ce que « authentifié » signifie réellement.
 
+**Mise à jour du 21 octobre 2026 (Lot 1) :** l'inscription publique est fermée, le refresh token est distinct et rotatif, le logout et la révocation sont implémentés, les rôles sont rechargés au refresh, le JWT porte le tenant et les permissions, et le CORS est explicite. Les sections ci-dessous décrivent l'état initial puis signalent l'état courant. Les points non corrigés restent listés.
+
 ---
 
 ## 1. Modèle de sécurité réel
@@ -10,12 +12,14 @@
 |---|---|---|
 | Authentification | JWT porté par `Authorization: Bearer` | `JwtAuthenticationFilter`, `JwtService` |
 | Hash des mots de passe | BCrypt | `SecurityConfig.passwordEncoder` |
-| Autorisation | Règles d'URL dans `SecurityConfig` | `SecurityConfig` |
+| Autorisation | Règles d'URL + permissions du jeton | `SecurityConfig`, `JwtAuthenticationFilter` |
 | Rôles | table `role`, `user_role` | `03_security.sql` |
-| Permissions | table `permission`, `role_permission` | `03_security.sql` |
+| Permissions | table `permission`, `role_permission`, claims `permissions` | `03_security.sql`, `JwtService` |
+| Refresh | table `refresh_token` (haché, rotation, révocation) | `18_lot1_security.sql`, `RefreshTokenDAOImpl` |
+| Révocation access token | table `revoked_access_token`, contrôle du `jti` | `18_lot1_security.sql`, filtre JWT |
 | Sessions | stateless | `SessionCreationPolicy.STATELESS` |
 | CSRF | désactivé | `SecurityConfig` |
-| CORS | toutes origines, credentials autorisés | `SecurityConfig.corsConfigurationSource` |
+| CORS | origines explicites par environnement | `SecurityConfig.corsConfigurationSource` |
 
 ### 1.1. Règles d'accès exactes
 
@@ -23,23 +27,25 @@
 /                         permitAll
 /ping                     permitAll
 /error                    permitAll
-/api/auth/register        permitAll
 /api/auth/login           permitAll
 /api/auth/refresh         permitAll
-/api/inventory/**         authenticated
-/api/users/**             hasRole("ADMIN")
-/api/roles/**             hasRole("ADMIN")
-/api/permissions/**       hasRole("ADMIN")
+/api/auth/logout          permitAll
+/api/auth/register        ROLE_ADMIN ou users.manage
+/api/inventory/**         ROLE_ADMIN, ROLE_INVENTORY ou inventory.manage
+/api/users/**             ROLE_ADMIN ou users.manage
+/api/roles/**             ROLE_ADMIN ou roles.manage
+/api/permissions/**       ROLE_ADMIN (admin plateforme)
 anyRequest                authenticated
 ```
 
 ### 1.2. Conséquences immédiates
 
-- Toutes les routes d'inventaire exigent seulement un JWT valide, **sans rôle ni permission**.
-- Toutes les routes d'organisation, de personnel, de clients et de sites exigent seulement un JWT valide.
-- Les permissions stockées en base ne sont consommées par **aucun** contrôle.
-- Aucun `@PreAuthorize`, `@PostAuthorize` ou `@Secured` n'existe dans le code, malgré `@EnableMethodSecurity`.
-- Un utilisateur sans entreprise peut accéder à tout l'inventaire.
+- L'inscription n'est plus publique : elle exige une autorité d'administration et rattache le compte à l'entreprise du jeton.
+- L'inventaire exige désormais `ROLE_ADMIN`, `ROLE_INVENTORY` ou la permission `inventory.manage`.
+- Les permissions `users.manage` et `roles.manage` sont consommées par les routes correspondantes.
+- Les rôles et permissions sont embarqués dans le JWT et rechargés au refresh.
+- Les routes d'organisation, de personnel, de clients et de sites restent seulement `authenticated` : le RBAC doit y être étendu dans un lot ultérieur.
+- Aucun `@PreAuthorize`, `@PostAuthorize` ou `@Secured` n'existe encore ; le contrôle est centralisé dans `SecurityConfig`.
 
 ---
 
@@ -49,6 +55,7 @@ anyRequest                authenticated
 
 ```http
 POST /api/auth/register
+Authorization: Bearer <access token admin>
 Content-Type: application/json
 
 {
@@ -61,42 +68,34 @@ Content-Type: application/json
 }
 ```
 
-Route publique, sans JWT.
+La route est réservée aux porteurs de `ROLE_ADMIN` ou `users.manage`. Un administrateur d'entreprise ne peut créer que dans son entreprise ; un administrateur plateforme sans entreprise doit utiliser `POST /api/users`.
 
 ### 2.2. Comportement
 
 `AuthService.register` :
 
-1. vérifie que `email` et `username` ne sont pas nuls ;
-2. vérifie qu'aucun utilisateur n'existe avec ce username ou cet email ;
-3. crée un `AppUser` avec :
-   - `company_id = null` ;
+1. exige un principal JWT et une entreprise non nulle ;
+2. vérifie que `email` et `username` ne sont pas nuls ;
+3. vérifie qu'aucun utilisateur n'existe avec ce username ou cet email ;
+4. crée un `AppUser` avec :
+   - `company_id` = entreprise du jeton ;
    - `status = ACTIVE` ;
    - mot de passe BCrypt ;
-4. cherche le rôle global `USER` ;
-5. l'affecte si trouvé ;
-6. renvoie un `AuthResponse` avec `token = null`.
+5. cherche le rôle global `USER` et l'affecte si trouvé ;
+6. renvoie un `AuthResponse` avec `token = null` et le profil, dont `companyId`.
 
-Validation Jakarta :
+Validation Jakarta inchangée : `username` obligatoire max 100, `email` obligatoire au format email max 180, `password` obligatoire de 8 à 128 caractères, autres champs facultatifs.
 
-- `username` obligatoire, max 100 ;
-- `email` obligatoire, format email, max 180 ;
-- `password` obligatoire, 8 à 128 caractères ;
-- `firstName`, `lastName`, `phone` facultatifs.
-
-### 2.3. Problèmes
+### 2.3. Problèmes restants
 
 | Problème | Impact |
 |---|---|
-| Inscription publique | N'importe qui peut créer un compte. |
-| Aucune entreprise | Le compte n'est rattaché à aucun tenant. |
 | Aucun jeton retourné | Le client doit appeler `/login` juste après. |
-| Rôle par défaut `USER` | Ce rôle donne accès à tout l'inventaire, car aucune permission n'est vérifiée. |
 | Aucun contrôle d'email | Aucune vérification d'adresse. |
-| Aucun rate limiting | Création massive de comptes. |
-| Aucun CAPTCHA | Automatisation facile. |
-| Doublon en course | `23505` non intercepté → 500. |
-| Si le rôle `USER` n'existe pas | L'utilisateur est créé sans rôle, mais reste authentifié et accède quand même à l'inventaire. |
+| Aucun rate limiting | Création massive de comptes par un administrateur compromis. |
+| Pas de CAPTCHA | Automatisation possible si un administrateur est compromis. |
+| Doublon en course | `23505` non intercepté → 500 (Lot 2/Lot 7). |
+| Rôle `USER` global absent | Le compte est créé sans rôle ; il peut se connecter mais n'a pas les permissions métier. |
 
 ### 2.4. Rôle absent
 
@@ -106,10 +105,9 @@ La recherche du rôle est un `ifPresent`. Si le rôle global `USER` n'existe pas
 - aucun rôle ne lui est affecté ;
 - il peut se connecter ;
 - le JWT a une liste de rôles vide ;
-- le filtre crée une authentification avec zéro autorité ;
-- les routes `authenticated()` restent accessibles.
+- les routes d'inventaire, d'administration et de rôles sont refusées, car elles exigent une autorité explicite.
 
-C'est une faille de conception : l'absence de rôle ne bloque pas l'accès.
+Un compte sans rôle n'accède donc plus à l'inventaire. Il ne conserve que les routes qui restent volontairement `authenticated()` (organisation, personnel, clients, sites), ce qui reste une dette RBAC à traiter.
 
 ---
 
@@ -141,13 +139,13 @@ Content-Type: application/json
 
 | Problème | Impact |
 |---|---|
-| Identifiants invalides → **400** | Un client s'attend à 401 ; le 400 mélange validation et authentification. |
-| Compte inactif → **400** | Même remarque. |
+| Identifiants invalides → **400** | Un client s'attend à 401 ; le 400 mélange validation et authentification. Non corrigé au Lot 1. |
+| Compte inactif → **400** | Même remarque. Non corrigé au Lot 1. |
 | Aucun rate limiting | Brute force possible. |
 | Aucun verrouillage après N échecs | `UserStatus.LOCKED` n'est jamais appliqué automatiquement. |
 | Message identique pour utilisateur inconnu / mauvais mot de passe | Bon point pour l'énumération, mais le 400 reste ambigu. |
-| Aucun test de login | La route n'est pas couverte par les tests. |
-| Aucun test d'inscription | La route n'est pas couverte par les tests. |
+
+Le login est désormais couvert par les tests d'intégration (`AuthHardeningApiTests`, `RefreshTokenApiTests`) : compte créé par un administrateur, login valide, refresh, logout. Les cas « mauvais mot de passe » et « compte inactif » ne sont pas encore testés.
 
 ---
 
@@ -155,22 +153,21 @@ Content-Type: application/json
 
 ### 4.1. Structure
 
-`JwtService.createToken` crée un jeton avec :
+`JwtService.createAccessToken` crée un jeton avec :
 
 - `sub` = username ;
 - `uid` = identifiant utilisateur ;
+- `company_id` = entreprise du compte (ou `null` pour un admin plateforme) ;
 - `roles` = liste des noms de rôles ;
+- `permissions` = liste des codes de permissions ;
+- `platform_admin` = booléen ;
+- `jti` = identifiant unique du jeton ;
+- `iss` = `app.jwt.issuer` (défaut `sssm-api`) ;
+- `aud` = `app.jwt.audience` (défaut `sssm-client`) ;
 - `iat` = date d'émission ;
 - `exp` = date d'expiration.
 
-Il ne contient pas :
-
-- `company_id` ;
-- `tenant` ;
-- `iss` (émetteur) ;
-- `aud` (audience) ;
-- `jti` (identifiant unique du jeton) ;
-- `scope` ou permissions fines.
+La méthode `createToken(userId, username, roles)` est conservée pour les tests et les outils ; elle ne porte pas d'entreprise et marque `platform_admin` à vrai si le rôle `ADMIN` est présent. Les nouveaux flux utilisent `createAccessToken`.
 
 ### 4.2. Signature
 
@@ -191,34 +188,26 @@ En production, `app.jwt.secret` est obligatoire via `JWT_SECRET`. En développem
 `JwtAuthenticationFilter` :
 
 - lit l'en-tête `Bearer` ;
-- parse le jeton ;
-- lit `roles` ;
-- crée les autorités `ROLE_<role>` ;
-- place l'authentification dans le contexte.
+- parse le jeton en exigeant `iss` et `aud` ;
+- refuse un `jti` absent ou présent dans `security.revoked_access_token` ;
+- lit `roles`, `permissions` et `platform_admin` ;
+- crée les autorités `ROLE_<role>`, les permissions brutes et `PLATFORM_ADMIN` ;
+- place un `JwtPrincipal` (userId, username, companyId, platformAdmin) dans le contexte.
 
-Si le jeton est invalide, expiré, mal formé ou mal signé, le filtre renvoie **401** avec une enveloppe JSON.
+Si le jeton est invalide, expiré, mal formé, mal signé ou révoqué, le filtre renvoie **401** avec une enveloppe JSON.
 
-### 4.5. Absence de révocation
+### 4.5. Révocation
 
-Il n'existe :
+- `jti` est émis pour chaque access token ;
+- `security.revoked_access_token` conserve les `jti` révoqués jusqu'à leur expiration ;
+- `POST /api/auth/logout` révoque le refresh token fourni et, si l'en-tête `Authorization` est présent, le `jti` de l'access token courant ;
+- un refresh token est stocké haché, à usage unique, et révoqué après rotation.
 
-- aucun `jti` ;
-- aucune liste de révocation ;
-- aucun logout JWT avec révocation côté serveur ;
-- aucun refresh token persistant ;
-- aucun moyen d'invalider un jeton avant son expiration.
+Un access token volé reste techniquement valide jusqu'à `exp` s'il n'a pas été révoqué. La fenêtre est d'une heure par défaut (`JWT_EXPIRATION_MS`). Les tables de révocation ne sont pas encore purgées automatiquement.
 
-Un jeton volé reste valide jusqu'à `exp`.
+### 4.6. Rôles rechargés
 
-### 4.6. Rôles figés
-
-Les rôles sont dans le jeton. Si un administrateur retire un rôle :
-
-- le jeton existant conserve l'ancien rôle ;
-- l'utilisateur garde l'accès jusqu'à expiration ;
-- `/api/auth/refresh` **réutilise les rôles du jeton**, sans les recharger depuis la base.
-
-Conséquence : un `ADMIN` révoqué peut continuer à rafraîchir son jeton et conserver ses droits tant qu'il rafraîchit avant expiration, que l'utilisateur existe et reste `ACTIVE`. C'est une faille d'autorisation majeure.
+Les rôles et permissions sont dans le jeton pour la durée de vie de l'access token. Au refresh, `AuthService` recharge l'utilisateur, son statut, ses rôles, ses permissions et son statut plateforme depuis la base. Un rôle retiré n'est donc plus présent dans le nouveau jeton. L'ancien access token reste valide jusqu'à expiration ou révocation explicite.
 
 ---
 
@@ -231,32 +220,30 @@ POST /api/auth/refresh
 Content-Type: application/json
 
 {
-  "token": "<JWT>"
+  "refreshToken": "<refresh token>"
 }
 ```
 
-Route publique.
+Route publique. L'ancien champ `token` reste accepté en transition, mais il doit contenir un refresh token ; un access token est refusé.
 
 ### 5.2. Comportement
 
-1. parse le jeton ;
-2. extrait `uid` ;
-3. charge l'utilisateur ;
-4. vérifie qu'il est `ACTIVE` ;
-5. recrée un jeton avec les **mêmes rôles que l'ancien jeton** ;
-6. renvoie le nouveau jeton.
+1. hache le refresh token reçu ;
+2. consomme atomiquement la ligne `security.refresh_token` non révoquée et non expirée ;
+3. charge l'utilisateur et vérifie qu'il est `ACTIVE` ;
+4. recharge les rôles et permissions depuis la base ;
+5. émet un nouvel access token et un nouveau refresh token ;
+6. marque l'ancien refresh token comme remplacé ;
+7. renvoie `token`, `refreshToken`, `tokenType` et le profil.
 
-### 5.3. Problèmes
+### 5.3. Problèmes restants
 
-- Pas de refresh token distinct : l'access token sert à se rafraîchir.
-- Pas de rotation ni de révocation.
-- Rôles non rechargés : une révocation est ignorée.
-- Si l'utilisateur est supprimé : **404**.
-- Si l'utilisateur est inactif : **400**.
-- Si le jeton est invalide : **401**.
-- Aucune limitation de débit.
+- Le refresh token est un secret porteur : il doit être stocké côté client de façon sûre.
+- Pas encore de rate limiting sur `/refresh`.
+- Les refresh tokens expirés/révoqués ne sont pas purgés automatiquement.
+- Un refresh rejoué est bien rejeté (consommation atomique de l'ancien token), mais un vol concurrent peut consommer le token avant le client légitime.
 
-Un utilisateur peut prolonger sa session tant qu'il rafraîchit avant expiration, même après un changement de rôle.
+Si l'utilisateur a été supprimé, le refresh renvoie **401** (et non plus 404). Un compte inactif renvoie **401**.
 
 ---
 
@@ -268,49 +255,58 @@ Un utilisateur peut prolonger sa session tant qu'il rafraîchit avant expiration
 - table `permission` ;
 - table `role_permission` ;
 - table `user_role` ;
-- endpoints CRUD `/api/roles` et `/api/permissions`, réservés à `ADMIN` ;
+- endpoints CRUD `/api/roles` (`ADMIN` ou `roles.manage`) et `/api/permissions` (`ADMIN`) ;
 - endpoints d'affectation de rôle et de permission.
 
 ### 6.2. Ce qui est réellement appliqué
 
-- `hasRole("ADMIN")` sur `/api/users/**`, `/api/roles/**`, `/api/permissions/**` ;
-- rien d'autre.
+- `/api/inventory/**` : `ROLE_ADMIN`, `ROLE_INVENTORY` ou `inventory.manage` ;
+- `/api/users/**` et `/api/auth/register` : `ROLE_ADMIN` ou `users.manage` ;
+- `/api/roles/**` : `ROLE_ADMIN` ou `roles.manage` ;
+- `/api/permissions/**` : `ROLE_ADMIN` uniquement (catalogue global, admin plateforme).
 
-Les permissions (`inventory.manage`, `employee.read`, etc.) ne sont jamais vérifiées. Le rôle `INVENTORY` existe en base mais n'a aucun effet sur les routes d'inventaire.
+Les permissions `users.manage` et `roles.manage` sont attribuées au rôle d'administration de l'entreprise de démonstration. Les routes d'organisation, personnel, clients et sites restent seulement `authenticated` : le RBAC n'y est pas encore appliqué.
 
 ### 6.3. Portée des rôles
 
-Un rôle peut être global ou lié à une entreprise via `role.company_id`, mais le contrôle `hasRole` ne tient compte ni de l'entreprise du rôle, ni de l'entreprise de l'utilisateur. Un `ADMIN` d'une entreprise peut administrer les utilisateurs de toutes les entreprises.
+`role.company_id` distingue les rôles globaux des rôles d'entreprise. Les services `/api/users` et `/api/roles` filtrent désormais par l'entreprise du `JwtPrincipal` :
+
+- un admin d'entreprise ne voit et ne modifie que les utilisateurs et rôles de son entreprise ;
+- il ne peut pas affecter un rôle global (y compris `ADMIN`) ni un rôle d'une autre entreprise ;
+- un admin plateforme (`platform_admin = true`, rôle global `ADMIN`) n'est pas filtré.
+
+Un admin d'entreprise ne peut pas créer un compte dans une autre entreprise, même en fournissant un `company_id` différent : la valeur est rejetée ou remplacée par celle du jeton.
 
 ### 6.4. Escalade
 
-Un `ADMIN` peut :
+La séparation admin plateforme / admin entreprise est explicite dans le jeton (`platform_admin`) et dans les contrôles de service. Un admin d'entreprise peut créer des utilisateurs et gérer les rôles de son entreprise, mais :
 
-- créer un utilisateur ;
-- lui affecter n'importe quel rôle ;
-- modifier les rôles et permissions ;
-- supprimer des utilisateurs.
+- il ne peut pas modifier le catalogue global des permissions ;
+- il ne peut pas affecter un rôle global `ADMIN` ;
+- il ne peut pas lire un utilisateur ou un rôle d'une autre entreprise (réponse 404).
 
-Il n'existe aucune séparation entre administrateur de plateforme et administrateur d'entreprise.
+Restent à traiter : la politique de suppression, l'audit des actions d'administration et le rate limiting.
 
 ---
 
 ## 7. CORS
 
+La configuration lit `app.cors.allowed-origins` (`CORS_ALLOWED_ORIGINS`). En développement, la valeur par défaut est `http://localhost:3000,http://localhost:5173,http://localhost:4200`. En production, `application-prod.properties` exige la variable `CORS_ALLOWED_ORIGINS` et refuse une liste vide.
+
 ```java
-configuration.setAllowedOriginPatterns(List.of("*"));
+configuration.setAllowedOriginPatterns(origins);
 configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 configuration.setAllowedHeaders(List.of("*"));
 configuration.setAllowCredentials(true);
 configuration.setMaxAge(3600L);
 ```
 
-- toute origine est acceptée ;
-- les credentials sont autorisés ;
-- tous les en-têtes sont acceptés ;
-- toutes les méthodes sont acceptées.
+- les origines sont explicites et distinctes par environnement ;
+- les credentials restent autorisés ;
+- tous les en-têtes et toutes les méthodes sont acceptés ;
+- une origine absente de la liste est refusée par le navigateur.
 
-Avec un jeton porté par `Authorization`, le navigateur n'attache pas automatiquement le jeton comme il le ferait avec un cookie. Le risque dépend donc de la façon dont le frontend stocke le jeton. Mais la politique reste trop permissive pour une API de production : elle ne restreint aucune origine et ne permet pas de distinguer les environnements.
+Avec un jeton porté par `Authorization`, le navigateur n'attache pas automatiquement le jeton comme il le ferait avec un cookie. La politique est désormais compatible avec une API de production, à condition que `CORS_ALLOWED_ORIGINS` soit correctement renseigné. Il reste recommandé de restreindre les en-têtes et méthodes réellement utilisés.
 
 ---
 
@@ -332,7 +328,7 @@ Ces informations sont utiles au développement, mais exposent :
 - la structure de la base ;
 - des détails d'implémentation.
 
-Elles sont renvoyées avec un statut **500**, ce qui est doublement trompeur : l'erreur est souvent une erreur client (doublon, FK, champ manquant), pas une panne serveur.
+Elles sont renvoyées avec un statut **500**, ce qui est doublement trompeur : l'erreur est souvent une erreur client (doublon, FK, champ manquant), pas une panne serveur. **Non corrigé au Lot 1** : le masquage des détails SQL reste un sujet de production (Lot 2/Lot 7).
 
 ### 8.2. Erreurs JWT
 
@@ -342,9 +338,10 @@ Le filtre renvoie des messages distincts pour :
 - jeton mal formé ;
 - signature invalide ;
 - jeton non supporté ;
+- jeton révoqué ou `jti` absent ;
 - autre erreur JWT.
 
-C'est acceptable pour l'utilisateur, mais peut aider un attaquant à comprendre pourquoi un jeton échoue. Ce n'est pas le problème principal.
+Toutes ces erreurs utilisent le statut **401** et l'enveloppe `{"errors": ...}`. Les messages restent distincts, ce qui peut aider un attaquant à comprendre pourquoi un jeton échoue. Ce n'est pas le problème principal.
 
 ### 8.3. Ce qui n'est pas exposé
 
@@ -363,6 +360,9 @@ C'est un point positif à préserver.
 | Secret JWT | `application-prod.properties` exige `JWT_SECRET`. |
 | Identifiants base | `application-prod.properties` exige `DB_URL`, `DB_USER`, `DB_PASSWORD`. |
 | Utilisation réelle | Les DAO utilisent `DatabaseConnection` avec les mêmes variables `DB_URL`/`DB_USER`/`DB_PASSWORD`, mais via `DriverManager` et des valeurs de repli, pas le `DataSource` Spring. |
+| JWT | `JWT_EXPIRATION_MS` (1 h par défaut), `JWT_REFRESH_EXPIRATION_MS` (30 jours par défaut), `JWT_ISSUER`, `JWT_AUDIENCE`. |
+| CORS | `CORS_ALLOWED_ORIGINS` obligatoire en production. |
+| Refresh et révocation | Tables `security.refresh_token` et `security.revoked_access_token` ; pas de purge automatique. |
 | HTTPS | Aucune règle `requiresChannel()` ni redirection HTTP → HTTPS. |
 | En-têtes de sécurité | Les en-têtes par défaut de Spring Security sont conservés, mais aucune politique HSTS/CSP explicite n'est définie. |
 | Actuator | Non exposé dans le périmètre examiné. |
@@ -375,64 +375,68 @@ Le risque n'est pas une divergence de nom de variable : `application-prod.proper
 
 | Classe | Tests | Couverture |
 |---|---|---|
+| `AuthHardeningApiTests` | 7 | inscription publique refusée, inscription sans permission, inscription dans l'entreprise du jeton, lecture inter-entreprise refusée, liste filtrée, catalogue des permissions protégé, inventaire soumis à permission |
+| `RefreshTokenApiTests` | 5 | nouveaux access/refresh tokens, rotation et rejet de l'ancien refresh, refresh absent, refresh invalide, logout et révocation des deux jetons |
 | `WhoAmIApiTests` | 3 | whoami valide, sans jeton, utilisateur inconnu |
-| `RefreshTokenApiTests` | 4 | refresh sans header, sans token, token invalide, utilisateur inconnu |
 | `AppUserApiTests` | 3 | création admin, champs protégés, validation |
+| `ErrorFormatTests` | 11 | enveloppe d'erreur, dont les réponses de sécurité |
 | `ItemApiTests.listWithoutTokenIsRejected` | 1 | accès inventaire sans jeton |
+
+Total des tests ciblés exécutés : **29 tests, 29 succès** (`AppUserApiTests`, `AuthHardeningApiTests`, `RefreshTokenApiTests`, `WhoAmIApiTests`, `ErrorFormatTests`). `ItemApiTests.listWithoutTokenIsRejected` appartient à la suite complète. Suite complète : **120 tests, 119 succès, 1 échec préexistant** (`ItemApiTests.historyUnknownReturnsNotFound`, hors Lot 1).
 
 ### 10.1. Ce qui n'est pas testé
 
-- inscription publique ;
-- connexion valide et invalide ;
 - mot de passe incorrect ;
 - compte inactif ;
-- verrouillage ;
-- rôle `ADMIN` requis sur `/api/users` ;
-- accès d'un `USER` aux routes d'inventaire ;
-- accès d'un utilisateur sans entreprise ;
-- isolation entre deux entreprises ;
-- révocation d'un rôle ;
-- refresh après révocation ;
+- verrouillage automatique après N échecs ;
+- isolation entre deux entreprises réelles (une seule entreprise en base) ;
+- révocation d'un rôle puis utilisation de l'access token encore valide ;
 - CORS ;
 - rate limiting ;
 - expiration réelle d'un jeton ;
 - jeton signé avec une mauvaise clé ;
-- jeton sans claim `roles`.
+- purge des refresh tokens et des `jti` révoqués.
 
 ### 10.2. Ce que les tests figent
 
-- refresh sans header autorisé ;
-- refresh avec token invalide → 401 ;
-- refresh avec utilisateur inconnu → 404 ;
+- l'inscription sans jeton ou sans permission → 401/403 ;
+- l'inscription dans une autre entreprise → 403/400 ;
+- la lecture d'un utilisateur d'une autre entreprise → 404 ;
+- la liste des utilisateurs filtrée par entreprise ;
+- l'accès au catalogue global des permissions refusé à un admin d'entreprise ;
+- l'inventaire refusé sans permission ;
+- le refresh avec rotation et rejet de l'ancien token ;
+- le logout révoque le refresh et l'access token ;
 - whoami sans token → 401 ;
 - whoami avec utilisateur inconnu → 404.
 
-Ils ne prouvent pas que l'autorisation fonctionne.
+Le test de suite complet conserve un échec préexistant sur l'historique d'un article inconnu : le contrôleur renvoie 200 au lieu de 404. Ce point est hors Lot 1 et documenté dans le rapport 11.
 
 ---
 
 ## 11. Verdict
 
-L'authentification est **présente et fonctionnelle** : BCrypt, JWT signé, filtre, rôles, refresh. Elle n'est pas **suffisante** pour une API multi-entreprise :
+Après le Lot 1, l'authentification est **présente, durcie et testée** : BCrypt, JWT signé avec `iss`/`aud`/`jti`, entreprise et permissions dans le jeton, refresh distinct et rotatif, logout et révocation, rôles rechargés au refresh, inscription fermée, RBAC sur l'inventaire et l'administration, CORS explicite.
 
-- inscription publique sans entreprise ;
-- aucun rôle ou permission appliqué à l'inventaire ;
-- aucun tenant dans le jeton ;
-- rôles figés et refresh qui perpétue les rôles révoqués ;
-- aucune révocation ;
-- CORS permissif ;
-- erreurs SQL détaillées ;
-- `DataSource` Spring contourné : pool non utilisé par les DAO, réglages de production ignorés.
+Elle n'est pas encore **suffisante** pour une API multi-entreprise :
 
-Les priorités sont :
+- l'hypothèse mono-entreprise est retenue : les DAO d'inventaire ne filtrent pas par `company_id` ;
+- les routes organisation, personnel, clients et sites restent seulement `authenticated` ;
+- pas de rate limiting, de verrouillage automatique ni de politique de mot de passe ;
+- le login renvoie encore 400 pour des identifiants invalides ou un compte inactif ;
+- les jetons d'accès volés restent valides jusqu'à expiration s'ils ne sont pas révoqués ;
+- les tables de refresh/révocation ne sont pas purgées ;
+- les erreurs SQL détaillées sont toujours exposées ;
+- le `DataSource` Spring reste contourné par les DAO.
 
-1. fermer ou encadrer l'inscription publique ;
-2. ajouter l'entreprise et les permissions au jeton, ou les recharger à chaque requête ;
-3. appliquer un RBAC par permission et par tenant ;
-4. recharger les rôles au refresh et révoquer les jetons ;
-5. limiter les tentatives de connexion et de scan ;
-6. restreindre le CORS ;
-7. masquer les détails SQL en production ;
-8. faire passer les DAO par le `DataSource` Spring et un pool.
+Les priorités restantes sont :
+
+1. ajouter les filtres `company_id` et les contraintes composites dans les DAO d'inventaire (P0-01) ;
+2. étendre le RBAC aux modules organisation, personnel, clients et sites ;
+3. limiter les tentatives de connexion et de refresh, et verrouiller les comptes ;
+4. aligner les statuts du login (401/403) et stabiliser le contrat d'erreur ;
+5. masquer les détails SQL en production ;
+6. faire passer les DAO par le `DataSource` Spring et un pool ;
+7. ajouter la purge des jetons expirés/révoqués et l'audit des actions d'administration.
 
 Les critères d'acceptation sont dans le rapport 15.

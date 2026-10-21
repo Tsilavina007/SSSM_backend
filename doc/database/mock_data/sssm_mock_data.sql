@@ -960,7 +960,10 @@ INSERT INTO permission (code, name, description) VALUES
     ('incident.report',  'Déclaration incidents', 'Déclarer et traiter un incident'),
     ('invoice.read',     'Lecture factures',      'Consulter les factures et paiements'),
     ('invoice.manage',   'Gestion facturation',   'Créer des factures et enregistrer des paiements'),
-    ('inventory.manage', 'Gestion inventaire',    'Gérer le matériel et les mouvements de stock');
+    ('inventory.manage', 'Gestion inventaire',    'Gérer le matériel et les mouvements de stock'),
+    ('users.manage',     'Gérer les utilisateurs', 'Créer, modifier et affecter les comptes de son entreprise'),
+    ('roles.manage',     'Gérer les rôles',        'Créer et modifier les rôles de son entreprise')
+ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO role (company_id, name, description) VALUES
     (:'company_id', 'Superviseur',       'Supervision des sites, des agents et des incidents'),
@@ -977,7 +980,8 @@ SELECT
 INSERT INTO role_permission (role_id, permission_id)
 SELECT :'role_id', id FROM permission
 WHERE code IN ('employee.read','employee.manage','site.read','site.manage','incident.read',
-               'incident.report','invoice.read','invoice.manage','inventory.manage');
+               'incident.report','invoice.read','invoice.manage','inventory.manage',
+               'users.manage','roles.manage');
 
 INSERT INTO role_permission (role_id, permission_id)
 SELECT :'role_sup_id', id FROM permission

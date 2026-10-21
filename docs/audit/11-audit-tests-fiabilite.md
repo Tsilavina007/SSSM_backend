@@ -1,6 +1,6 @@
 ﻿# 11 — Audit des tests et de la fiabilité
 
-**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. Aucune suite complète n'a été relancée pendant cet audit ; le seul artefact courant est un run ciblé de 7 tests QR.
+**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 21 octobre 2026 après le Lot 1 : **120 tests, 119 succès, 1 échec préexistant**.
 
 ---
 
@@ -55,6 +55,21 @@ Répartition :
 | Divergence connue | `ItemApiTests.historyUnknownReturnsNotFound` attend 404 ; `ItemController` renvoie 200 avec des listes vides |
 
 Le commit `7e3f196` ajoute `ItemControllerQrCodeImageTest` et son rapport de 7 tests. Il ne fournit pas de rapport pour les 21 autres classes. On ne peut donc pas conclure que les 105 tests historiques passent sur HEAD, et la lecture statique indique au moins un test qui devrait échouer.
+
+### 1.2. État après le Lot 1 (21 octobre 2026)
+
+| Indicateur | Valeur |
+|---|---|
+| Classes de tests | 23 |
+| Tests exécutés | 120 |
+| Succès | 119 |
+| Échecs | 1 |
+| Erreurs | 0 |
+| Ignorés | 0 |
+| Commande | `.\mvnw.cmd -q test` |
+| Échec | `ItemApiTests.historyUnknownReturnsNotFound` : 404 attendu, 200 obtenu |
+
+Le HEAD de travail n'est plus `7e3f196` : le Lot 1 ajoute `AuthHardeningApiTests` (7 tests) et un test de rotation/révocation dans `RefreshTokenApiTests` (5 tests). Les 29 tests ciblés d'authentification et de RBAC passent. L'unique échec est une divergence **préexistante** du contrôleur d'historique, reproduite sur le HEAD initial et hors périmètre du Lot 1.
 
 ---
 
@@ -124,7 +139,7 @@ Conséquences :
 | QR | `QrScanApiTests`, `ItemApiTests` | résolution connue/inconnue, PNG | cross-company, code modifié, code vide, journal |
 | Dashboard | `DashboardApiTests` | compteurs, low-stock | stock réel, tenant, cohérence |
 | Rapports | `ReportApiTests` | filtres item/entrepôt | dates, type, acteur, agrégats, tri |
-| Auth | `WhoAmIApiTests`, `RefreshTokenApiTests`, `AppUserApiTests` | whoami, refresh, admin user | login, register, RBAC, révocation, rate limit |
+| Auth | `WhoAmIApiTests`, `RefreshTokenApiTests`, `AppUserApiTests`, `AuthHardeningApiTests` | whoami, refresh rotatif, logout/révocation, inscription fermée, scope entreprise, RBAC inventaire/utilisateurs/rôles | login invalide, compte inactif, deux entreprises réelles, CORS, rate limit |
 | Erreurs | `ErrorFormatTests` | enveloppe et quelques cas | SQLSTATE en production, codes métier, soft errors |
 | Contexte | `SssmBackendApplicationTests` | démarrage | configuration prod |
 
@@ -173,9 +188,7 @@ Or `ItemController.getItemHistory` :
 
 Aucune exception 404 n'est levée.
 
-**Conclusion :** si la suite était relancée sur le HEAD `7e3f196`, ce test devrait échouer : le rapport vert de 105 tests est antérieur à l'état courant du contrôleur. C'est une **désynchronisation certaine entre le test et le code**, pas une preuve que le test est faux. Le contrôle d'existence a été retiré du contrôleur, ou le test a été ajouté sans être aligné.
-
-Ce constat renforce la limite principale de l'audit : les 105 tests verts ne sont pas une garantie sur l'état courant. Aucune exécution complète n'a été faite sur HEAD, conformément à l'interdiction de modifier la base de démonstration.
+**Conclusion :** la suite complète exécutée le 21 octobre 2026 confirme ce diagnostic : `ItemApiTests.historyUnknownReturnsNotFound` échoue avec 200 au lieu de 404. C'est une **désynchronisation certaine entre le test et le code**, pas une preuve que le test est faux. Le contrôle d'existence a été retiré du contrôleur, ou le test a été ajouté sans être aligné. Cette anomalie est antérieure au Lot 1 et reste ouverte ; elle ne doit pas être corrigée dans le cadre de l'authentification.
 
 ---
 
@@ -208,21 +221,20 @@ Ils ne créent pas leurs propres fixtures complètes. Un environnement neuf les 
 
 ### 7.3. Jeton synthétique
 
-Les tests créent :
+Les tests historiques créent encore un jeton synthétique :
 
 ```java
 jwtService.createToken("test-user", "phase5-tester", List.of("ADMIN"))
 ```
 
-Ils ne passent pas par `/login`, ne vérifient pas l'utilisateur en base et testent presque tout en `ADMIN`.
+Les nouveaux tests d'authentification passent en revanche par `/login` avec de vrais comptes, vérifient l'entreprise du jeton, la rotation du refresh et la révocation au logout.
 
-Conséquences :
+Conséquences restantes :
 
-- le rôle `USER` n'est pas testé sur l'inventaire ;
-- l'absence de rôle n'est pas testée ;
-- l'isolation entre entreprises n'est pas testée ;
-- la révocation n'est pas testée ;
-- les routes `ADMIN` sont testées avec un jeton synthétique, pas avec un vrai compte.
+- le rôle `USER` n'est pas testé sur toutes les routes métier ;
+- l'absence de rôle n'est pas testée sur les routes hors inventaire ;
+- l'isolation entre deux entreprises réelles n'est pas testée (une seule entreprise en base) ;
+- les routes `ADMIN` historiques restent testées avec un jeton synthétique.
 
 ### 7.4. Pas de concurrence
 
@@ -245,21 +257,31 @@ Aucun test ne mesure :
 - le N+1 ;
 - l'absence de pool.
 
-### 7.6. Pas de test de sécurité
+### 7.6. Couverture de sécurité partielle
 
-Aucun test ne vérifie :
+Depuis le Lot 1, les tests vérifient :
 
-- l'inscription publique ;
-- le login ;
+- l'inscription publique refusée ;
+- l'inscription sans permission refusée ;
+- l'inscription dans l'entreprise du jeton ;
+- la lecture et la liste des utilisateurs filtrées par entreprise ;
+- le catalogue global des permissions protégé ;
+- l'inventaire soumis à permission ;
+- le login valide via les tests de refresh ;
+- la rotation et la révocation du refresh ;
+- le logout avec révocation de l'access token ;
+- les claims `company_id`, `roles` et `permissions`.
+
+Ils ne vérifient pas encore :
+
 - un mot de passe incorrect ;
 - un compte inactif ;
-- un `USER` sur une route `ADMIN` ;
-- un `USER` sur l'inventaire ;
-- un utilisateur sans entreprise ;
-- deux entreprises ;
+- un verrouillage automatique ;
+- deux entreprises réelles ;
 - le CORS ;
 - le rate limiting ;
-- la signature avec une mauvaise clé.
+- la signature avec une mauvaise clé ;
+- la purge des jetons.
 
 ---
 
@@ -274,19 +296,24 @@ Ils prouvent :
 - l'image QR est un PNG ;
 - les erreurs SQL sont bien enveloppées ;
 - le refresh et whoami fonctionnent dans leurs cas nominaux ;
-- l'admin peut créer un utilisateur.
+- l'admin peut créer un utilisateur ;
+- l'inscription publique est fermée ;
+- le refresh tourne et l'ancien token est rejeté ;
+- le logout révoque les deux jetons ;
+- les utilisateurs et rôles sont filtrés par entreprise ;
+- l'inventaire exige une permission.
 
 Ils ne prouvent pas :
 
-- l'isolation multi-entreprise ;
-- le contrôle d'accès métier ;
+- l'isolation multi-entreprise complète (DAO d'inventaire non filtrés) ;
+- le contrôle d'accès métier sur les modules hors inventaire ;
 - la fiabilité du stock ;
 - la cohérence des affectations ;
 - la réconciliation des comptages ;
 - l'atomicité des écritures ;
 - la concurrence ;
 - la performance ;
-- la sécurité de production ;
+- la sécurité de production (rate limit, CORS réel, HTTPS) ;
 - la conformité du contrat frontend.
 
 ---
@@ -306,9 +333,10 @@ Ses limites sont cependant structurantes :
 
 - une seule base pour toute la suite, sans rollback ni Testcontainers ;
 - dépendance aux données de démonstration ;
-- aucun test de tenancy, RBAC, transaction, concurrence ou réconciliation ;
+- tests RBAC et scope entreprise présents, mais pas de scénario à deux entreprises réelles ;
+- aucun test de transaction, concurrence ou réconciliation ;
 - aucun seuil de couverture ;
-- la divergence code/test sur l'historique : le test dédié existe (`historyUnknownReturnsNotFound`), mais le dernier rapport vert ne peut pas correspondre à l'état courant du contrôleur ; il faut rejouer la suite sur une base isolée.
+- la divergence code/test sur l'historique est confirmée par l'exécution complète : `historyUnknownReturnsNotFound` échoue (200 au lieu de 404) et reste à corriger hors Lot 1.
 
 Une suite verte localement ou en CI ne signifie donc pas :
 
@@ -321,12 +349,12 @@ Une suite verte localement ou en CI ne signifie donc pas :
 
 ## 10. Recommandations de test
 
-Ces recommandations sont des propositions, pas des tests ajoutés. Le workflow CI existant est un bon point de départ ; il doit être conservé et étendu, pas remplacé.
+Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté les tests RBAC, scope entreprise et révocation ; le reste doit être planifié. Le workflow CI existant est un bon point de départ ; il doit être conservé et étendu, pas remplacé.
 
 1. **Testcontainers PostgreSQL** pour une base isolée et reproductible.
 2. **Fixtures explicites** : créer l'entreprise A et B, les utilisateurs, les rôles, les articles.
-3. **Tests de tenancy** : A ne voit jamais B, en lecture comme en écriture.
-4. **Tests RBAC** : `USER`, `INVENTORY`, `ADMIN`, sans rôle.
+3. **Tests de tenancy** : A ne voit jamais B, en lecture comme en écriture (partiel au Lot 1 : une seule entreprise).
+4. **Tests RBAC** : `USER`, `INVENTORY`, `ADMIN`, sans rôle (première couverture ajoutée au Lot 1).
 5. **Tests de transaction** : provoquer une erreur après la première écriture et vérifier le rollback.
 6. **Tests de concurrence** : deux affectations simultanées, deux mouvements simultanés.
 7. **Tests de stock** : quantité, solde, mouvement inverse, stock négatif.
@@ -334,19 +362,21 @@ Ces recommandations sont des propositions, pas des tests ajoutés. Le workflow C
 9. **Tests de contrat** : statuts, erreurs, pagination, dates non nulles.
 10. **Tests de non-régression QR** : cross-company, code modifié, code vide.
 11. **Tests de performance** : nombre de requêtes, seuil de latence.
-12. **Tests de sécurité** : login, register, révocation, CORS, rate limit.
+12. **Tests de sécurité** : login invalide, compte inactif, révocation d'un rôle, CORS, rate limit (register, refresh et logout sont déjà couverts).
 
 ---
 
 ## 11. Verdict
 
-Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Ils ne sont pas **fiables comme garde-fou de production** :
+Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a réellement renforcé la couverture de l'identité, du RBAC et de la révocation : **29 tests ciblés passent**, et la suite complète exécutée donne **120 tests, 119 succès, 1 échec préexistant**.
+
+Ils ne sont pas encore **fiables comme garde-fou de production** :
 
 - ils dépendent d'une base PostgreSQL réelle (locale ou CI) et de données de démonstration ;
 - ils ignorent silencieusement les cas non préparés ;
-- ils testent presque tout en `ADMIN` ;
+- une grande partie des tests métier historiques utilise encore un jeton `ADMIN` synthétique ;
 - ils figent des comportements douteux ;
-- ils ne couvrent ni tenancy, ni RBAC, ni concurrence, ni stock, ni réconciliation ;
-- une divergence code/test est déjà visible sur l'historique d'article.
+- ils ne couvrent pas encore la tenancy complète, les transactions, la concurrence, le stock ou la réconciliation ;
+- une divergence code/test est confirmée sur l'historique d'article.
 
 La priorité n'est pas d'augmenter le nombre de tests, mais de passer à une **isolation par test** (Testcontainers ou rollback), avec des **fixtures explicites** et des **scénarios de tenancy/stock/transaction**. Les critères sont dans le rapport 15.

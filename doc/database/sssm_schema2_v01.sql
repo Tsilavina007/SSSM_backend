@@ -19,5 +19,6 @@
 \i doc/database/schema/15_indexes.sql
 \i doc/database/schema/16_triggers.sql
 \i doc/database/schema/17_seed_permissions.sql
+\i doc/database/schema/18_lot1_security.sql
 
 COMMIT;

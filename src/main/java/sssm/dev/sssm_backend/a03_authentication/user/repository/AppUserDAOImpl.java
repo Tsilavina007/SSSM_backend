@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
@@ -30,6 +29,30 @@ public class AppUserDAOImpl implements AppUserDAO {
         while (rs.next()) {
           AppUser user = mapRowToAppUser(rs);
           users.add(user);
+        }
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return users;
+  }
+
+  @Override
+  public List<AppUser> findAllByCompany(String companyId, int page, int pageSize) {
+    String sql =
+        "SELECT * FROM security.app_user WHERE company_id = ? ORDER BY username LIMIT ? OFFSET ?";
+    List<AppUser> users = new ArrayList<>();
+    int offset = (page - 1) * pageSize;
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setInt(2, pageSize);
+      stmt.setInt(3, offset);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          users.add(mapRowToAppUser(rs));
         }
       }
     } catch (SQLException e) {
@@ -105,6 +128,42 @@ public class AppUserDAOImpl implements AppUserDAO {
       throw new ServerException(e);
     }
     return roles;
+  }
+
+  @Override
+  public List<String> findPermissionCodes(String userId) {
+    String sql =
+        "SELECT DISTINCT p.code FROM security.permission p "
+            + "JOIN security.role_permission rp ON rp.permission_id = p.id "
+            + "JOIN security.user_role ur ON ur.role_id = rp.role_id "
+            + "WHERE ur.user_id = ? ORDER BY p.code";
+    List<String> permissions = new ArrayList<>();
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(userId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) permissions.add(rs.getString(1));
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return permissions;
+  }
+
+  @Override
+  public boolean isPlatformAdmin(String userId) {
+    String sql =
+        "SELECT 1 FROM security.user_role ur JOIN security.role r ON r.id = ur.role_id "
+            + "WHERE ur.user_id = ? AND r.company_id IS NULL AND upper(r.name) = 'ADMIN' LIMIT 1";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(userId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next();
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
   }
 
   @Override

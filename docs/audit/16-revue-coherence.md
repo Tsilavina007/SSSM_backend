@@ -4,7 +4,9 @@
 **Objet :** deuxième passe de cohérence sur les rapports 00 à 15, vérification des affirmations contre le code, le schéma PostgreSQL, les scripts SQL, les tests et OpenAPI.  
 **HEAD examiné :** `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`).  
 **Audit initial :** commit `a3f7c56` (`docs(audit): add backend readiness and security audit`).  
-**Nature :** revue documentaire et statique, sans exécution de la suite complète et sans modification de données.
+**Nature :** revue documentaire et statique, sans exécution de la suite complète et sans modification de données lors de la revue initiale.
+
+**Mise à jour du 21 octobre 2026 (Lot 1) :** le code d'authentification, de tenancy et de RBAC a été corrigé, la migration `18_lot1_security.sql` a été appliquée et la suite complète a été exécutée : **120 tests, 119 succès, 1 échec préexistant**. Les sections ci-dessous distinguent l'état de la revue initiale et l'état après Lot 1.
 
 **Verdict :** inchangé — **NON PRÊT POUR LA PRODUCTION**. Le backend reste **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, avec un utilisateur de confiance et sans promesse de stock fiable ni de traçabilité complète.
 
@@ -12,7 +14,7 @@
 
 ## 1. Résultat de la revue
 
-Les conclusions structurantes de l'audit sont confirmées :
+Les conclusions structurantes de l'audit initial sont confirmées :
 
 - aucune isolation multi-entreprise effective ;
 - aucun contrôle d'accès métier sur l'inventaire ;
@@ -22,6 +24,8 @@ Les conclusions structurantes de l'audit sont confirmées :
 - erreurs de saisie souvent transformées en 500 avec SQLSTATE ;
 - QR Code fonctionnel pour un prototype, mais scan global et brut ;
 - tests insuffisants pour la tenancy, le RBAC, les transactions, la concurrence et la réconciliation.
+
+**Après le Lot 1 :** l'inscription publique est fermée, le JWT porte l'entreprise et les permissions, le refresh est distinct/rotatif/révocable, le logout est implémenté, le RBAC couvre l'inventaire et l'administration, et les utilisateurs/rôles sont filtrés par entreprise. Les points encore ouverts sont l'isolation complète des DAO d'inventaire, le RBAC des modules hors inventaire, les transactions, le stock, les affectations et la concurrence.
 
 La revue a toutefois trouvé **onze incohérences ou imprécisions documentaires**, dont plusieurs erreurs factuelles. Elles sont corrigées dans les fichiers concernés et listées au § 4. Aucune anomalie de code nouvelle n'a été ajoutée au registre du rapport 12.
 
@@ -38,6 +42,8 @@ Aucun identifiant n'est dupliqué. La matrice du rapport 12 contient désormais 
 ---
 
 ## 2. Matrice de preuves
+
+La matrice ci-dessous est la photographie de l'**audit initial**. Les lignes relatives à l'inscription, au RBAC, au refresh et au JWT ont été corrigées par le Lot 1 ; voir le § 2.1 pour l'état courant.
 
 | Conclusion vérifiée | Preuve principale | Niveau |
 |---|---|---|
@@ -58,8 +64,23 @@ Aucun identifiant n'est dupliqué. La matrice du rapport 12 contient désormais 
 | Erreurs QR de l'image corrigées | `ItemController.getQrCodeImage` mappe UUID invalide → 400 `BAD_REQUEST`, article inconnu → 404 `NOT_FOUND`, contenu absent → 500 `QR_CODE_MISSING`, échec d'encodage/flux → 500 `QR_CODE_GENERATION_FAILED`, et sérialise les erreurs en JSON même avec `Accept: image/png` strict. | Code + test, vérifié |
 | Suite de tests non probante sur HEAD | 22 classes et 112 tests dans l'arbre ; le seul rapport Surefire courant couvre 7 tests QR, tous verts. Aucun rapport complet pour `7e3f196`. `ItemApiTests.historyUnknownReturnsNotFound` attend 404 alors que le contrôleur renvoie 200. | Fichiers + lecture statique |
 | CI présente mais incomplète | `.github/workflows/ci.yml` initialise PostgreSQL 16, applique le schéma et les données de démonstration, exécute `./mvnw -B -q test`, un lint Java/OpenAPI et un packaging. Aucun test de tenancy, RBAC, transaction, concurrence ou réconciliation. | CI, vérifié |
-| Schéma et triggers | 18 scripts `00_init.sql` à `17_seed_permissions.sql`. Les triggers `updated_at` couvrent notamment `company`, `branch`, `agency`, `app_user`, `employee`, `client`, `site`, `contract`, `incident`, `invoice` ; `item_category`, `warehouse` et `item_assignment` n'en ont pas. | SQL, vérifié |
+| Schéma et triggers | 18 scripts `00_init.sql` à `17_seed_permissions.sql` lors de la revue ; 19 après ajout de `18_lot1_security.sql`. Les triggers `updated_at` couvrent notamment `company`, `branch`, `agency`, `app_user`, `employee`, `client`, `site`, `contract`, `incident`, `invoice` ; `item_category`, `warehouse` et `item_assignment` n'en ont pas. | SQL, vérifié |
 | Base de démonstration mono-entreprise | 1 entreprise, 10 articles, 8 mouvements, 5 affectations actives, 0 mouvement avec quantité différente de 1, 0 source/destination/acteur renseigné, 0 affectation avec `assigned_by`/`returned_by`, 0 article avec `last_inventory_at`. | Lecture seule |
+
+### 2.1. État après le Lot 1
+
+| Point | État vérifié |
+|---|---|
+| Routes | 131 routes applicatives après ajout de `POST /api/auth/logout` (130 à l'audit initial). |
+| Inscription | `POST /api/auth/register` exige `ROLE_ADMIN` ou `users.manage` ; entreprise déduite du jeton. |
+| JWT | `jti`, `iss`, `aud`, `company_id`, `roles`, `permissions`, `platform_admin`. |
+| Refresh | Token distinct, haché, consommation atomique de l'ancien token, rechargement des rôles/permissions. |
+| Révocation | `POST /api/auth/logout`, denylist `security.revoked_access_token`, contrôle du `jti` dans le filtre. |
+| RBAC | Inventaire, utilisateurs, rôles et catalogue des permissions ; modules organisation/personnel/clients/sites encore `authenticated`. |
+| Scope entreprise | Utilisateurs et rôles filtrés par `company_id` ; admin plateforme non filtré. |
+| CORS | Origines explicites via `CORS_ALLOWED_ORIGINS`. |
+| Tests | 120 exécutés, 119 succès, 1 échec préexistant ; 29 tests ciblés auth/RBAC verts. |
+| Reste ouvert | DAO d'inventaire non filtrés, `NOT NULL`/FK composites non appliqués, transactions, stock, affectations, rate limiting, purge des jetons, erreurs SQL. |
 
 ---
 
@@ -100,7 +121,7 @@ Le rapport 13 reste donc **une spécification cible**, pas un inventaire de l'ex
 |---|---|---|
 | C-01 | `README.md` affirmait que le dépôt n'était pas initialisé en Git, alors que les commits `a3f7c56` et `7e3f196` existent. | Corrigé : commits cités et HEAD de revue précisé. |
 | C-02 | Les rapports 00, 01, 02 et README annonçaient **14 fichiers OpenAPI d'inventaire** ; `doc/api/11_inventory` en contient **12** (26 au total, dont 14 hors inventaire). | Corrigé dans 00, 01, 02 et README. |
-| C-03 | Le rapport 10 annonçait **13 contrôleurs d'inventaire** ; il y en a **12**. Le total de 26 contrôleurs et 130 routes reste correct. | Corrigé dans 10 ; le rapport 01 est également aligné. |
+| C-03 | Le rapport 10 annonçait **13 contrôleurs d'inventaire** ; il y en a **12**. Le total de 26 contrôleurs et 130 routes reste correct à l'audit initial. | Corrigé dans 10 ; le rapport 01 est également aligné. Après Lot 1, le total est 131 routes avec `POST /api/auth/logout`. |
 | C-04 | Le rapport 06 décrivait un **500 sans corps** pour un QR vide ; le HEAD `7e3f196` renvoie un **500 JSON `QR_CODE_MISSING`**, et un UUID invalide un **400 `BAD_REQUEST`**. | Corrigé dans 06, avec la nouvelle classe de tests. |
 | C-05 | Le rapport 02 indiquait seulement `200 PNG / 404` pour l'image QR, sans les 400/500 du correctif. | Corrigé dans 02. |
 | C-06 | Le rapport 07 disait qu'un historique inconnu renvoie « probablement 200 » ; 02, 11 et 12 affirmaient 200. Le code courant renvoie toujours 200. | Corrigé : 200 affirmé sans ambiguïté, divergence de test explicitée. |
@@ -119,6 +140,8 @@ Aucune de ces corrections ne modifie le verdict, les priorités P0 ou les conclu
 Les colonnes « Dépendances » indiquent les anomalies ou décisions qui doivent être traitées avant ou avec l'anomalie. « Critère de résolution » décrit une preuve vérifiable, pas une intention.
 
 ### 5.1. P0 — bloquants
+
+**Statut après Lot 1 :** `P0-03` corrigé ; `P0-02` partiel (inscription fermée et RBAC inventaire/administration, mais modules hors inventaire non couverts) ; `P0-01` partiel (colonnes/backfill/index et scope utilisateurs/rôles, mais DAO d'inventaire non filtrés) ; `P0-04`, `P0-05` et `P0-06` ouverts.
 
 | ID | Preuve | Impact | Dépendances | Critère de résolution |
 |---|---|---|---|---|
@@ -145,7 +168,7 @@ Les colonnes « Dépendances » indiquent les anomalies ou décisions qui doiven
 | **P1-10** | Les réponses de création de mouvement et d'affectation sont construites à partir de l'entrée : `movement_type`, `movement_date` et `assigned_at` peuvent être `null` alors que la base a appliqué un défaut. | Le frontend doit recharger la ligne ; affichage faux après création. | — | Relecture après insertion ou remplissage avec les valeurs réellement stockées ; tests de réponse de création. |
 | **P1-11** | `archived_at`/`archived_by` existent mais ne sont jamais renseignés ; `DELETE` est physique ; les FK `RESTRICT` produisent 500 ; `SET NULL` vide des relations ; DELETE inconnu renvoie 204. | Perte d'historique et d'intégrité ; actions destructrices irréversibles. | D-04 | Politique de suppression/archivage décidée ; 409 sur référence, 404 sur inconnu, restauration si archivage ; tests de suppression et de conservation. |
 | **P1-12** | `ItemController.getItemHistory` charge 100 mouvements et 100 affectations globaux, filtre en mémoire, ne vérifie pas l'existence et renvoie 200 ; le test attend 404. | Historique incomplet, contrat faux, test en divergence. | P0-01, P1-08, P1-13 | Filtre SQL par article et entreprise, pagination et tri, 404 sur article inconnu ; test aligné et exécuté. |
-| **P1-13** | Tests sur base partagée, `Assumptions` sur données de démonstration, jeton synthétique `ADMIN`, aucun test de login, RBAC, tenancy, transaction, concurrence ; aucun rapport complet pour HEAD. | Une suite verte ne prouve pas la sécurité ou l'intégrité ; régressions non détectées. | P1-09 | Base isolée/Testcontainers, rollback ou fixtures, vrais jetons, matrice RBAC/tenancy, tests de concurrence et de transaction ; rapport complet vert sur HEAD. |
+| **P1-13** | Tests sur base partagée, `Assumptions` sur données de démonstration, jeton synthétique `ADMIN` pour les tests métier, pas de scénario à deux entreprises ni de concurrence. Le Lot 1 ajoute login/refresh/logout, RBAC, scope entreprise et révocation, et exécute la suite complète (120 tests, 1 échec préexistant). | La suite ne prouve pas encore la tenancy complète, l'intégrité ou la concurrence. | P1-09 | Base isolée/Testcontainers, rollback ou fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction ; rapport complet vert sur HEAD. |
 | **P1-14** | Aucune colonne de version, aucun `ETag`/`If-Match`, aucune `Idempotency-Key` ; la course sur `uq_item_assignment_active` devient un 500. | Écrasements de mise à jour et doublons en cas de double clic ou de retry. | P0-04 | Verrouillage optimiste, idempotence des créations sensibles, 409 explicite sur conflit ; tests concurrents. |
 
 ### 5.3. P2 — dette structurante
@@ -199,18 +222,17 @@ Le correctif QR `7e3f196` est déjà appliqué. Il ne constitue pas une anomalie
 
 L'audit initial s'appuie sur un rapport complet de **21 classes et 105 tests**, avec **0 échec, 0 erreur, 0 ignoré**. Ce rapport n'est plus présent dans `target/surefire-reports` et ne couvre pas le HEAD `7e3f196`.
 
-### 7.2. État courant vérifié
+### 7.2. État après le Lot 1
 
 | Élément | Constat |
 |---|---|
-| Classes de test dans `src/test` | 22 |
-| Tests dans l'arbre | 112 (105 historiques + 7 tests QR) |
-| Artefact Surefire courant | `ItemControllerQrCodeImageTest` uniquement |
-| Résultat de cet artefact | 7 tests, 0 échec, 0 erreur, 0 ignoré |
-| Rapport complet pour `7e3f196` | Absent |
-| Suite complète sur HEAD | **NON VÉRIFIÉE** |
-
-Le rapport courant horodaté du 21 octobre 2026 à 11:26 ne contient que la classe QR. Il ne permet pas de conclure que les 105 autres tests passent sur HEAD.
+| Classes de test dans `src/test` | 23 |
+| Tests dans l'arbre | 120 |
+| Suite complète exécutée | **OUI**, `.\mvnw.cmd -q test` |
+| Résultat | 119 succès, 1 échec, 0 erreur, 0 ignoré |
+| Tests ciblés auth/RBAC | 29 succès |
+| Échec | `ItemApiTests.historyUnknownReturnsNotFound` : 404 attendu, 200 obtenu |
+| Rapport complet pour le HEAD de travail | Oui, `target/surefire-reports` |
 
 ### 7.3. Divergence certaine
 
@@ -228,22 +250,22 @@ Or `ItemController.getItemHistory` :
 - filtre en mémoire ;
 - renvoie toujours 200 avec `movements` et `assignments`.
 
-Sur HEAD, ce test devrait donc échouer. Aucun rapport complet ne le contredit. La suite complète n'a pas été relancée pour ne pas modifier la base de démonstration partagée.
+L'exécution complète du 21 octobre 2026 confirme l'échec avec 200 au lieu de 404. Cette divergence est **préexistante** et hors Lot 1.
 
 ### 7.4. Conséquence pour les statuts `PASS`
 
-Les `PASS` du rapport 15 restent des constats statiques ou historiques. Ils ne signifient pas « rejoué sur HEAD ». Les critères qui dépendent d'une exécution complète restent `NON VÉRIFIÉ` ou `PARTIEL`.
+Les `PASS` du rapport 15 restent des constats statiques ou historiques, sauf pour les tests d'authentification/RBAC exécutés au Lot 1. Les critères qui dépendent d'un scénario à deux entreprises ou d'un test de concurrence restent `NON VÉRIFIÉ` ou `PARTIEL`.
 
 ---
 
 ## 8. Ordre de correction recommandé
 
-L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Il ne doit pas être exécuté sans validation des décisions D-01 à D-08.
+L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Le **Lot 1 a été exécuté partiellement** le 21 octobre 2026 ; le Lot 2 ne doit pas démarrer sans validation explicite.
 
 | Étape | Lot | Contenu | Dépend de | Critère de sortie |
 |---:|---|---|---|---|
-| 0 | L0 | Décisions D-01 à D-08, gel du périmètre, base de test isolée, rapport complet de référence sur HEAD. | — | Décisions signées ; suite complète exécutée sur base isolée ; échecs connus documentés. |
-| 1 | L1 | Identité, tenancy, RBAC : P0-02, P0-03, P0-01. | L0 | Inscription encadrée, company dans le jeton/serveur, rôles rechargés, RBAC, tests A/B et révocation. |
+| 0 | L0 | Décisions D-01 à D-08, gel du périmètre, base de test isolée, rapport complet de référence sur HEAD. | — | Décisions D-02, D-03 et D-08 prises ; suite complète exécutée sur la base de démonstration ; échec connu documenté. |
+| 1 | L1 | Identité, tenancy, RBAC : P0-02, P0-03, P0-01. | L0 | **Exécuté partiellement** : inscription fermée, entreprise dans le jeton, rôles rechargés, RBAC inventaire/administration, révocation testée. Restent les tests A/B, les filtres DAO d'inventaire et le RBAC hors inventaire. |
 | 2 | L2 | DataSource, pool, transactions : P1-09, P0-04, P1-01, P1-02, P1-10. | L1 | DAO sur `DataSource`, transactions effectives, erreurs client sans SQLSTATE, créations avec défauts corrects. |
 | 3 | L3 | Modèle de stock : P0-05, P1-03, P1-06, P1-07. | L0, L2 | Source de vérité, quantités et acteurs, journal immuable, opérations et comptages réconciliés. |
 | 4 | L4 | Affectations et suppressions : P0-06, P1-05, P1-11. | L2, L3, D-04, D-06 | Un seul contrat, invariant `ASSIGNED`, retours et suppressions cohérents. |
@@ -272,21 +294,21 @@ L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Il ne
 
 ## 9. Limites de la revue
 
-- **Pas de test complet sur HEAD.** La base de démonstration est partagée et aucune donnée ne devait être modifiée. La divergence de l'historique est établie par lecture du code, pas par exécution.
-- **Pas de test multi-entreprise réel.** La base de démonstration ne contient qu'une entreprise ; l'isolation est vérifiée par absence de prédicat et par lecture de la configuration, pas par un scénario A/B exécuté.
+- **Suite complète exécutée après le Lot 1** : 120 tests, 119 succès, 1 échec préexistant (`ItemApiTests.historyUnknownReturnsNotFound`). La base de démonstration a été utilisée ; aucun reset n'a été effectué.
+- **Pas de test multi-entreprise réel.** La base de démonstration ne contient qu'une entreprise. Le scope entreprise des utilisateurs/rôles est testé, mais l'isolation des DAO d'inventaire n'est pas garantie.
 - **Pas de test de concurrence.** Les conclusions sur les transactions et les verrous reposent sur le mode de connexion et l'absence de version.
 - **OpenAPI non rejoué.** Les 183 avertissements sont un constat de l'audit initial ; le décompte courant n'a pas été reproduit.
 - **Pas de SAST/DAST, de test de pénétration ni d'audit d'infrastructure.**
-- **Aucune correction applicative pendant la revue.** La revue ne modifie que les fichiers Markdown de `docs/audit/` ; le correctif QR `7e3f196` est antérieur et déjà commité.
+- **Le Lot 1 a modifié le code, les tests, la configuration et le SQL.** La revue initiale ne modifiait que les Markdown ; le Lot 1 est une passe d'exécution ultérieure, sans commit à ce stade.
 
 ---
 
 ## 10. Conclusion
 
-La revue confirme le verdict et les priorités. Les rapports 13 à 15 restent des **propositions**, pas des fonctionnalités livrées. Les corrections documentaires lèvent les contradictions de comptage, de routes, d'OpenAPI et de tests, sans masquer les anomalies de code.
+La revue confirme le verdict et les priorités. Les rapports 13 à 15 restent des **propositions**, pas des fonctionnalités livrées. Les corrections documentaires lèvent les contradictions de comptage, de routes, d'OpenAPI et de tests, sans masquer les anomalies de code. Le Lot 1 a corrigé l'identité et une partie du RBAC/tenancy ; il ne change pas le verdict de production.
 
-Le point le plus dangereux n'est pas une erreur de documentation : c'est la combinaison **absence de tenancy + RBAC absent + transactions inopérantes + stock déclaratif**. Elle interdit un frontend de production et un usage multi-entreprise.
+Le point le plus dangereux n'est pas une erreur de documentation : c'est la combinaison **tenancy d'inventaire incomplète + RBAC partiel + transactions inopérantes + stock déclaratif**. Elle interdit un frontend de production et un usage multi-entreprise.
 
-**Décision :** aucun code, SQL, test, configuration, dépendance ou OpenAPI ne doit être modifié avant validation explicite des décisions D-01 à D-08 et approbation du plan ci-dessus.
+**Décision :** le Lot 2 et toute modification supplémentaire de code, SQL, test, configuration, dépendance ou OpenAPI doivent attendre une validation explicite. Le Lot 1 est terminé dans son périmètre documenté, avec les réserves du rapport 14.
 
 Les preuves détaillées restent dans les rapports 00 à 15 ; le registre consolidé est dans [`12-anomalies-risques-priorites.md`](12-anomalies-risques-priorites.md), le plan dans [`14-plan-corrections.md`](14-plan-corrections.md) et les critères dans [`15-criteres-validation-api.md`](15-criteres-validation-api.md).

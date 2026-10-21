@@ -2,7 +2,10 @@ package sssm.dev.sssm_backend.a03_authentication.auth.security;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,9 +18,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import tools.jackson.databind.ObjectMapper;
-
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableMethodSecurity
@@ -36,9 +38,12 @@ public class SecurityConfig {
 
   @Bean
   SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtAuthenticationFilter jwtFilter, ObjectMapper objectMapper)
+      HttpSecurity http,
+      JwtAuthenticationFilter jwtFilter,
+      ObjectMapper objectMapper,
+      CorsConfigurationSource corsConfigurationSource)
       throws Exception {
-    http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+    http.cors(cors -> cors.configurationSource(corsConfigurationSource))
         .csrf(csrf -> csrf.disable())
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
@@ -47,13 +52,19 @@ public class SecurityConfig {
                         "/",
                         "/ping",
                         "/error",
-                        "/api/auth/register",
                         "/api/auth/login",
-                        "/api/auth/refresh")
+                        "/api/auth/refresh",
+                        "/api/auth/logout")
                     .permitAll()
+                    .requestMatchers("/api/auth/register")
+                    .hasAnyAuthority("ROLE_ADMIN", "users.manage")
                     .requestMatchers("/api/inventory/**")
-                    .authenticated()
-                    .requestMatchers("/api/users/**", "/api/roles/**", "/api/permissions/**")
+                    .hasAnyAuthority("ROLE_ADMIN", "ROLE_INVENTORY", "inventory.manage")
+                    .requestMatchers("/api/users/**")
+                    .hasAnyAuthority("ROLE_ADMIN", "users.manage")
+                    .requestMatchers("/api/roles/**")
+                    .hasAnyAuthority("ROLE_ADMIN", "roles.manage")
+                    .requestMatchers("/api/permissions/**")
                     .hasRole("ADMIN")
                     .anyRequest()
                     .authenticated())
@@ -87,12 +98,24 @@ public class SecurityConfig {
   }
 
   @Bean
-  CorsConfigurationSource corsConfigurationSource() {
+  CorsConfigurationSource corsConfigurationSource(
+      @Value(
+              "${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173,http://localhost:4200}")
+          String allowedOrigins) {
+    List<String> origins =
+        Arrays.stream(allowedOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isBlank())
+            .toList();
+    if (origins.isEmpty()) {
+      throw new IllegalStateException(
+          "app.cors.allowed-origins doit contenir au moins une origine explicite.");
+    }
+
     CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOriginPatterns(java.util.List.of("*"));
-    configuration.setAllowedMethods(
-        java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    configuration.setAllowedHeaders(java.util.List.of("*"));
+    configuration.setAllowedOriginPatterns(origins);
+    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    configuration.setAllowedHeaders(List.of("*"));
     configuration.setAllowCredentials(true);
     configuration.setMaxAge(3600L);
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

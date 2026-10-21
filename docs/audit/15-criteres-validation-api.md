@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** aucune suite complète n'a été relancée pendant l'audit ; le seul artefact courant est un run ciblé de 7 tests QR. Un `PASS` signifie « cohérent avec le code et les rapports existants », pas « rejoué aujourd'hui ».
+**Important :** la suite complète a été exécutée après le Lot 1 : 120 tests, 119 succès, 1 échec préexistant. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés.
 
 ### 1.2. Règle de décision
 
@@ -45,14 +45,14 @@ Une capture d'écran ne remplace pas un test de contrat.
 |---|---|---|---|
 | **G0-1** | Un utilisateur de l'entreprise A ne peut lire aucune donnée de B | **FAIL** | Requêtes globales ; aucun filtre `company_id` |
 | **G0-2** | Un utilisateur de A ne peut écrire aucune donnée de B | **FAIL** | `company_id` contrôlé par le client ; pas de FK composite |
-| **G0-3** | Un compte sans entreprise ou sans rôle ne peut pas accéder à l'inventaire | **FAIL** | `authenticated()` suffit ; inscription publique sans entreprise |
+| **G0-3** | Un compte sans entreprise ou sans rôle ne peut pas accéder à l'inventaire | **PARTIEL** | Un compte sans rôle est bloqué ; un admin plateforme sans entreprise reste autorisé par conception. |
 | **G0-4** | Les écritures multi-lignes sont atomiques | **FAIL** | `DriverManager` ; `@Transactional` inopérant |
 | **G0-5** | Le stock a une source de vérité unique et testée | **FAIL** | `quantity_total` manuel ; quantité de mouvement fixe |
 | **G0-6** | `ASSIGNED` implique exactement une affectation active | **FAIL** | `OUT`, `RETURN`, `DELETE`, retour no-op |
 | **G0-7** | Aucune erreur de saisie ne produit 500 avec SQLSTATE | **FAIL** | Doublons, FK, NOT NULL en 500 |
-| **G0-8** | Un rôle révoqué ne peut pas être rafraîchi | **FAIL** | `/refresh` réutilise les rôles du jeton |
+| **G0-8** | Un rôle révoqué ne peut pas être rafraîchi | **PASS** | `/refresh` recharge les rôles et permissions en base ; rotation testée. |
 
-**Verdict :** 0 porte sur 8 en `PASS`. La production est bloquée.
+**Verdict :** 1 porte sur 8 en `PASS` (`G0-8`), 1 `PARTIEL` (`G0-3`), 6 `FAIL`. La production reste bloquée.
 
 ---
 
@@ -71,10 +71,10 @@ Une capture d'écran ne remplace pas un test de contrat.
 | T-09 | Un scan QR ne renvoie jamais un article d'une autre entreprise | **FAIL** | `QrScanDAOImpl` global |
 | T-10 | Un comptage ne peut scanner que des articles de son entreprise et de son périmètre | **FAIL** | Aucun contrôle |
 | T-11 | Les listes de types, catégories, entrepôts, mouvements, affectations, comptages et rapports sont tenant-scoped | **FAIL** | Toutes les listes sont globales |
-| T-12 | Un administrateur d'entreprise ne peut pas administrer une autre entreprise | **FAIL** | `hasRole("ADMIN")` global |
+| T-12 | Un administrateur d'entreprise ne peut pas administrer une autre entreprise | **PASS** | Scope `company_id` sur `/api/users` et `/api/roles` ; admin plateforme non filtré. |
 | T-13 | La base possède des contraintes composites ou une RLS empêchant le cross-tenant | **FAIL** | Schéma à FK simples |
 | T-14 | Un utilisateur anonyme ne peut pas appeler l'inventaire | **PASS** | `SecurityConfig` : `authenticated()` |
-| T-15 | Un utilisateur sans entreprise ne peut pas appeler l'inventaire | **FAIL** | Aucun contrôle d'entreprise |
+| T-15 | Un utilisateur sans entreprise ne peut pas appeler l'inventaire | **PARTIEL** | Un admin plateforme sans entreprise y accède par conception ; les autres comptes sans entreprise n'ont pas de rôle métier. |
 
 ### Scénario d'acceptation T-A
 
@@ -94,28 +94,28 @@ Et POST /api/v1/items avec company_id=B crée l'article dans A ou renvoie 422
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| A-01 | Un login valide renvoie un access token et le profil | **PARTIEL** | Code présent ; aucun test de login |
-| A-02 | Un login invalide renvoie 401, pas 400 | **FAIL** | `AuthService` lève `ClientException` → 400 |
-| A-03 | Un compte inactif renvoie 403 | **FAIL** | 400 |
-| A-04 | Un compte verrouillé ne peut pas se connecter | **FAIL** | `LOCKED` non appliqué |
-| A-05 | L'inscription ne crée pas de compte sans entreprise | **FAIL** | `company_id = null` |
-| A-06 | L'inscription exige une invitation ou une validation | **FAIL** | Route publique |
-| A-07 | Un utilisateur sans rôle ne peut pas accéder à l'inventaire | **FAIL** | `authenticated()` suffit |
-| A-08 | Un `USER` ne peut pas appeler `/api/users`, `/roles`, `/permissions` | **PARTIEL** | Règle URL présente, non testée |
-| A-09 | Un `INVENTORY` peut lire et écrire l'inventaire selon ses permissions | **FAIL** | Permissions non consommées |
-| A-10 | Un `ADMIN` d'entreprise ne peut pas gérer une autre entreprise | **FAIL** | Pas de portée tenant |
-| A-11 | Le refresh recharge les rôles depuis la base | **FAIL** | Rôles de l'ancien jeton |
-| A-12 | Un rôle révoqué ne peut pas être conservé par refresh | **FAIL** | Même cause |
-| A-13 | Le refresh token est distinct, tourne et est révocable | **FAIL** | Pas de refresh token persistant |
-| A-14 | Le logout révoque l'access et le refresh | **FAIL** | Pas de révocation |
-| A-15 | Un jeton expiré renvoie 401 | **PARTIEL** | Filtre présent ; non testé |
-| A-16 | Un jeton signé avec une mauvaise clé renvoie 401 | **PARTIEL** | Filtre présent ; non testé |
-| A-17 | Le JWT contient l'entreprise et un `jti` | **FAIL** | Absents |
-| A-18 | Le login et le refresh sont limités en débit | **FAIL** | Absent |
-| A-19 | Le mot de passe est hashé et jamais renvoyé | **PASS** | BCrypt ; DTO sans hash |
-| A-20 | Le CORS n'accepte que les origines nécessaires | **FAIL** | `*` + credentials |
-| A-21 | Les erreurs SQL ne sont pas exposées en production | **FAIL** | SQLSTATE + message PostgreSQL |
-| A-22 | Un compte supprimé ne peut plus rafraîchir | **PASS** | 404 sur utilisateur inconnu |
+| A-01 | Un login valide renvoie un access token et le profil | **PASS** | Login réel utilisé par `RefreshTokenApiTests` et `AuthHardeningApiTests`. |
+| A-02 | Un login invalide renvoie 401, pas 400 | **FAIL** | `AuthService` lève toujours `ClientException` → 400. |
+| A-03 | Un compte inactif renvoie 403 | **FAIL** | 400. |
+| A-04 | Un compte verrouillé ne peut pas se connecter | **FAIL** | `LOCKED` non appliqué automatiquement. |
+| A-05 | L'inscription ne crée pas de compte sans entreprise | **PASS** | Entreprise déduite du jeton ; admin plateforme doit passer par `/api/users`. |
+| A-06 | L'inscription exige une invitation ou une validation | **PASS** | Route réservée à `ROLE_ADMIN` ou `users.manage`. |
+| A-07 | Un utilisateur sans rôle ne peut pas accéder à l'inventaire | **PASS** | `ROLE_ADMIN`, `ROLE_INVENTORY` ou `inventory.manage` requis. |
+| A-08 | Un `USER` ne peut pas appeler `/api/users`, `/roles`, `/permissions` | **PASS** | `users.manage`/`roles.manage` requis ; `/permissions` réservé à `ROLE_ADMIN` ; test admin d'entreprise. |
+| A-09 | Un `INVENTORY` peut lire et écrire l'inventaire selon ses permissions | **PARTIEL** | `ROLE_INVENTORY` ou `inventory.manage` autorise l'ensemble de l'inventaire ; pas de permission par action. |
+| A-10 | Un `ADMIN` d'entreprise ne peut pas gérer une autre entreprise | **PASS** | Scope `company_id` sur les utilisateurs et rôles. |
+| A-11 | Le refresh recharge les rôles depuis la base | **PASS** | `AuthService.refresh` recharge rôles et permissions. |
+| A-12 | Un rôle révoqué ne peut pas être conservé par refresh | **PASS** | Le nouveau jeton reprend les rôles rechargés ; pas de test dédié de révocation de rôle. |
+| A-13 | Le refresh token est distinct, tourne et est révocable | **PASS** | Table `refresh_token`, consommation atomique de l'ancien token, tests. |
+| A-14 | Le logout révoque l'access et le refresh | **PASS** | Test `logoutRevokesRefreshAndAccessTokens`. |
+| A-15 | Un jeton expiré renvoie 401 | **PARTIEL** | Filtre présent ; pas de test d'expiration réelle. |
+| A-16 | Un jeton signé avec une mauvaise clé renvoie 401 | **PARTIEL** | Filtre présent ; pas de test de mauvaise clé. |
+| A-17 | Le JWT contient l'entreprise et un `jti` | **PASS** | Claims `company_id` et `jti` émis et testés. |
+| A-18 | Le login et le refresh sont limités en débit | **FAIL** | Absent. |
+| A-19 | Le mot de passe est hashé et jamais renvoyé | **PASS** | BCrypt ; DTO sans hash. |
+| A-20 | Le CORS n'accepte que les origines nécessaires | **PASS** | `CORS_ALLOWED_ORIGINS` explicite ; en-têtes/méthodes encore larges. |
+| A-21 | Les erreurs SQL ne sont pas exposées en production | **FAIL** | SQLSTATE + message PostgreSQL. |
+| A-22 | Un compte supprimé ne peut plus rafraîchir | **PASS** | 401 sur refresh d'un compte supprimé/inconnu. |
 
 ### Scénario d'acceptation A-A
 
@@ -350,9 +350,9 @@ Et un comptage déjà clôturé renvoie 409
 |---|---|---|---|
 | TST-01 | La suite tourne sur une base isolée et reproductible | **PARTIEL** | CI PostgreSQL 16 éphémère ; base locale réelle et pas d'isolation par test |
 | TST-02 | Aucun test n'est ignoré silencieusement sur base vide | **FAIL** | `Assumptions` |
-| TST-03 | Le login et l'inscription sont testés | **FAIL** | Aucun test |
-| TST-04 | Le RBAC est testé pour `USER`, `INVENTORY`, `ADMIN`, sans rôle | **FAIL** | Jeton synthétique ADMIN |
-| TST-05 | La tenancy A/B est testée en lecture et en écriture | **FAIL** | Aucun test |
+| TST-03 | Le login et l'inscription sont testés | **PASS** | `AuthHardeningApiTests` et `RefreshTokenApiTests` couvrent inscription, login, refresh et logout. |
+| TST-04 | Le RBAC est testé pour `USER`, `INVENTORY`, `ADMIN`, sans rôle | **PARTIEL** | Tests sans permission, admin d'entreprise et inventaire ; matrice complète des rôles non couverte. |
+| TST-05 | La tenancy A/B est testée en lecture et en écriture | **FAIL** | Aucun test à deux entreprises. |
 | TST-06 | Le rollback transactionnel est testé | **FAIL** | Aucun test |
 | TST-07 | La concurrence est testée | **FAIL** | Aucun test |
 | TST-08 | Le stock et la réconciliation sont testés | **FAIL** | Aucun test de solde |
@@ -360,7 +360,7 @@ Et un comptage déjà clôturé renvoie 409
 | TST-10 | Le code et les tests sont synchronisés | **FAIL** | Divergence historique 404 |
 | TST-11 | Un pipeline CI bloque les régressions | **PARTIEL** | Workflow GitHub Actions présent ; pas de tests tenancy/RBAC/transaction |
 | TST-12 | Les performances critiques sont mesurées | **FAIL** | Aucun test |
-| TST-13 | La suite actuelle est verte sur l'état courant | **NON VÉRIFIÉ** | Non relancée |
+| TST-13 | La suite actuelle est verte sur l'état courant | **FAIL** | 120 tests exécutés ; 1 échec préexistant (`historyUnknownReturnsNotFound`). |
 | TST-14 | Les tests n'écrivent pas dans la base de démonstration partagée | **FAIL** | Nettoyage SQL sur base réelle |
 
 ---
@@ -390,23 +390,23 @@ Et un comptage déjà clôturé renvoie 409
 
 | Domaine | PASS | PARTIEL | FAIL | NON VÉRIFIÉ |
 |---|---:|---:|---:|---:|
-| Portes Go/No-Go | 0 | 0 | 8 | 0 |
-| Tenancy | 1 | 0 | 14 | 0 |
-| Authentification | 2 | 4 | 16 | 0 |
+| Portes Go/No-Go | 1 | 1 | 6 | 0 |
+| Tenancy | 2 | 1 | 12 | 0 |
+| Authentification | 14 | 3 | 5 | 0 |
 | Catalogue | 1 | 1 | 16 | 0 |
 | Stock | 1 | 0 | 17 | 0 |
 | Affectations | 0 | 1 | 17 | 0 |
 | QR | 2 | 0 | 13 | 0 |
-| Comptages / opérations | 0 | 1 | 19 | 0 |
+| Comptages / opérations | 0 | 1 | 18 | 0 |
 | Contrat HTTP | 0 | 4 | 13 | 1 |
 | Performance / sécurité | 0 | 1 | 10 | 2 |
-| Tests / CI | 0 | 2 | 11 | 1 |
+| Tests / CI | 1 | 3 | 10 | 0 |
 | Frontend | 0 | 2 | 12 | 0 |
-| **Total** | **7** | **16** | **165** | **4** |
+| **Total** | **22** | **18** | **149** | **3** |
 
-**Total : 192 critères** (7 `PASS`, 16 `PARTIEL`, 165 `FAIL`, 4 `NON VÉRIFIÉ`). La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
+**Total : 192 critères** (22 `PASS`, 18 `PARTIEL`, 149 `FAIL`, 3 `NON VÉRIFIÉ`) après le Lot 1. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
-**Lecture :** les seuls `PASS` concernent des mécanismes isolés (JWT filtre, BCrypt, unicité SQL, PNG, 404 d'un mouvement, blocage anonyme). Aucun domaine métier n'est validé de bout en bout.
+**Lecture :** les `PASS` supplémentaires portent sur l'identité, le RBAC inventaire/administration, le scope entreprise des utilisateurs/rôles, le refresh rotatif, le logout et la révocation. Les portes de tenancy complète, transactions, stock, affectations et concurrence restent bloquantes.
 
 ---
 

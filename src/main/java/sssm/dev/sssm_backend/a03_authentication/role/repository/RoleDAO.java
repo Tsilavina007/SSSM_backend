@@ -2,11 +2,12 @@ package sssm.dev.sssm_backend.a03_authentication.role.repository;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a03_authentication.role.entity.Role;
 
 public interface RoleDAO {
   List<Role> findAll(int page, int pageSize);
+
+  List<Role> findAllByCompany(String companyId, int page, int pageSize);
 
   Optional<Role> findById(String id);
 

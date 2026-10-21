@@ -11,7 +11,6 @@ import jakarta.servlet.Filter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.util.List;
-import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,7 @@ import org.springframework.web.context.WebApplicationContext;
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 
-/** Vérifie l'endpoint POST /api/auth/refresh et ses réponses d'erreur. */
+/** Vérifie le refresh token distinct, sa rotation, sa révocation et le logout. */
 @SpringBootTest
 class RefreshTokenApiTests {
 
@@ -34,6 +33,7 @@ class RefreshTokenApiTests {
   @Autowired private JwtService jwtService;
 
   private MockMvc mockMvc;
+  private String adminToken;
   private String username;
   private String email;
   private String password;
@@ -44,6 +44,7 @@ class RefreshTokenApiTests {
         MockMvcBuilders.webAppContextSetup(context)
             .addFilters(context.getBean("springSecurityFilterChain", Filter.class))
             .build();
+    adminToken = jwtService.createToken("test-admin", "refresh-admin", List.of("ADMIN"));
     String marker = "refresh-test-" + System.nanoTime();
     username = marker;
     email = marker + "@example.test";
@@ -68,27 +69,47 @@ class RefreshTokenApiTests {
   }
 
   @Test
-  void refreshWithoutAuthorizationHeaderReturnsNewToken() throws Exception {
-    String token = registerAndLogin();
+  void refreshReturnsNewAccessAndRefreshTokens() throws Exception {
+    Tokens tokens = createUserAndLogin();
 
     MvcResult result =
         mockMvc
             .perform(
                 post("/api/auth/refresh")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"token\":\"" + token + "\"}"))
+                    .content("{\"refreshToken\":\"" + tokens.refreshToken() + "\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.token").value(notNullValue()))
+            .andExpect(jsonPath("$.refreshToken").value(notNullValue()))
             .andExpect(jsonPath("$.tokenType").value("Bearer"))
             .andExpect(jsonPath("$.user.username").value(username))
             .andReturn();
 
     String refreshed = JsonPath.read(result.getResponse().getContentAsString(), "$.token");
-
     mockMvc
         .perform(get("/api/auth/whoami").header("Authorization", "Bearer " + refreshed))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.username").value(username));
+  }
+
+  @Test
+  void refreshRotatesAndRevokesOldRefreshToken() throws Exception {
+    Tokens tokens = createUserAndLogin();
+
+    mockMvc
+        .perform(
+            post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + tokens.refreshToken() + "\"}"))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/api/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + tokens.refreshToken() + "\"}"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.errors.code").value("UNAUTHORIZED"));
   }
 
   @Test
@@ -108,32 +129,44 @@ class RefreshTokenApiTests {
         .perform(
             post("/api/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"token\":\"not-a-jwt\"}"))
+                .content("{\"refreshToken\":\"not-a-jwt\"}"))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.errors.code").value("UNAUTHORIZED"));
   }
 
   @Test
-  void refreshWithUnknownUserReturnsNotFound() throws Exception {
-    String ghostToken =
-        jwtService.createToken(
-            UUID.randomUUID().toString(),
-            "refresh-ghost-" + System.nanoTime(),
-            List.of("USER"));
+  void logoutRevokesRefreshAndAccessTokens() throws Exception {
+    Tokens tokens = createUserAndLogin();
+
+    mockMvc
+        .perform(
+            post("/api/auth/logout")
+                .header("Authorization", "Bearer " + tokens.accessToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + tokens.refreshToken() + "\"}"))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(
+            get("/api/auth/whoami")
+                .header("Authorization", "Bearer " + tokens.accessToken()))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.errors.code").value("UNAUTHORIZED"));
 
     mockMvc
         .perform(
             post("/api/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"token\":\"" + ghostToken + "\"}"))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
+                .content("{\"refreshToken\":\"" + tokens.refreshToken() + "\"}"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.errors.code").value("UNAUTHORIZED"));
   }
 
-  private String registerAndLogin() throws Exception {
+  private Tokens createUserAndLogin() throws Exception {
     mockMvc
         .perform(
-            post("/api/auth/register")
+            post("/api/users")
+                .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     "{\"username\":\""
@@ -153,7 +186,12 @@ class RefreshTokenApiTests {
                     .content(
                         "{\"login\":\"" + username + "\",\"password\":\"" + password + "\"}"))
             .andExpect(status().isOk())
+            .andExpect(jsonPath("$.refreshToken").value(notNullValue()))
             .andReturn();
-    return JsonPath.read(login.getResponse().getContentAsString(), "$.token");
+    String body = login.getResponse().getContentAsString();
+    return new Tokens(
+        JsonPath.read(body, "$.token"), JsonPath.read(body, "$.refreshToken"));
   }
+
+  private record Tokens(String accessToken, String refreshToken) {}
 }

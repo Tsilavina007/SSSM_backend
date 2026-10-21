@@ -2,11 +2,12 @@ package sssm.dev.sssm_backend.a03_authentication.user.repository;
 
 import java.util.List;
 import java.util.Optional;
-
 import sssm.dev.sssm_backend.a03_authentication.user.entity.AppUser;
 
 public interface AppUserDAO {
   List<AppUser> findAll(int page, int pageSize);
+
+  List<AppUser> findAllByCompany(String companyId, int page, int pageSize);
 
   Optional<AppUser> findById(String id);
 
@@ -15,6 +16,10 @@ public interface AppUserDAO {
   Optional<AppUser> findByUsernameOrEmail(String login);
 
   List<String> findRoleNames(String userId);
+
+  List<String> findPermissionCodes(String userId);
+
+  boolean isPlatformAdmin(String userId);
 
   void updateLastLogin(String userId);
 

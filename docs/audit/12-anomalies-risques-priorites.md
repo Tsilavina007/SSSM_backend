@@ -2,7 +2,7 @@
 
 **Objectif :** centraliser les constats dans un registre unique, les qualifier par gravité et fournir l'ordre d'attaque du plan de correction. Les preuves détaillées restent dans les rapports 01 à 11 ; ce document ne les remplace pas.
 
-**Portée :** audit statique et lecture seule de la base de démonstration. Aucune anomalie n'a été corrigée pendant cette passe.
+**Portée :** audit statique initial, puis exécution du Lot 1 (identité, tenancy mono-entreprise, RBAC, durcissement de l'authentification). Les constats restent la photographie de l'audit initial ; chaque P0 concerné porte désormais un statut d'exécution daté.
 
 ---
 
@@ -49,6 +49,8 @@ La cotation est qualitative. Elle sert à ordonner les travaux, pas à produire 
 
 **Références :** rapports 02, 03, 04, 09.
 
+**Statut au 21 octobre 2026 (Lot 1) : PARTIEL.** La décision D-02 retient le mono-entreprise pour le runtime. La migration `18_lot1_security.sql` ajoute `company_id` à `stock_movement`, `item_assignment` et `inventory_count_scan`, backfille les lignes existantes et ajoute les index. `app_user.company_id` est backfillé pour les comptes non-plateforme de l'unique entreprise. En revanche, les DAO d'inventaire ne filtrent pas encore par `company_id`, les FK/contraintes composites et le `NOT NULL` ne sont pas ajoutés, et aucune isolation multi-entreprise n'est garantie. Le risque est neutralisé uniquement tant que la base ne contient qu'une entreprise.
+
 ---
 
 ### P0-02 — RBAC absent et inscription publique
@@ -72,6 +74,8 @@ Si le rôle `USER` n'existe pas, l'utilisateur n'a aucun rôle mais reste authen
 
 **Références :** rapports 09 et 11.
 
+**Statut au 21 octobre 2026 (Lot 1) : PARTIEL.** `POST /api/auth/register` n'est plus public : il exige `ROLE_ADMIN` ou `users.manage`, et un administrateur d'entreprise ne peut créer que dans sa propre entreprise. Les routes `/api/inventory/**`, `/api/users/**` et `/api/roles/**` consomment désormais les permissions (`inventory.manage`, `users.manage`, `roles.manage`) ou les rôles correspondants ; `/api/permissions/**` reste réservé à l'admin plateforme. Les utilisateurs et rôles sont filtrés par entreprise. Restent hors Lot 1 : le RBAC des modules organisation, personnel, clients et sites, le rate limiting, la vérification d'email et l'alignement des statuts 400/401/403 du login.
+
 ---
 
 ### P0-03 — JWT sans révocation et refresh avec rôles figés
@@ -90,6 +94,8 @@ Si le rôle `USER` n'existe pas, l'utilisateur n'a aucun rôle mais reste authen
 **Score :** 25.
 
 **Références :** rapport 09.
+
+**Statut au 21 octobre 2026 (Lot 1) : CORRIGÉ.** Le JWT porte désormais `jti`, `iss`, `aud`, `company_id`, `roles`, `permissions` et `platform_admin`. Le refresh token est distinct de l'access token, stocké haché dans `security.refresh_token`, à usage unique et rotation à chaque refresh. Les rôles et permissions sont rechargés en base au refresh. `POST /api/auth/logout` révoque le refresh token et le `jti` de l'access token ; le filtre refuse tout `jti` présent dans `security.revoked_access_token`. Les jetons émis avant ce changement sont invalidés par l'exigence de `jti`, `iss` et `aud`.
 
 ---
 
@@ -381,6 +387,8 @@ Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 �
 
 ## 5. Matrice de risque
 
+La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Les autres P0 sont ouverts.
+
 | ID | Risque | Probabilité | Impact | Score | Niveau |
 |---|---|---:|---:|---:|---|
 | P0-01 | Fuite/corruption inter-entreprises | 5 | 5 | 25 | Critique |
@@ -419,6 +427,8 @@ La matrice contient les **26 anomalies** du registre : 6 P0, 14 P1 et 6 P2. Les 
 L'ordre recommandé n'est pas l'ordre alphabétique des modules. Il suit les dépendances de données.
 
 ### Étape 1 — Fermer l'accès
+
+**État Lot 1 :** inscription fermée aux administrateurs, entreprise et permissions dans le jeton, rôles rechargés au refresh, rotation et révocation des jetons. Le RBAC reste à étendre aux modules hors inventaire, et les DAO d'inventaire ne filtrent pas encore par entreprise.
 
 1. Décider du mode d'inscription (fermée, invitation, validation).
 2. Ajouter l'entreprise au compte et au jeton, ou la déduire d'une source serveur.

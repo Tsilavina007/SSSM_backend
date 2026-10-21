@@ -28,6 +28,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.UnauthorizedException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 
@@ -46,6 +47,18 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(NotFoundException.class)
   public ResponseEntity<Map<String, ItemError>> handleNotFound(NotFoundException exception) {
     return build(HttpStatus.NOT_FOUND, exception);
+  }
+
+  @ExceptionHandler(UnauthorizedException.class)
+  public ResponseEntity<Map<String, ItemError>> handleUnauthorized(UnauthorizedException exception) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(
+            Map.of(
+                "errors",
+                new ItemError(
+                    exception.getMessage(),
+                    exception.detail() == null ? exception.getMessage() : exception.detail(),
+                    "UNAUTHORIZED")));
   }
 
   @ExceptionHandler(ServerException.class)
