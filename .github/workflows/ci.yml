@@ -56,8 +56,8 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f doc/database/sssm_schema2_v01.sql
-          psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f doc/database/mock_data/sssm_mock_data.sql
+          psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f docs/database/sssm_schema2_v01.sql
+          psql -h 127.0.0.1 -U postgres -d sssm_db -v ON_ERROR_STOP=1 -f docs/database/mock_data/sssm_mock_data.sql
 
       - name: Verify schema enum values
         env:
@@ -110,7 +110,7 @@ jobs:
 
       - name: Validate OpenAPI specifications
         run: |
-          find doc/api -type f -name '*.yaml' -print0 \
+          find docs/api -type f -name '*.yaml' -print0 \
             | xargs -0 npx --yes @redocly/cli@2.65.1 lint --format=summary
 
   package:

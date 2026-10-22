@@ -5,7 +5,7 @@
 -- ORCHESTRATEUR DES DONNÉES DE DÉMONSTRATION SSSM
 -- =====================================================================
 -- À exécuter sur une base fraîchement créée par
--- doc/database/sssm_schema2_v01.sql (le référentiel des permissions et
+-- docs/database/sssm_schema2_v01.sql (le référentiel des permissions et
 -- des rôles plateforme est chargé par schema/17_seed_permissions.sql).
 --
 -- Chaque fichier-cl duplique la numérotation du dossier schema/ :

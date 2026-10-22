@@ -62,8 +62,8 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
 | Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migration Lot 1 appliquée ensuite |
 | Rapports de tests | Exécution complète du 21 octobre 2026 : 120 tests, 119 succès, 1 échec (`ItemApiTests.historyUnknownReturnsNotFound`). Tests ciblés authentification/RBAC : 29 succès. |
-| Documentation API | `doc/api/**/*.yaml` — 26 fichiers |
-| Scripts SQL | `doc/database/schema/00_init.sql` à `18_lot1_security.sql` — 19 fichiers |
+| Documentation API | `docs/api/**/*.yaml` — 26 fichiers |
+| Scripts SQL | `docs/database/schema/00_init.sql` à `18_lot1_security.sql` — 19 fichiers |
 
 Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196`. Le Lot 1 a ensuite été exécuté sur le HEAD `13bb79b` (`docs(audit): reconcile reports with current HEAD`), sans commit de correction à ce stade.
 
@@ -171,7 +171,7 @@ Le **Lot 1**, exécuté après la revue, a modifié :
 - des tests d'authentification et de RBAC ;
 - la configuration `application.properties` / `application-prod.properties` ;
 - le runner SQL, les données de démonstration et la migration additive `18_lot1_security.sql` ;
-- les rapports `docs/audit/` concernés et `doc/database/README.md`.
+- les rapports `docs/audit/` concernés et `docs/database/README.md`.
 
 Aucune dépendance n'a été ajoutée. Aucun fichier OpenAPI n'a été modifié. Aucun reset, `DROP`, suppression de colonne ou `NOT NULL` destructif n'a été exécuté.
 

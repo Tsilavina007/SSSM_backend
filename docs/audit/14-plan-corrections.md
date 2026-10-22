@@ -137,7 +137,7 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 
 **Décisions appliquées :** D-02 (mono-entreprise), D-03 (inscription fermée, comptes créés par un administrateur), D-08 (séparation admin entreprise / admin plateforme).
 
-**Migration :** `doc/database/schema/18_lot1_security.sql`, ajoutée au runner `doc/database/sssm_schema2_v01.sql`. Elle est additive : colonnes nullables, backfill, index, tables `refresh_token` et `revoked_access_token`, permissions `users.manage` et `roles.manage`. Aucun `NOT NULL`, aucune suppression, aucun reset. Appliquée à la base de démonstration ; les volumes de backfill ont été contrôlés après exécution.
+**Migration :** `docs/database/schema/18_lot1_security.sql`, ajoutée au runner `docs/database/sssm_schema2_v01.sql`. Elle est additive : colonnes nullables, backfill, index, tables `refresh_token` et `revoked_access_token`, permissions `users.manage` et `roles.manage`. Aucun `NOT NULL`, aucune suppression, aucun reset. Appliquée à la base de démonstration ; les volumes de backfill ont été contrôlés après exécution.
 
 **Implémenté :**
 

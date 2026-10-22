@@ -4,7 +4,7 @@
 --
 -- Aucune permission n'est insérée ici : les données initiales
 -- (catalogue des permissions, rôles plateforme ADMIN/USER/INVENTORY)
--- sont chargées par doc/database/schema/17_seed_permissions.sql et le
+-- sont chargées par docs/database/schema/17_seed_permissions.sql et le
 -- mock les référence directement (SELECT ... WHERE code = '...').
 --
 -- Variables gset exposées aux fichiers suivants :

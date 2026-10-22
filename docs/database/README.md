@@ -91,7 +91,7 @@ seule sur une base existante :
 
 ```bash
 cd sssm_backend
-psql -d sssm_db -f doc/database/schema/18_lot1_security.sql -U your_user
+psql -d sssm_db -f docs/database/schema/18_lot1_security.sql -U your_user
 ```
 
 Après application, les comptes non-plateforme existants sont rattachés à
@@ -104,7 +104,7 @@ Les scripts SQL sont exécutés depuis la racine du projet `sssm_backend` :
 
 ```bash
 cd sssm_backend
-psql -d sssm_db -f doc/database/sssm_schema2_v01.sql -U your_user
+psql -d sssm_db -f docs/database/sssm_schema2_v01.sql -U your_user
 ```
 
 Les fichiers sont exécutés dans l'ordre numérique afin de respecter les
@@ -117,7 +117,7 @@ Une section peut être exécutée séparément uniquement si ses
 dépendances ont déjà été créées. Par exemple :
 
 ```bash
-psql -d sssm_db -f doc/database/schema/03_authentication.sql
+psql -d sssm_db -f docs/database/schema/03_authentication.sql
 ```
 
 Pour une installation complète, utiliser le fichier principal plutôt qu'un
@@ -129,7 +129,7 @@ Après avoir créé le schéma, charger les données de démonstration avec :
 
 ```bash
 cd sssm_backend
-psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql -U your_user
+psql -d sssm_db -f docs/database/mock_data/sssm_mock_data.sql -U your_user
 ```
 
 `sssm_mock_data.sql` est un orchestrateur : il ouvre une transaction,
@@ -164,8 +164,8 @@ une base de démonstration vide.
 Pour repartir d'une base de démonstration propre :
 
 ```bash
-psql -d sssm_db -f doc/database/mock_data/reset_data.sql -U your_user
-psql -d sssm_db -f doc/database/mock_data/sssm_mock_data.sql -U your_user
+psql -d sssm_db -f docs/database/mock_data/reset_data.sql -U your_user
+psql -d sssm_db -f docs/database/mock_data/sssm_mock_data.sql -U your_user
 ```
 
 `reset_data.sql` tronque toutes les tables du schéma `security`

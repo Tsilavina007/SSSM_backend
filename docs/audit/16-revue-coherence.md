@@ -49,7 +49,7 @@ La matrice ci-dessous est la photographie de l'**audit initial**. Les lignes rel
 |---|---|---|
 | 26 contrôleurs métier, 130 routes applicatives | 29 fichiers `*Controller.java` : 26 contrôleurs métier, `HelloController`, `PingController`, `ItemErrorController` sans route métier. Les mappings donnent 57 routes d'inventaire, 23 d'authentification/administration et 50 pour les autres modules. | Statique, vérifié |
 | 12 contrôleurs d'inventaire, 57 routes | 12 fichiers dans `a11_inventory/**/controller` ; somme des mappings : `Assignment` 7, `Dashboard` 2, `InventoryCount` 5, `Item` 9, `ItemAssignment` 5, `ItemCategory` 5, `ItemType` 9, `Operation` 3, `QrScan` 1, `Report` 1, `StockMovement` 5, `Warehouse` 5. | Statique, vérifié |
-| OpenAPI : 26 fichiers, dont 12 d'inventaire | `doc/api/**/*.yaml` contient 26 fichiers ; `doc/api/11_inventory` en contient 12. | Fichiers, vérifié |
+| OpenAPI : 26 fichiers, dont 12 d'inventaire | `docs/api/**/*.yaml` contient 26 fichiers ; `docs/api/11_inventory` en contient 12. | Fichiers, vérifié |
 | Les 33 endpoints du rapport 13 sont des propositions | Tous les chemins proposés commencent par `/api/v1` ; aucune occurrence de `/api/v1` dans `src/main/java`. | Statique, vérifié |
 | Aucune isolation entre entreprises | `ItemDAOImpl.getAllItems` exécute `SELECT * FROM security.item ORDER BY id LIMIT ? OFFSET ?` sans `company_id` ; mêmes absences dans les listes de mouvements, affectations, comptages, opérations, dashboard, rapports et scan. `company_id` est fourni dans les DTO de création. | Code, vérifié |
 | Aucun RBAC métier | `SecurityConfig` protège `/api/inventory/**` par `authenticated()` seulement ; `hasRole("ADMIN")` ne couvre que `/api/users/**`, `/api/roles/**` et `/api/permissions/**`. Aucun `@PreAuthorize`, `@Secured` ou `@RolesAllowed` dans l'inventaire. Les tables `permission` et `role_permission` ne sont pas consommées. | Code, vérifié |
@@ -120,7 +120,7 @@ Le rapport 13 reste donc **une spécification cible**, pas un inventaire de l'ex
 | ID | Incohérence constatée | Résolution |
 |---|---|---|
 | C-01 | `README.md` affirmait que le dépôt n'était pas initialisé en Git, alors que les commits `a3f7c56` et `7e3f196` existent. | Corrigé : commits cités et HEAD de revue précisé. |
-| C-02 | Les rapports 00, 01, 02 et README annonçaient **14 fichiers OpenAPI d'inventaire** ; `doc/api/11_inventory` en contient **12** (26 au total, dont 14 hors inventaire). | Corrigé dans 00, 01, 02 et README. |
+| C-02 | Les rapports 00, 01, 02 et README annonçaient **14 fichiers OpenAPI d'inventaire** ; `docs/api/11_inventory` en contient **12** (26 au total, dont 14 hors inventaire). | Corrigé dans 00, 01, 02 et README. |
 | C-03 | Le rapport 10 annonçait **13 contrôleurs d'inventaire** ; il y en a **12**. Le total de 26 contrôleurs et 130 routes reste correct à l'audit initial. | Corrigé dans 10 ; le rapport 01 est également aligné. Après Lot 1, le total est 131 routes avec `POST /api/auth/logout`. |
 | C-04 | Le rapport 06 décrivait un **500 sans corps** pour un QR vide ; le HEAD `7e3f196` renvoie un **500 JSON `QR_CODE_MISSING`**, et un UUID invalide un **400 `BAD_REQUEST`**. | Corrigé dans 06, avec la nouvelle classe de tests. |
 | C-05 | Le rapport 02 indiquait seulement `200 PNG / 404` pour l'image QR, sans les 400/500 du correctif. | Corrigé dans 02. |

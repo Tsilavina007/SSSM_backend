@@ -327,7 +327,7 @@ Le projet utilise :
 - `maven-compiler-plugin` avec Java 17 ;
 - `spring-boot-maven-plugin`.
 
-Un workflow GitHub Actions existe : `.github/workflows/ci.yml`. Il démarre un service PostgreSQL 16, initialise `doc/database/sssm_schema2_v01.sql` et les données de `doc/database/mock_data/sssm_mock_data.sql`, puis exécute `./mvnw -B -q test`, un lint Java/OpenAPI et un packaging. C'est un acquis réel : le CI ne dépend pas de la base locale du développeur.
+Un workflow GitHub Actions existe : `.github/workflows/ci.yml`. Il démarre un service PostgreSQL 16, initialise `docs/database/sssm_schema2_v01.sql` et les données de `docs/database/mock_data/sssm_mock_data.sql`, puis exécute `./mvnw -B -q test`, un lint Java/OpenAPI et un packaging. C'est un acquis réel : le CI ne dépend pas de la base locale du développeur.
 
 Ses limites sont cependant structurantes :
 

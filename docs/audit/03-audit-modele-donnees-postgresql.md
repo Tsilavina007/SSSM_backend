@@ -12,7 +12,7 @@
 - Les scripts sont exécutés dans l'ordre `00_init.sql` → `17_seed_permissions.sql`.
 - Aucun outil de migration versionnée (Flyway, Liquibase) n'est présent.
 
-Les tables d'inventaire sont définies dans `doc/database/schema/11_inventory.sql`, les index dans `15_indexes.sql`, les triggers dans `16_triggers.sql`.
+Les tables d'inventaire sont définies dans `docs/database/schema/11_inventory.sql`, les index dans `15_indexes.sql`, les triggers dans `16_triggers.sql`.
 
 ---
 

@@ -163,6 +163,6 @@ licence et l'URL `localhost`.
 Pour linter ou prévisualiser les spécifications :
 
 ```bash
-npx @redocly/cli lint doc/api/**/*.yaml
-npx @redocly/cli preview-docs doc/api/11_inventory/item-openapi.yaml
+npx @redocly/cli lint docs/api/**/*.yaml
+npx @redocly/cli preview-docs docs/api/11_inventory/item-openapi.yaml
 ```

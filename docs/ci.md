@@ -10,9 +10,9 @@ vérifie chaque push et chaque pull request ciblant `dev` ou `main`. Il peut aus
 
 - Java 17 (Temurin) et cache Maven.
 - Service PostgreSQL 16 démarré par GitHub Actions.
-- Création du schéma avec `doc/database/sssm_schema2_v01.sql`.
+- Création du schéma avec `docs/database/sssm_schema2_v01.sql`.
 - Chargement des données de démonstration avec
-  `doc/database/mock_data/sssm_mock_data.sql`.
+  `docs/database/mock_data/sssm_mock_data.sql`.
 - Garde-fou de schéma : vérification que l'enum `security.movement_type`
   contient bien `DESTRUCTION` (utilisé par les mouvements et l'openapi).
 - Exécution de `./mvnw -B -q test` avec `DB_URL`, `DB_USER`, `DB_PASSWORD` et
@@ -50,7 +50,7 @@ Les commandes principales peuvent être rejouées localement :
 ```bash
 ./mvnw -B -q test
 bash scripts/check-before-push.sh --skip-tests
-find doc/api -type f -name '*.yaml' -print0 \
+find docs/api -type f -name '*.yaml' -print0 \
   | xargs -0 npx --yes @redocly/cli@2.65.1 lint --format=summary
 ```
 

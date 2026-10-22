@@ -4,7 +4,7 @@
 --
 -- Le référentiel des données initiales (données nécessaires à
 -- l'application) est préservé et reste chargé par
--- doc/database/schema/17_seed_permissions.sql (idempotent) :
+-- docs/database/schema/17_seed_permissions.sql (idempotent) :
 --   - security.permission : catalogue des permissions (non tronqué) ;
 --   - security.role       : les rôles plateforme (company_id NULL :
 --                           ADMIN, USER, INVENTORY) sont conservés ;
