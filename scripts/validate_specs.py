@@ -4,7 +4,7 @@ import re
 from ruamel.yaml import YAML
 
 y = YAML(typ="safe")
-files = sorted(glob.glob(r"D:\Documents D\Tsong\SSSM\back\sssm_backend\doc\api\11_inventory\*.yaml"))
+files = sorted(glob.glob(r"D:\Documents D\Tsong\SSSM\back\sssm_backend\docs\api\11_inventory\*.yaml"))
 bad = 0
 total_ops = 0
 for f in files:
