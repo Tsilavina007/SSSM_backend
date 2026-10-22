@@ -122,8 +122,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
     // quand absentes pour laisser s'appliquer les défauts PostgreSQL
     // (movement_date NOT NULL DEFAULT now()).
     StringBuilder columns = new StringBuilder("warehouse_id, item_id, movement_type, quantity");
-    StringBuilder placeholders =
-        new StringBuilder("?, ?, CAST(? AS security.movement_type), ?");
+    StringBuilder placeholders = new StringBuilder("?, ?, CAST(? AS security.movement_type), ?");
     List<Object> parameters = new ArrayList<>();
     String generatedId = null;
 
@@ -206,9 +205,7 @@ public class StockMovementDAOImpl implements StockMovementDAO {
     // (movement_date par défaut, type par défaut).
     return getStockMovementById(generatedId)
         .orElseThrow(
-            () ->
-                new ServerException(
-                    "Le mouvement créé n'a pas pu être relu depuis la base."));
+            () -> new ServerException("Le mouvement créé n'a pas pu être relu depuis la base."));
   }
 
   @Override

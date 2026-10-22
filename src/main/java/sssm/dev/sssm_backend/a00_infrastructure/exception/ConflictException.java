@@ -1,5 +1,4 @@
 package sssm.dev.sssm_backend.a00_infrastructure.exception;
-
 /** Conflit métier ou d'état, traduit en HTTP 409 par le gestionnaire global. */
 public class ConflictException extends RuntimeException {
   private final String detail;

@@ -51,12 +51,18 @@ public class StockBalanceService {
       if (after != null && contributes(after) && sameBalanceKey(before, after)) {
         return;
       }
-      adjust(before.getCompany_id(), before.getCurrent_warehouse_id(),
-          before.getItem_type_id(), BigDecimal.ONE.negate());
+      adjust(
+          before.getCompany_id(),
+          before.getCurrent_warehouse_id(),
+          before.getItem_type_id(),
+          BigDecimal.ONE.negate());
     }
     if (after != null && contributes(after)) {
-      adjust(after.getCompany_id(), after.getCurrent_warehouse_id(),
-          after.getItem_type_id(), BigDecimal.ONE);
+      adjust(
+          after.getCompany_id(),
+          after.getCurrent_warehouse_id(),
+          after.getItem_type_id(),
+          BigDecimal.ONE);
     }
   }
 

@@ -36,7 +36,10 @@ public class ItemAssignmentService {
   private final CurrentUser currentUser;
 
   public List<ItemAssignmentRest> getItemAssignments(
-      Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize, boolean activeOnly) {
+      Optional<String> search,
+      Optional<Integer> page,
+      Optional<Integer> pageSize,
+      boolean activeOnly) {
     int pageNumber = Math.max(1, page.orElse(1));
     int pageSizeNumber = Math.min(500, Math.max(1, pageSize.orElse(10)));
     List<ItemAssignmentResponse> values =
@@ -47,7 +50,9 @@ public class ItemAssignmentService {
                     itemAssignmentDAO.searchItemAssignmentsByName(
                         value, pageNumber, pageSizeNumber, activeOnly))
             .orElseGet(
-                () -> itemAssignmentDAO.getAllItemAssignments(pageNumber, pageSizeNumber, activeOnly));
+                () ->
+                    itemAssignmentDAO.getAllItemAssignments(
+                        pageNumber, pageSizeNumber, activeOnly));
     return values.stream().map(itemAssignmentRestMapper::toRest).toList();
   }
 
@@ -323,10 +328,7 @@ public class ItemAssignmentService {
     String archiveReason = isBlank(reason) ? DEFAULT_ARCHIVE_REASON : reason.trim();
     int updated =
         itemAssignmentDAO.archiveInactiveItemAssignment(
-            itemAssignmentId,
-            Timestamp.from(Instant.now()),
-            currentUserId(),
-            archiveReason);
+            itemAssignmentId, Timestamp.from(Instant.now()), currentUserId(), archiveReason);
     if (updated == 0) {
       throw new ConflictException(
           "Affectation déjà voidée",
@@ -369,12 +371,13 @@ public class ItemAssignmentService {
       return Optional.empty();
     }
     int updated =
-        itemAssignmentDAO.markReturned(
-            active.get().getId(), returnedAt, returnedBy, null);
+        itemAssignmentDAO.markReturned(active.get().getId(), returnedAt, returnedBy, null);
     if (updated == 0) {
       throw new ConflictException(
           "Affectation déjà clôturée",
-          "L'affectation active de l'article " + itemId + " a été clôturée par une autre opération.",
+          "L'affectation active de l'article "
+              + itemId
+              + " a été clôturée par une autre opération.",
           "ASSIGNMENT_ALREADY_RETURNED");
     }
     return itemAssignmentDAO.getItemAssignmentById(active.get().getId());

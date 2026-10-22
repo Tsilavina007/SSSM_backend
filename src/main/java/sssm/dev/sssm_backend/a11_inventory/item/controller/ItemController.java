@@ -87,13 +87,12 @@ public class ItemController {
   }
 
   /**
-   * Les erreurs sont gérées LOCALEMENT (et non par le GlobalExceptionHandler)
-   * car le GlobalExceptionHandler ne peut écrire son corps JSON que si le
-   * client l'accepte : avec un Accept: image/png strict, il échoue avec une
-   * HttpMediaTypeNotAcceptableException et le corps d'erreur est perdu (cf.
-   * "No acceptable representation"). Ici, l'enveloppe ItemError est sérialisée
-   * en byte[] avec un Content-Type application/json explicite : la
-   * négociation est court-circuitée et l'erreur arrive toujours.
+   * Les erreurs sont gérées LOCALEMENT (et non par le GlobalExceptionHandler) car le
+   * GlobalExceptionHandler ne peut écrire son corps JSON que si le client l'accepte : avec un
+   * Accept: image/png strict, il échoue avec une HttpMediaTypeNotAcceptableException et le corps
+   * d'erreur est perdu (cf. "No acceptable representation"). Ici, l'enveloppe ItemError est
+   * sérialisée en byte[] avec un Content-Type application/json explicite : la négociation est
+   * court-circuitée et l'erreur arrive toujours.
    */
   @GetMapping(value = "/{itemId}/qr-code/image", produces = MediaType.IMAGE_PNG_VALUE)
   public ResponseEntity<byte[]> getQrCodeImage(@PathVariable String itemId) {
@@ -139,9 +138,8 @@ public class ItemController {
   }
 
   /**
-   * Construit une réponse d'erreur application/json en byte[] avec un
-   * Content-Type explicite pour garantir la livraison de l'enveloppe ItemError
-   * même avec un Accept: image/png strict.
+   * Construit une réponse d'erreur application/json en byte[] avec un Content-Type explicite pour
+   * garantir la livraison de l'enveloppe ItemError même avec un Accept: image/png strict.
    */
   private ResponseEntity<byte[]> errorResponse(HttpStatus status, ItemError error) {
     try {

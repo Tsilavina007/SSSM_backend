@@ -15,9 +15,7 @@ public class OperationRestMapper {
 
   public OperationRest toRest(OperationResponse rs) {
     List<OperationLineRest> lines =
-        rs.getLines() == null
-            ? List.of()
-            : rs.getLines().stream().map(this::lineToRest).toList();
+        rs.getLines() == null ? List.of() : rs.getLines().stream().map(this::lineToRest).toList();
     return (new OperationRest(
         rs.getId(),
         rs.getCompany_id(),

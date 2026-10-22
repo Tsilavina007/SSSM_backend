@@ -74,8 +74,7 @@ public class AssignmentController {
 
   @PostMapping("/assignments/{id}/return")
   public ResponseEntity<ItemAssignmentRest> ret(
-      @PathVariable String id,
-      @RequestBody(required = false) ItemAssignmentUpdateRequest request) {
+      @PathVariable String id, @RequestBody(required = false) ItemAssignmentUpdateRequest request) {
     return deprecated(HttpStatus.OK, itemAssignmentService.returnItemAssignment(id, request));
   }
 
@@ -113,8 +112,7 @@ public class AssignmentController {
 
   @GetMapping("/items/{id}/assignments")
   public ResponseEntity<List<ItemAssignmentRest>> item(@PathVariable String id) {
-    return deprecated(
-        HttpStatus.OK, itemAssignmentService.getItemAssignmentsByItem(id, 1, 500));
+    return deprecated(HttpStatus.OK, itemAssignmentService.getItemAssignmentsByItem(id, 1, 500));
   }
 
   private <T> ResponseEntity<T> deprecated(HttpStatus status, T body) {

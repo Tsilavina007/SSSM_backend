@@ -17,11 +17,7 @@ public interface OperationDAO {
   Object save(String id, Map<String, Object> body, boolean update);
 
   String addLine(
-      String operationId,
-      String itemId,
-      String movementId,
-      BigDecimal quantity,
-      String notes);
+      String operationId, String itemId, String movementId, BigDecimal quantity, String notes);
 
   Map<String, Object> delete(String id);
 

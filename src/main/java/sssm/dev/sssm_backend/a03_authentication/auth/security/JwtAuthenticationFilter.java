@@ -18,10 +18,11 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.ObjectMapper;
+
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a03_authentication.auth.repository.RevokedAccessTokenDAO;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
-import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {

@@ -123,8 +123,7 @@ public class ItemDAOImpl implements ItemDAO {
   @Override
   public List<ItemResponse> getItemsFiltered(
       String search, String warehouseId, String status, int page, int pageSize) {
-    StringBuilder sql =
-        new StringBuilder("SELECT * FROM security.item WHERE archived_at IS NULL");
+    StringBuilder sql = new StringBuilder("SELECT * FROM security.item WHERE archived_at IS NULL");
     List<Object> parameters = new ArrayList<>();
 
     if (search != null && !search.isBlank()) {

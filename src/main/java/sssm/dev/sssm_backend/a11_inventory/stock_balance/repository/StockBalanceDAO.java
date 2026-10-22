@@ -7,11 +7,7 @@ import sssm.dev.sssm_backend.a11_inventory.stock_balance.dto.StockBalanceRespons
 
 /** Accès transactionnel au solde de stock calculé. */
 public interface StockBalanceDAO {
-  BigDecimal adjust(
-      String companyId,
-      String warehouseId,
-      String itemTypeId,
-      BigDecimal delta);
+  BigDecimal adjust(String companyId, String warehouseId, String itemTypeId, BigDecimal delta);
 
   BigDecimal quantity(String companyId, String warehouseId, String itemTypeId);
 

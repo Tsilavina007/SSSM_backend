@@ -26,8 +26,7 @@ public class ItemAssignmentController {
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search,
       @RequestParam Optional<Boolean> active) {
-    return itemAssignmentService.getItemAssignments(
-        search, page, pageSize, active.orElse(false));
+    return itemAssignmentService.getItemAssignments(search, page, pageSize, active.orElse(false));
   }
 
   @GetMapping("/{itemAssignmentId}")
@@ -85,8 +84,7 @@ public class ItemAssignmentController {
   @DeleteMapping("/{itemAssignmentId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteItemAssignment(
-      @PathVariable String itemAssignmentId,
-      @RequestParam(required = false) String reason) {
+      @PathVariable String itemAssignmentId, @RequestParam(required = false) String reason) {
     itemAssignmentService.deleteItemAssignment(itemAssignmentId, reason);
   }
 }

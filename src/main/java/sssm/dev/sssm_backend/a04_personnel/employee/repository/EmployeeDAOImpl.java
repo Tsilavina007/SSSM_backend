@@ -91,8 +91,7 @@ public class EmployeeDAOImpl implements EmployeeDAO {
   public Employee create(Employee employee) {
     // Les colonnes facultatives ne sont écrites que si elles sont fournies. En particulier,
     // l'absence de status doit laisser PostgreSQL appliquer DEFAULT 'ACTIVE'.
-    StringBuilder columns =
-        new StringBuilder("company_id, employee_number, first_name, last_name");
+    StringBuilder columns = new StringBuilder("company_id, employee_number, first_name, last_name");
     StringBuilder placeholders = new StringBuilder("?, ?, ?, ?");
     List<Object> parameters = new ArrayList<>();
 
@@ -200,9 +199,7 @@ public class EmployeeDAOImpl implements EmployeeDAO {
           String generatedId = rs.getString("id");
           return findById(generatedId)
               .orElseThrow(
-                  () ->
-                      new ServerException(
-                          "L'employé créé n'a pas pu être relu depuis la base."));
+                  () -> new ServerException("L'employé créé n'a pas pu être relu depuis la base."));
         }
       }
     } catch (SQLException e) {

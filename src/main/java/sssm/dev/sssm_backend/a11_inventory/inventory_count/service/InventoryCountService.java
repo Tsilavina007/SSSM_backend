@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
-import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountResponse;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountScanResponse;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.mapper.InventoryCountRestMapper;

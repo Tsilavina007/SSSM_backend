@@ -23,8 +23,8 @@ public class OperationDAOImpl implements OperationDAO {
     return m;
   }
 
-  private OperationResponse mapRowToOperation(
-      ResultSet r, List<OperationLineResponse> lines) throws SQLException {
+  private OperationResponse mapRowToOperation(ResultSet r, List<OperationLineResponse> lines)
+      throws SQLException {
     return new OperationResponse(
         r.getString("id"),
         r.getString("company_id"),
@@ -125,11 +125,7 @@ public class OperationDAOImpl implements OperationDAO {
 
   @Override
   public String addLine(
-      String operationId,
-      String itemId,
-      String movementId,
-      BigDecimal quantity,
-      String notes) {
+      String operationId, String itemId, String movementId, BigDecimal quantity, String notes) {
     String sql =
         "INSERT INTO security.inventory_operation_item "
             + "(operation_id, item_id, movement_id, quantity, notes) "

@@ -31,7 +31,9 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   public List<ItemAssignmentResponse> getAllItemAssignments(
       int page, int pageSize, boolean activeOnly) {
     return list(
-        "SELECT " + SELECT_COLUMNS + " FROM security.item_assignment WHERE voided_at IS NULL"
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM security.item_assignment WHERE voided_at IS NULL"
             + (activeOnly ? " AND returned_at IS NULL" : "")
             + " ORDER BY assigned_at DESC, id LIMIT ? OFFSET ?",
         page,
@@ -59,7 +61,8 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   public List<ItemAssignmentResponse> getItemAssignmentsByItem(
       String itemId, int page, int pageSize) {
     return list(
-        "SELECT " + SELECT_COLUMNS
+        "SELECT "
+            + SELECT_COLUMNS
             + " FROM security.item_assignment WHERE item_id = ? AND voided_at IS NULL"
             + " ORDER BY assigned_at DESC, id LIMIT ? OFFSET ?",
         page,
@@ -71,7 +74,8 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   public List<ItemAssignmentResponse> getItemAssignmentsByEmployee(
       String employeeId, int page, int pageSize) {
     return list(
-        "SELECT " + SELECT_COLUMNS
+        "SELECT "
+            + SELECT_COLUMNS
             + " FROM security.item_assignment WHERE employee_id = ? AND voided_at IS NULL"
             + " ORDER BY assigned_at DESC, id LIMIT ? OFFSET ?",
         page,
@@ -83,7 +87,8 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   public List<ItemAssignmentResponse> getItemAssignmentsByPost(
       String postId, int page, int pageSize) {
     return list(
-        "SELECT " + SELECT_COLUMNS
+        "SELECT "
+            + SELECT_COLUMNS
             + " FROM security.item_assignment WHERE post_id = ? AND voided_at IS NULL"
             + " ORDER BY assigned_at DESC, id LIMIT ? OFFSET ?",
         page,
@@ -101,7 +106,8 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   @Override
   public Optional<ItemAssignmentResponse> getActiveItemAssignmentByItem(String itemId) {
     return one(
-        "SELECT " + SELECT_COLUMNS
+        "SELECT "
+            + SELECT_COLUMNS
             + " FROM security.item_assignment WHERE item_id = ?"
             + " AND returned_at IS NULL AND voided_at IS NULL"
             + " ORDER BY assigned_at DESC LIMIT 1",
@@ -185,17 +191,13 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     }
     return getItemAssignmentById(generatedId)
         .orElseThrow(
-            () ->
-                new ServerException(
-                    "L'affectation créée n'a pas pu être relue depuis la base."));
+            () -> new ServerException("L'affectation créée n'a pas pu être relue depuis la base."));
   }
 
   @Override
   public ItemAssignmentResponse updateItemAssignmentMetadata(
       String id, ItemAssignmentUpdateRequest value) {
-    StringBuilder sql =
-        new StringBuilder(
-            "UPDATE security.item_assignment SET updated_at = now()");
+    StringBuilder sql = new StringBuilder("UPDATE security.item_assignment SET updated_at = now()");
     List<Object> parameters = new ArrayList<>();
 
     if (value.getCondition_on_return() != null) {
@@ -362,8 +364,7 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     return Optional.empty();
   }
 
-  private ItemAssignmentResponse mapRowToItemAssignmentResponse(ResultSet rs)
-      throws SQLException {
+  private ItemAssignmentResponse mapRowToItemAssignmentResponse(ResultSet rs) throws SQLException {
     return new ItemAssignmentResponse(
         rs.getString("id"),
         rs.getString("company_id"),

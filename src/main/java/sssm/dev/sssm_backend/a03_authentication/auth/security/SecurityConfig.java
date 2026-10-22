@@ -18,8 +18,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import tools.jackson.databind.ObjectMapper;
+
+import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 
 @Configuration
 @EnableMethodSecurity
