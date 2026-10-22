@@ -53,7 +53,11 @@ class StockMovementTimestampTests {
 
     try (Connection conn = DatabaseConnection.getConnection()) {
       warehouseId = firstId(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 1");
-      itemId = firstId(conn, "SELECT id FROM security.item ORDER BY id LIMIT 1");
+      // Le test OUT exige un article disponible ; l'ordre des UUID ne garantit pas ce statut.
+      itemId =
+          firstId(
+              conn,
+              "SELECT id FROM security.item WHERE status = 'AVAILABLE' ORDER BY id LIMIT 1");
       if (itemId != null) {
         try (PreparedStatement stmt =
             conn.prepareStatement(
