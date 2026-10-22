@@ -30,7 +30,7 @@ INSERT INTO app_user (
     :'company_id',
     'demo.admin',
     'demo.admin@sssm.test',
-    '$2a$10$demo-password-hash',
+    '$2a$10$zVwFsZv71PBWjSk.LTrA3.JWwnyX0Hx4CsstmaSaYq1.b7qunwoGq',
     'Demo',
     'Admin',
     '+261 34 00 000 51',
@@ -92,17 +92,17 @@ WHERE code IN ('dashboard.view', 'clients.manage', 'contracts.manage',
 -- ------------------------------------------------------------
 
 INSERT INTO app_user (company_id, username, email, password_hash, first_name, last_name, phone, status) VALUES
-    (:'company_id', 'lalao.superviseur', 'lalao.randriamanana@sssm.test', '$2a$10$demo-password-hash',
+    (:'company_id', 'lalao.superviseur', 'lalao.randriamanana@sssm.test', '$2a$10$zVwFsZv71PBWjSk.LTrA3.JWwnyX0Hx4CsstmaSaYq1.b7qunwoGq',
      'Lalao', 'Randriamanana', '+261 34 00 000 52', 'ACTIVE'),
-    (:'company_id', 'voahangy.compta',    'voahangy.rakotomalala@sssm.test', '$2a$10$demo-password-hash',
+    (:'company_id', 'voahangy.compta',    'voahangy.rakotomalala@sssm.test', '$2a$10$zVwFsZv71PBWjSk.LTrA3.JWwnyX0Hx4CsstmaSaYq1.b7qunwoGq',
      'Voahangy', 'Rakotomalala', '+261 34 00 000 53', 'ACTIVE'),
-    (:'company_id', 'tahina.agent',       'tahina.razafindrabe@sssm.test', '$2a$10$demo-password-hash',
+    (:'company_id', 'tahina.agent',       'tahina.razafindrabe@sssm.test', '$2a$10$zVwFsZv71PBWjSk.LTrA3.JWwnyX0Hx4CsstmaSaYq1.b7qunwoGq',
      'Tahina', 'Razafindrabe', '+261 34 00 000 54', 'ACTIVE'),
-    (:'company_id', 'tsiky.agent',        'tsiky.ravelomanana@sssm.test', '$2a$10$demo-password-hash',
+    (:'company_id', 'tsiky.agent',        'tsiky.ravelomanana@sssm.test', '$2a$10$zVwFsZv71PBWjSk.LTrA3.JWwnyX0Hx4CsstmaSaYq1.b7qunwoGq',
      'Tsiky', 'Ravelomanana', '+261 34 00 000 55', 'ACTIVE'),
-    (:'company_id', 'soan.agent',         'soan.rajaonarivelo@sssm.test', '$2a$10$demo-password-hash',
+    (:'company_id', 'soan.agent',         'soan.rajaonarivelo@sssm.test', '$2a$10$zVwFsZv71PBWjSk.LTrA3.JWwnyX0Hx4CsstmaSaYq1.b7qunwoGq',
      'Soan', 'Rajaonarivelo', '+261 34 00 000 56', 'ACTIVE'),
-    (:'company_id', 'soa.locked',         'soa.andriamalala@sssm.test', '$2a$10$demo-password-hash',
+    (:'company_id', 'soa.locked',         'soa.andriamalala@sssm.test', '$2a$10$zVwFsZv71PBWjSk.LTrA3.JWwnyX0Hx4CsstmaSaYq1.b7qunwoGq',
      'Soa', 'Andriamalala', '+261 34 00 000 57', 'LOCKED');
 
 SELECT

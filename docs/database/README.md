@@ -159,6 +159,31 @@ cd sssm_backend
 psql -d sssm_db -f docs/database/schema/20_lot4_assignments.sql -U your_user
 ```
 
+## Migration Lot 5
+
+`21_lot5_qr.sql` est une migration **additive** appliquée après
+`20_lot4_assignments.sql` :
+
+- type énuméré `security.qr_scan_result` (`RESOLVED`, `NOT_FOUND`), créé
+  dans un bloc `DO` gardé (rejouable) ;
+- table `security.qr_scan` : journal des résolutions de QR code
+  (`company_id`, `item_id`, `qr_code`, `scanned_by`, `scanned_at`,
+  `device_id`, `result`) ;
+- clés étrangères vers `company` (RESTRICT), `item` (SET NULL) et
+  `app_user` (SET NULL) ;
+- index sur `(company_id, scanned_at DESC)`, sur `item_id` (partiel) et sur
+  `qr_code`.
+
+La table est vide à la migration : le journal ne commence qu'avec les
+premiers scans. Les données existantes (articles, mouvements, affectations)
+sont inchangées. Le script ne contient ni `DROP`, ni `DELETE`, ni
+`TRUNCATE`, ni ajout de `NOT NULL` sur une colonne historique.
+
+```bash
+cd sssm_backend
+psql -d sssm_db -f docs/database/schema/21_lot5_qr.sql -U your_user
+```
+
 ## Exécution complète
 
 Les scripts SQL sont exécutés depuis la racine du projet `sssm_backend` :
@@ -171,9 +196,10 @@ psql -d sssm_db -f docs/database/sssm_schema2_v01.sql -U your_user
 Les fichiers sont exécutés dans l'ordre numérique afin de respecter les
 dépendances entre les types enum, les tables, les index, les triggers et
 les données initiales. Le fichier principal inclut les migrations
-`18_lot1_security.sql`, `19_lot3_stock.sql` et `20_lot4_assignments.sql` ;
-une installation neuve dispose donc directement de `stock_balance` et des
-colonnes de cycle de vie des affectations.
+`18_lot1_security.sql`, `19_lot3_stock.sql`, `20_lot4_assignments.sql` et
+`21_lot5_qr.sql` ; une installation neuve dispose donc directement de
+`stock_balance`, des colonnes de cycle de vie des affectations et du journal
+des scans.
 
 ## Exécution d'une section
 
@@ -224,6 +250,33 @@ la démo via `sssm_mock_data.sql` garantit que les références existent.
 
 Le script doit être exécuté après `sssm_schema2_v01.sql` et est destiné à
 une base de démonstration vide.
+
+### Comptes de démonstration
+
+Les comptes créés par `mock_data/03_authentication.sql` partagent le mot de
+passe `Demo@2024` (hash bcrypt stocké dans `app_user.password_hash`, encodé
+avec le même `BCryptPasswordEncoder` que l'application) :
+
+| Login                | Rôle                                    | Permission de test                                  |
+|----------------------|-----------------------------------------|-----------------------------------------------------|
+| `demo.admin`         | `ADMIN` (plateforme) + `Administrateur entreprise` | Compte administrateur : accès à toutes les API |
+| `lalao.superviseur`  | `Superviseur`                           | Terrain, planning, incidents, rapports               |
+| `soan.agent`         | `Superviseur`                           | Idem                                                |
+| `tahina.agent`       | `Agent de sécurité`                     | Suivi GPS + déclaration d'incident                  |
+| `tsiky.agent`        | `Agent de sécurité`                     | Idem                                                |
+| `voahangy.compta`    | `Comptable`                             | Clients, contrats, facturation, paiements           |
+| `soa.locked`         | `Agent de sécurité` (compte `LOCKED`)   | Le login doit être refusé (contrôle de statut)      |
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"login":"demo.admin","password":"Demo@2024"}'
+```
+
+La réponse contient `token` (JWT Bearer), `refreshToken`, `tokenType` et
+`user` (identifiant, rôles et `companyId`). Le jeton s'utilise ensuite en
+en-tête `Authorization: Bearer <token>` (endpoint `GET /api/auth/whoami`
+pour vérifier la session).
 
 Pour repartir d'une base de démonstration propre :
 
