@@ -10,13 +10,13 @@
 
 **Mise à jour du 22 octobre 2026 (Lot 3) :** stock disponible calculé dans `security.stock_balance` et exposé par `GET /api/inventory/stock-balances` ; journal append-only avec quantité, source/destination, opération et acteur ; opérations multi-lignes atomiques ; comptages avec écart serveur et clôture réconciliée. **P0-05, P1-03, P1-06 et P1-07 sont corrigés** dans le périmètre documenté. La migration additive `19_lot3_stock.sql` a été appliquée et rejouée sans écraser les soldes. Suite complète : **140 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. `P0-01`, `P0-06` et `P1-14` restaient ouverts à cette date ; les affectations pouvaient encore désynchroniser le solde et les ajustements de comptage ne sont pas journalisés.
 
-**Mise à jour du 22 octobre 2026 (Lot 4) :** cycle de vie des affectations unifié derrière le contrat canonique `/api/item-assignments` ; `/api/inventory/assignments` devient une façade dépréciée déléguant au même service, avec les mêmes DTO et les mêmes codes HTTP, plus aucun JSON libre ni soft-200. `OUT` exige `employee_id`/`post_id` et crée une affectation ; `RETURN` la clôt ; `IN`, `TRANSFER` et `DESTRUCTION` refusent un article affecté. Le retour (`POST /{id}/return`) pose date et acteur côté serveur, restaure l'entrepôt et l'article, et synchronise le solde. Articles, catégories, types et entrepôts sont archivés logiquement et restaurables ; les affectations sont archivées par un void motivé et audité, et une affectation active ne peut pas être supprimée. **P0-06, P1-05 et P1-11 sont corrigés** dans le périmètre documenté. La migration additive `20_lot4_assignments.sql` a été appliquée, rejouée et vérifiée idempotente. Suite complète : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. `P0-01` et `P1-14` restent ouverts ; une affectation active antérieure de la base de démonstration pointe encore vers un article `AVAILABLE` et n'a pas été corrigée automatiquement.
+**Mise à jour du 22 octobre 2026 (Lot 4) :** cycle de vie des affectations unifié derrière le contrat canonique `/api/item-assignments` ; `/api/inventory/assignments` devient une façade dépréciée déléguant au même service, avec les mêmes DTO et les mêmes codes HTTP, plus aucun JSON libre ni soft-200. `OUT` exige `employee_id`/`post_id` et crée une affectation ; `RETURN` la clôt ; `IN`, `TRANSFER` et `DESTRUCTION` refusent un article affecté. Le retour (`POST /{id}/return`) pose date et acteur côté serveur, restaure l'entrepôt et l'article, et synchronise le solde. Articles, catégories, types et entrepôts sont archivés logiquement et restaurables ; les affectations sont archivées par un void motivé et audité, et une affectation active ne peut pas être supprimée. **P0-06, P1-05 et P1-11 sont corrigés** dans le périmètre documenté. La migration additive `20_lot4_assignments.sql` a été appliquée, rejouée et vérifiée idempotente. Suite complète à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** (suite depuis réduite, voir § 6). `P0-01` et `P1-14` restent ouverts ; une affectation active antérieure de la base de démonstration pointe encore vers un article `AVAILABLE` et n'a pas été corrigée automatiquement.
 
 ---
 
 ## 1. Décision
 
-Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète compte **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites**. Les 29 tests ciblés d'authentification et de RBAC passent, ainsi que les tests de pool, de transaction, de mapping SQL, les huit tests dédiés au stock et les 22 tests dédiés au cycle de vie des affectations.
+Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète comptait **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; elle a depuis été réduite à 20 tests de conformité schéma (voir § 6). Les comportements métier décrits dans ce rapport restent vérifiés par lecture de code, mais ne sont plus couverts par un test automatisé.
 
 En revanche, quatre garanties fondamentales restent incomplètes :
 
@@ -45,7 +45,7 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Comptages d'inventaire | **CORRIGÉ — LOT 3** | Élevé | Quantité attendue figée, écart calculé serveur, clôture réconciliée avec `last_inventory_at`. Ajustements non journalisés. |
 | Contrat API | **PARTIEL** | Élevé | Erreurs SQL corrigées (400/409/422/503) ; le contrat d'affectation est unifié et sans erreur douce ; restent les erreurs douces des autres modules et une pagination non bornée. |
 | Performance | **PARTIEL** | Élevé | Pool HikariCP désormais utilisé par les DAO ; chaîne N+1 sur chaque article et pagination non bornée restent ouvertes. |
-| Tests | **PARTIEL** | Élevé | Suite complète exécutée : 150 tests, 0 échec, 28 suites. Couverture RBAC, pool, rollback transactionnel, mapping SQL, soldes, opérations atomiques, comptages et cycle de vie des affectations ; pas de scénario à deux entreprises ni de concurrence. |
+| Tests | **PARTIEL — RÉDUIT** | Élevé | La suite fonctionnelle a été supprimée le 22 octobre 2026 : il ne reste que 20 tests de conformité schéma/application et 2 tests techniques. Les comportements métier ne sont plus prouvés automatiquement. |
 | Documentation OpenAPI | **PARTIEL** | Moyen | 26 fichiers cohérents avec les routes ; lint Redocly rejoué au Lot 4 : **179 avertissements, 0 erreur** (contre 183 à l'audit initial). Restent les exemples, les `license` et les réponses d'erreur incomplètes. |
 
 ---
@@ -131,7 +131,7 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 - Authentification JWT, BCrypt, `whoami`, refresh rotatif, logout et révocation.
 - Inscription fermée aux administrateurs, scope entreprise sur les utilisateurs et rôles, RBAC sur l'inventaire et l'administration.
 - Enveloppe d'erreur homogène `{"errors": {...}}` pour les exceptions.
-- 150 tests exécutés après le Lot 4 : 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites.
+- 20 tests exécutés après la réduction de la suite : 20 succès, 0 échec, 0 erreur, 0 ignoré, 4 suites de conformité schéma/application.
 
 Ces acquis sont réels, mais ils ne compensent pas les garanties encore incomplètes : tenancy d'inventaire, RBAC métier hors inventaire et concurrence.
 
@@ -159,7 +159,7 @@ Ces acquis sont réels, mais ils ne compensent pas les garanties encore incompl�
 | Fichiers OpenAPI | 26 |
 | Fichiers OpenAPI inventaire | 12 |
 | Scripts SQL | 21 (dont `18_lot1_security.sql`, `19_lot3_stock.sql` et `20_lot4_assignments.sql`) |
-| Tests | 150 après le Lot 4 (28 suites) |
+| Tests | 20 après la réduction de la suite (4 suites de conformité schéma) |
 | Échecs de tests | 0 |
 | Pool de connexions | HikariCP via le `DataSource` Spring |
 | Entreprises en base de démonstration | 1 |

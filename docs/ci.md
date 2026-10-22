@@ -19,6 +19,21 @@ vérifie chaque push et chaque pull request ciblant `dev` ou `main`. Il peut aus
   `JWT_SECRET` fournis par l'environnement du job.
 - Publication des rapports Surefire en artefact, même en cas d'échec.
 
+La suite exécutée est volontairement réduite : **4 classes, 20 tests**. Elle
+ne vérifie aucun comportement métier, mais la conformité entre le schéma SQL
+appliqué et ce que l'application attend.
+
+| Classe | Tests | Objet |
+|---|---:|---|
+| `DatabaseSchemaConformanceTests` | 13 | Tables lues par les DAO, colonnes exposées par l'API, énumérations Java ↔ PostgreSQL, types des colonnes du cycle de vie des affectations, colonnes d'archivage, tables du stock, clés étrangères, index unique partiel, application des règles de void, clés primaires, tables de la base ↔ scripts SQL |
+| `SchemaScriptsConformanceTests` | 5 | Inclusion de tous les scripts par le runner principal, absence d'opération destructive, ordre et unicité des scripts, tables ciblées par les données de démonstration, contenu de la migration Lot 4 |
+| `SssmBackendApplicationTests` | 1 | Démarrage du contexte Spring |
+| `PingControllerTest` | 1 | Endpoint technique `/ping` |
+
+Ces tests n'utilisent pas Spring : ils ouvrent une connexion JDBC avec la
+même configuration que l'application (`DB_URL`, `DB_USER`, `DB_PASSWORD`),
+ce qui les rend rapides et indépendants du contexte applicatif.
+
 ### `lint` — Contrôles statiques Java et OpenAPI
 
 - Contrôles Java existants via `bash scripts/check-before-push.sh --skip-tests`

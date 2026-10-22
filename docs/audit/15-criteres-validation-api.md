@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** la suite complète a été exécutée après le Lot 4 : **150 tests, 150 succès, 0 échec, 28 suites**. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés. Les statuts ci-dessous intègrent les corrections des Lots 2 à 4 vérifiées par les tests ; le détail historique reste disponible dans les rapports 11 et 16.
+**Important :** la suite complète exécutée après le Lot 4 comptait **150 tests dans 28 suites**. Elle a été réduite le 22 octobre 2026 à **20 tests dans 4 suites**, qui ne contrôlent que la conformité du schéma SQL à l'application. Un `PASS` signifie donc désormais « cohérent avec le code, tel que vérifié statiquement ou par la suite de conformité » ; les critères qui reposaient sur un test fonctionnel supprimé doivent être lus comme **vérifiés statiquement**. Les critères de tenancy A/B et de concurrence restent non vérifiés. Le détail historique reste disponible dans les rapports 11 et 16.
 
 ### 1.2. Règle de décision
 

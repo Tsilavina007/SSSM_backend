@@ -371,6 +371,8 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 
 **Référence :** rapport 11.
 
+**Statut au 22 octobre 2026 (réduction de la suite) : AGGRAVÉ.** La suite fonctionnelle a été supprimée : il ne reste que **4 classes et 20 tests** qui contrôlent la conformité du schéma SQL à l'application (`DatabaseSchemaConformanceTests`, `SchemaScriptsConformanceTests`, `SssmBackendApplicationTests`, `PingControllerTest`). Aucun test ne couvre désormais un comportement métier : ni le stock, ni les affectations, ni la sécurité, ni les transactions, ni l'archivage. La suite reste verte, mais elle ne prouve plus rien sur le domaine. La probabilité du risque passe de 5 à 5 et l'impact de 4 à 5 : **score 25, niveau Critique**. Le critère de résolution (base isolée, fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction) reste entièrement à faire.
+
 ---
 
 ### P1-14 — Absence de concurrence et d'idempotence
@@ -413,7 +415,7 @@ Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 �
 
 ## 5. Matrice de risque
 
-La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. Après le Lot 4 : **P0-06, P1-05 et P1-11 sont corrigés dans le périmètre documenté**, et **P2-01 est corrigé** pour les articles, catégories, types, entrepôts et affectations. `P0-01`, `P1-04`, `P1-08`, `P1-12` (partiel), `P1-13`, la concurrence (`P1-14`) et les autres P2 restent ouverts.
+La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. Après le Lot 4 : **P0-06, P1-05 et P1-11 sont corrigés dans le périmètre documenté**, et **P2-01 est corrigé** pour les articles, catégories, types, entrepôts et affectations. `P0-01`, `P1-04`, `P1-08`, `P1-12` (partiel), `P1-13` (aggravé par la réduction de la suite : 20 tests de conformité seulement, score porté à 25), la concurrence (`P1-14`) et les autres P2 restent ouverts.
 
 | ID | Risque | Probabilité | Impact | Score | Niveau |
 |---|---|---:|---:|---:|---|
@@ -435,7 +437,7 @@ La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **
 | P1-10 | Dates nulles après création | 5 | 3 | 15 | Élevé |
 | P1-11 | Suppressions destructrices | 4 | 4 | 16 | Élevé |
 | P1-12 | Historique faux/tronqué | 5 | 3 | 15 | Élevé |
-| P1-13 | Suite de tests non probante | 5 | 4 | 20 | Élevé |
+| P1-13 | Suite de tests non probante | 5 | 5 | 25 | Critique |
 | P1-14 | Concurrence/ idempotence | 4 | 3 | 12 | Moyen |
 | P2-01 | Archivage inerte | 4 | 3 | 12 | Moyen |
 | P2-02 | Pagination/filtres insuffisants | 5 | 3 | 15 | Moyen |

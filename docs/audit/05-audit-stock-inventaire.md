@@ -309,7 +309,7 @@ Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, le
 | Lignes `inventory_operation_item` | non alimentées par l'API |
 | Configuration `warehouse_stock_config` | non utilisée par l'API |
 
-### 10.2. Tests existants
+### 10.2. Tests existants (état avant la réduction de la suite, 22 octobre 2026)
 
 - `StockMovementBusinessRulesTests` : 9 tests sur les effets d'état et le raccordement aux affectations.
 - `StockMovementTimestampTests` : 4 tests sur les dates.
@@ -319,7 +319,7 @@ Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, le
 - `OperationApiTests` : 4 tests sur les en-têtes et les erreurs.
 - `Lot3StockModelTests` : 8 tests sur les soldes, l'API, l'acteur, le stock négatif, l'immuabilité, le rollback multi-lignes, le comptage/écart/clôture et les erreurs 404.
 - `AssignmentApiTests` : 14 tests sur le cycle de vie des affectations et la synchronisation du solde.
-- Suite complète après le Lot 4 : 150 tests, 0 échec, 28 suites.
+- Suite complète après le Lot 4 : 150 tests, 0 échec, 28 suites (suite depuis réduite, voir le rapport 11).
 
 ### 10.3. Ce que les tests ne couvrent pas encore
 

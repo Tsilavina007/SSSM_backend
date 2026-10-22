@@ -1,6 +1,10 @@
 ﻿# 11 — Audit des tests et de la fiabilité
 
-**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 22 octobre 2026 après le Lot 4 : **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites**.
+**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction.
+
+**Mise à jour du 22 octobre 2026 (suite de tests réduite) :** la suite automatisée a été ramenée à **4 classes et 20 tests** (`PingControllerTest`, `SssmBackendApplicationTests`, `DatabaseSchemaConformanceTests`, `SchemaScriptsConformanceTests`). Ces tests vérifient uniquement que le schéma SQL appliqué est conforme à ce que l'application attend (tables, colonnes, types, clés étrangères, index, énumérations, scripts de migration). Les classes de tests fonctionnels citées dans les sections suivantes ont été supprimées le 22 octobre 2026 (commit `453c82f`) : les constats qu'elles étayaient restent **vérifiés par lecture de code**, mais ne sont plus couverts par un test automatisé. Les critères `PASS` correspondants du rapport 15 se lisent désormais « vérifié statiquement ».
+
+La suite exécutée le 22 octobre 2026 après le Lot 4 comptait **150 tests dans 28 suites** ; cette suite a ensuite été remplacée par la suite de conformité (20 tests, 4 suites).
 
 ---
 
@@ -117,7 +121,29 @@ Le Lot 3 ajoute les tests de solde calculé, d'immuabilité du journal, de stock
 | Tests adaptés | `ItemApiTests` 16, `ItemCategoryApiTests` 6, `ItemTypeApiTests` 10, `WarehouseApiTests` 5, `OperationApiTests` 4, `StockMovementBusinessRulesTests` 9, `StockMovementTimestampTests` 4, `Lot3StockModelTests` 8 |
 | Migration | `20_lot4_assignments.sql` appliquée puis rejouée : aucun reset, aucune donnée supprimée |
 
-Le Lot 4 ajoute la couverture du cycle de vie des affectations (création, retour, void motivé, archivage, restauration), de la cohérence entre les deux préfixes, du rejet des articles affectés sur `IN`/`TRANSFER`/`DESTRUCTION`, de l'archivage et de la restauration des référentiels, et des 404 sur UUID inconnu. La synchronisation des affectations avec `stock_balance` est désormais prouvée par les tests. Restent non prouvés : la tenancy A/B, la concurrence réelle et l'idempotence.
+Le Lot 4 avait ajouté la couverture du cycle de vie des affectations (création, retour, void motivé, archivage, restauration), de la cohérence entre les deux préfixes, du rejet des articles affectés sur `IN`/`TRANSFER`/`DESTRUCTION`, de l'archivage et de la restauration des référentiels, et des 404 sur UUID inconnu. Cette couverture a été retirée avec la suite ; les comportements décrits restent vérifiés par lecture de code et par la suite de conformité, qui contrôle les colonnes, contraintes et index qui les portent. Restent non prouvés : la tenancy A/B, la concurrence réelle et l'idempotence.
+
+### 1.6. État après la réduction de la suite (22 octobre 2026)
+
+| Indicateur | Valeur |
+|---|---|
+| Suites de tests | 4 |
+| Tests exécutés | 20 |
+| Succès | 20 |
+| Échecs | 0 |
+| Erreurs | 0 |
+| Ignorés | 0 |
+| Commande | `.\mvnw.cmd -B -q test` |
+| Durée | quelques secondes : aucun contexte Spring dans les tests de conformité |
+
+| Classe | Tests | Objet |
+|---|---|---|
+| `DatabaseSchemaConformanceTests` | 13 | Tables lues par les DAO, colonnes exposées par l'API, types énumérés Java ↔ PostgreSQL, types des colonnes du cycle de vie, colonnes d'archivage, tables du stock, clés étrangères, index unique partiel, application des règles de void, tables applicatives, clés primaires, tables de la base ↔ scripts |
+| `SchemaScriptsConformanceTests` | 5 | Inclusion de tous les scripts par le runner, absence d'opération destructive, ordre et unicité des scripts, tables ciblées par les données de démonstration, contenu de la migration Lot 4 |
+| `SssmBackendApplicationTests` | 1 | Démarrage du contexte Spring |
+| `PingControllerTest` | 1 | Endpoint technique `/ping` |
+
+La suite de conformité s'exécute sur la base de démonstration et n'y écrit que ce qu'elle annule (transaction annulée après chaque tentative d'insertion invalide).
 
 ---
 
@@ -171,7 +197,9 @@ Conséquences :
 
 ---
 
-## 4. Couverture par domaine
+## 4. Couverture par domaine (état avant la réduction de la suite, 22 octobre 2026)
+
+Le tableau ci-dessous décrit la suite exécutée jusqu'au 22 octobre 2026. Les classes correspondantes ont été supprimées : la couverture décrite n'est plus outillée.
 
 | Domaine | Classes | Ce qui est couvert | Ce qui ne l'est pas |
 |---|---|---|---|
@@ -418,7 +446,9 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 
 ## 11. Verdict
 
-Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a renforcé la couverture de l'identité, du RBAC et de la révocation ; le Lot 2 ajoute le pool, le rollback transactionnel, les défauts de création et le mapping SQL ; le Lot 3 ajoute les soldes calculés, l'immuabilité du journal, le rollback des opérations multi-lignes et la réconciliation des comptages ; le Lot 4 ajoute le cycle de vie des affectations, l'archivage et la restauration des référentiels. La suite complète exécutée donne **150 tests, 150 succès, 0 échec, 28 suites**.
+La suite qui précédait la réduction était **nombreuse pour un prototype** et **utile pour les parcours nominaux** : elle couvrait l'identité et le RBAC (Lot 1), le pool, le rollback transactionnel et le mapping SQL (Lot 2), les soldes calculés, le journal immuable et les comptages (Lot 3), le cycle de vie des affectations et l'archivage (Lot 4). Elle totalisait **150 tests dans 28 suites**.
+
+**La suite actuelle (20 tests, 4 suites) ne teste plus aucun comportement métier.** Elle contrôle la conformité du schéma à l'application. C'est un filet de sécurité sur les migrations, pas une preuve de bon fonctionnement : le rapport 15 doit être relu en conséquence, et `P1-13` reste ouvert avec un niveau de gravité plus élevé qu'avant.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 

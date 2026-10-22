@@ -36,7 +36,7 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | QR Code | génération, image PNG, résolution, scan |
 | Affectations | un contrat canonique (`item_assignment`) et une façade dépréciée (`assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 28 suites / 150 tests après le Lot 4 ; suite complète exécutée : 150 succès, 0 échec |
+| Tests | 4 suites / 20 tests après la réduction du 22 octobre 2026 : conformité schéma ↔ application |
 | OpenAPI | 26 fichiers YAML, dont 12 pour l'inventaire |
 
 ## 3. Périmètre exclu
@@ -61,7 +61,7 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
 | Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations Lots 1, 3 et 4 appliquées ensuite, tests des Lots 2 à 4 avec nettoyage des marqueurs |
-| Rapports de tests | Exécution complète du 22 octobre 2026 après le Lot 4 : 150 tests, 150 succès, 0 échec, 28 suites. Tests ciblés authentification/RBAC : 29 succès. |
+| Rapports de tests | Exécution du 22 octobre 2026 après réduction de la suite : 20 tests, 20 succès, 0 échec, 4 suites. La suite fonctionnelle de 150 tests a été supprimée. |
 | Documentation API | `docs/api/**/*.yaml` — 26 fichiers |
 | Scripts SQL | `docs/database/schema/00_init.sql` à `20_lot4_assignments.sql` — 21 fichiers |
 
@@ -133,7 +133,7 @@ Les priorités utilisées dans le registre sont :
 
 ## 8. Limites de l'audit
 
-- **La suite complète a été exécutée après le Lot 4** : 150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites. L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre ; l'anomalie fonctionnelle de l'historique reste ouverte (`P1-12`) et n'est plus couverte par un test négatif. Les résultats historiques (105 tests, puis 120 tests après le Lot 1, 132 après le Lot 2, 140 après le Lot 3) proviennent d'exécutions antérieures et ne décrivent plus l'état courant.
+- **La suite complète a été exécutée après le Lot 4** : 150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites ; elle a depuis été réduite le 22 octobre 2026 à **20 tests de conformité schéma** (4 suites). L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre ; l'anomalie fonctionnelle de l'historique reste ouverte (`P1-12`). Les résultats historiques (105 tests, puis 120 après le Lot 1, 132 après le Lot 2, 140 après le Lot 3) proviennent d'exécutions antérieures et ne décrivent plus l'état courant.
 - **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise. Le Lot 1 applique l'hypothèse mono-entreprise et ajoute le scope entreprise sur les utilisateurs et rôles, mais les DAO d'inventaire ne filtrent pas encore par `company_id`.
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
@@ -210,6 +210,6 @@ Le **Lot 4**, exécuté le 22 octobre 2026, a modifié :
 - les spécifications OpenAPI `item_assignment`, `assignment`, `stock_movement`, `item`, `item_category`, `item_type` et `warehouse` ;
 - les rapports `docs/audit/` concernés.
 
-La suite complète est verte : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. La migration a été appliquée puis rejouée, sans suppression de ligne ni de colonne. Aucune dépendance n'a été ajoutée. `P0-06`, `P1-05` et `P1-11` sont corrigés dans le périmètre documenté ; `P0-01` (tenancy) et `P1-14` (concurrence et idempotence) restent ouverts, ainsi qu'une affectation active antérieure de la base de démonstration incohérente avec le statut de son article, laissée en l'état.
+La suite complète était verte à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** (suite depuis réduite à 20 tests de conformité schéma). La migration a été appliquée puis rejouée, sans suppression de ligne ni de colonne. Aucune dépendance n'a été ajoutée. `P0-06`, `P1-05` et `P1-11` sont corrigés dans le périmètre documenté ; `P0-01` (tenancy) et `P1-14` (concurrence et idempotence) restent ouverts, ainsi qu'une affectation active antérieure de la base de démonstration incohérente avec le statut de son article, laissée en l'état.
 
 Le Lot 5 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.

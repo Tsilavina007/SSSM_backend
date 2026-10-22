@@ -4,7 +4,7 @@
 
 **Mise à jour du 22 octobre 2026 (Lot 2) :** la création d'employé sans `status` applique désormais `DEFAULT 'ACTIVE'`, les FK/`CHECK` renvoient 422 et les doublons 409, sans SQLSTATE.
 
-**Mise à jour du 22 octobre 2026 (Lot 4) :** les affectations dispose d'un **contrat canonique unique** (`/api/item-assignments`), d'une **machine à états** (création active, retour, void motivé, archivage, restauration), d'une **synchronisation avec le stock** et d'un **rattachement aux mouvements** `OUT`/`RETURN`. `/api/inventory/assignments` est devenu une **façade dépréciée** qui délègue au même service. La migration additive `20_lot4_assignments.sql` ajoute `source_warehouse_id`, `voided_at`, `voided_by` et `void_reason`. Suite complète : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**.
+**Mise à jour du 22 octobre 2026 (Lot 4) :** les affectations dispose d'un **contrat canonique unique** (`/api/item-assignments`), d'une **machine à états** (création active, retour, void motivé, archivage, restauration), d'une **synchronisation avec le stock** et d'un **rattachement aux mouvements** `OUT`/`RETURN`. `/api/inventory/assignments` est devenu une **façade dépréciée** qui délègue au même service. La migration additive `20_lot4_assignments.sql` ajoute `source_warehouse_id`, `voided_at`, `voided_by` et `void_reason`. Suite complète à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** (suite depuis réduite à 20 tests de conformité schéma, voir le rapport 11).
 
 Le § 9 conserve, à titre de trace, les constats de l'audit initial et leur statut courant. Les sections 1 à 8 décrivent **l'état du code après le Lot 4**.
 
@@ -212,7 +212,9 @@ Aucun contrôle que l'employé occupe le poste, ni que le poste est actif. **Ouv
 
 ---
 
-## 8. Tests
+## 8. Tests (état avant la réduction de la suite, 22 octobre 2026)
+
+Les classes ci-dessous ont été supprimées le 22 octobre 2026. Elles documentent la couverture qui existait au Lot 4 ; la suite de conformité contrôle aujourd'hui les colonnes, contraintes et index qui portent les comportements décrits ci-dessus.
 
 | Classe | Tests | Couverture |
 |---|---|---|

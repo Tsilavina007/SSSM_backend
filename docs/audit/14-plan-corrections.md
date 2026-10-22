@@ -389,7 +389,7 @@ Aucun `DROP`, `DELETE`, `TRUNCATE` ni `NOT NULL` sur une colonne historique. Les
 
 - `AssignmentApiTests` : 14 tests ; `ItemAssignmentStateTests` : 5 ; `ItemAssignmentTimestampTests` : 3 ;
 - tests liés : `ItemApiTests` 16, `ItemCategoryApiTests` 6, `ItemTypeApiTests` 10, `WarehouseApiTests` 5, `OperationApiTests` 4, `StockMovementBusinessRulesTests` 9, `StockMovementTimestampTests` 4, `Lot3StockModelTests` 8 ;
-- suite complète : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** ;
+- suite complète à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; cette suite a été supprimée le 22 octobre 2026 ;
 - migration rejouée sur la base de démonstration : colonnes, contraintes et index présents, aucune donnée supprimée.
 
 **Limites résiduelles :** tenancy (`P0-01`), concurrence/idempotence (`P1-14`), cohérence entreprise/article/employé/poste, refus des références vers des référentiels archivés, purge physique définitive (D-04) et réconciliation de la donnée de démonstration incohérente. Le retrait effectif de la façade `/api/inventory/assignments` reste une décision de versionnement (D-07).
