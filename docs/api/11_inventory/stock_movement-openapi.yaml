@@ -10,7 +10,11 @@ info:
     (enveloppe ItemError). Pagination : page=1, pageSize=10 par défaut. La
     validation Jakarta (`@Valid`) s'applique aux corps de création et de mise à
     jour. Le type de mouvement est facultatif à la création : le DAO applique IN
-    lorsqu'il est absent.
+    lorsqu'il est absent. Le journal est append-only : `PATCH` et `DELETE`
+    renvoient 409 `IMMUTABLE_RESOURCE`. Un `OUT` exige `employee_id` et `post_id`,
+    crée une affectation active et retire l'article du stock disponible. Un
+    `RETURN` clôt l'affectation active et restaure l'article. `IN`, `TRANSFER` et
+    `DESTRUCTION` refusent un article ayant une affectation active.
 servers:
   - url: http://localhost:8080
 security:
@@ -84,17 +88,20 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     patch:
       tags: [ Stock Movements ]
-      summary: Mettre à jour partiellement un mouvement
+      summary: Modifier un mouvement (interdit)
+      description: >-
+        Le journal est append-only. Tout `PATCH` sur un mouvement existant
+        renvoie 409 `IMMUTABLE_RESOURCE` ; un identifiant inconnu renvoie 404.
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/StockMovementUpdate' } }
       responses:
-        '200':
-          description: Mouvement mis à jour
+        '409':
+          description: Journal immuable — enveloppe ItemError.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/StockMovement' }
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -105,13 +112,18 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     delete:
       tags: [ Stock Movements ]
-      summary: Supprimer un mouvement
+      summary: Supprimer un mouvement (interdit)
       description: >-
-        Suppression idempotente : un identifiant inexistant ne produit pas
-        d'erreur et renvoie également 204.
+        Le journal est append-only. Tout `DELETE` sur un mouvement existant
+        renvoie 409 `IMMUTABLE_RESOURCE` ; un identifiant inconnu renvoie 404.
       responses:
-        '204':
-          description: Opération effectuée (sans corps).
+        '409':
+          description: Journal immuable — enveloppe ItemError.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
         "400":
@@ -205,24 +217,44 @@ components:
         reference: { type: string, nullable: true }
         movement_date: { type: string, format: date-time, nullable: true }
         notes: { type: string, nullable: true }
+        source_warehouse_id: { type: string, format: uuid, nullable: true }
+        destination_warehouse_id: { type: string, format: uuid, nullable: true }
+        operation_id: { type: string, format: uuid, nullable: true }
+        quantity: { type: number, format: decimal, nullable: true }
+        performed_by: { type: string, format: uuid, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
     StockMovementCreate:
       type: object
       description: >-
         Corps de création validé par Jakarta : warehouse_id et item_id sont
         obligatoires (400 sinon). movement_type (défaut applicatif IN) et
-        movement_date (défaut base now()) sont facultatifs.
+        movement_date (défaut base now()) sont facultatifs. Pour `OUT`,
+        `employee_id` et `post_id` sont obligatoires (400 `CLIENT_ERROR` sinon)
+        et une affectation active est créée atomiquement. Pour `RETURN`,
+        l'affectation active est clôturée. Les mouvements `IN`, `TRANSFER` et
+        `DESTRUCTION` sont refusés (409 `ITEM_ASSIGNED`) si l'article a une
+        affectation active. Un `RETURN` sans affectation active sur un article
+        qui n'est plus `ASSIGNED` renvoie 409 `ITEM_NOT_ASSIGNED`.
       required: [ warehouse_id, item_id ]
       properties:
         warehouse_id: { type: string, format: uuid }
         item_id: { type: string, format: uuid }
         employee_id: { type: string, format: uuid, nullable: true }
+        post_id: { type: string, format: uuid, nullable: true }
         movement_type: { $ref: '#/components/schemas/MovementType' }
+        quantity: { type: number, format: decimal, minimum: 0.01, nullable: true }
+        source_warehouse_id: { type: string, format: uuid, nullable: true }
+        destination_warehouse_id: { type: string, format: uuid, nullable: true }
+        operation_id: { type: string, format: uuid, nullable: true }
+        performed_by: { type: string, format: uuid, nullable: true }
         reference: { type: string, nullable: true }
         movement_date: { type: string, format: date-time, nullable: true }
         notes: { type: string, nullable: true }
     StockMovementUpdate:
       type: object
-      description: Tous les champs sont facultatifs (mise à jour partielle).
+      description: >-
+        Corps accepté pour compatibilité mais toute modification existante
+        renvoie 409 `IMMUTABLE_RESOURCE`.
       properties:
         warehouse_id: { type: string, format: uuid }
         item_id: { type: string, format: uuid }

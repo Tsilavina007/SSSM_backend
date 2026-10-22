@@ -61,6 +61,7 @@ public class ItemTypeRestMapper {
         rs.getMinimum_stock(),
         rs.getStatus(),
         rs.getCreated_at(),
-        rs.getUpdated_at());
+        rs.getUpdated_at(),
+        rs.getArchived_at());
   }
 }

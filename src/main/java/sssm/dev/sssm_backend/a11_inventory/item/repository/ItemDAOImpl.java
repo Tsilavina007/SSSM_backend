@@ -24,7 +24,8 @@ public class ItemDAOImpl implements ItemDAO {
 
   @Override
   public List<ItemResponse> getAllItems(int page, int pageSize) {
-    String sql = "SELECT * FROM security.item ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item WHERE archived_at IS NULL ORDER BY id LIMIT ? OFFSET ?";
     List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -47,7 +48,7 @@ public class ItemDAOImpl implements ItemDAO {
   @Override
   public List<ItemResponse> searchItemsByName(String value, int page, int pageSize) {
     String sql =
-        "SELECT * FROM security.item WHERE qr_code ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+        "SELECT * FROM security.item WHERE archived_at IS NULL AND (qr_code ILIKE ? OR description ILIKE ?) ORDER BY id LIMIT ? OFFSET ?";
     List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -73,7 +74,7 @@ public class ItemDAOImpl implements ItemDAO {
   @Override
   public List<ItemResponse> getItemsByWarehouse(String warehouseId, int page, int pageSize) {
     String sql =
-        "SELECT * FROM security.item WHERE current_warehouse_id = ? ORDER BY id LIMIT ? OFFSET ?";
+        "SELECT * FROM security.item WHERE archived_at IS NULL AND current_warehouse_id = ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
     UUID uuid = UUID.fromString(warehouseId);
@@ -98,7 +99,7 @@ public class ItemDAOImpl implements ItemDAO {
   @Override
   public List<ItemResponse> getItemsByStatus(String status, int page, int pageSize) {
     String sql =
-        "SELECT * FROM security.item WHERE status = CAST(? AS security.item_status) ORDER BY id LIMIT ? OFFSET ?";
+        "SELECT * FROM security.item WHERE archived_at IS NULL AND status = CAST(? AS security.item_status) ORDER BY id LIMIT ? OFFSET ?";
     List<ItemResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -122,7 +123,8 @@ public class ItemDAOImpl implements ItemDAO {
   @Override
   public List<ItemResponse> getItemsFiltered(
       String search, String warehouseId, String status, int page, int pageSize) {
-    StringBuilder sql = new StringBuilder("SELECT * FROM security.item WHERE 1 = 1");
+    StringBuilder sql =
+        new StringBuilder("SELECT * FROM security.item WHERE archived_at IS NULL");
     List<Object> parameters = new ArrayList<>();
 
     if (search != null && !search.isBlank()) {
@@ -319,6 +321,37 @@ public class ItemDAOImpl implements ItemDAO {
         PreparedStatement stmt = conn.prepareStatement(sql)) {
       stmt.setTimestamp(1, value);
       stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public void archiveItem(String id, String archivedBy) {
+    String sql =
+        "UPDATE security.item SET archived_at = now(), archived_by = ?, updated_at = now() "
+            + "WHERE id = ? AND archived_at IS NULL";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, archivedBy == null ? null : UUID.fromString(archivedBy));
+      stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public void restoreItem(String id) {
+    String sql =
+        "UPDATE security.item SET archived_at = NULL, archived_by = NULL, updated_at = now() "
+            + "WHERE id = ?";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(id));
       stmt.executeUpdate();
     } catch (SQLException e) {
       throw new ServerException(e);

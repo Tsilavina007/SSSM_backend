@@ -46,6 +46,11 @@ public class WarehouseController {
     return warehouseService.updateWarehouse(warehouseId, updatedWarehouse);
   }
 
+  @PostMapping("/{warehouseId}/restore")
+  public WarehouseRest restoreWarehouse(@PathVariable String warehouseId) {
+    return warehouseService.restoreWarehouse(warehouseId);
+  }
+
   @DeleteMapping("/{warehouseId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteWarehouse(@PathVariable String warehouseId) {

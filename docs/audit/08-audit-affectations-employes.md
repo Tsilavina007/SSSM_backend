@@ -2,341 +2,288 @@
 
 **Objectif :** vérifier la cohérence des affectations de matériel aux employés, la restitution, les acteurs et la suppression, ainsi que les liens avec les employés et les postes. Le stock et les mouvements sont traités dans les rapports 05 et 07.
 
-**Mise à jour du 22 octobre 2026 (Lot 2) :** la création d'employé sans `status` applique désormais `DEFAULT 'ACTIVE'`, les FK/`CHECK` renvoient 422 et les doublons 409, sans SQLSTATE. Les mentions de « 500 » dans ce rapport décrivent l'état initial ; les incohérences métier d'affectation et de retour restent ouvertes.
+**Mise à jour du 22 octobre 2026 (Lot 2) :** la création d'employé sans `status` applique désormais `DEFAULT 'ACTIVE'`, les FK/`CHECK` renvoient 422 et les doublons 409, sans SQLSTATE.
+
+**Mise à jour du 22 octobre 2026 (Lot 4) :** les affectations dispose d'un **contrat canonique unique** (`/api/item-assignments`), d'une **machine à états** (création active, retour, void motivé, archivage, restauration), d'une **synchronisation avec le stock** et d'un **rattachement aux mouvements** `OUT`/`RETURN`. `/api/inventory/assignments` est devenu une **façade dépréciée** qui délègue au même service. La migration additive `20_lot4_assignments.sql` ajoute `source_warehouse_id`, `voided_at`, `voided_by` et `void_reason`. Suite complète : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**.
+
+Le § 9 conserve, à titre de trace, les constats de l'audit initial et leur statut courant. Les sections 1 à 8 décrivent **l'état du code après le Lot 4**.
 
 ---
 
-## 1. Deux modules pour une même table
+## 1. Une seule implémentation, deux préfixes
 
-Le backend expose **deux API distinctes** qui manipulent la même table `security.item_assignment` :
+| API | Base | Contrôleur | Service | DAO | Statut |
+|---|---|---|---|---|---|
+| Affectations (canonique) | `/api/item-assignments` | `ItemAssignmentController` | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | Contrat de référence |
+| Affectations (façade) | `/api/inventory/assignments` | `AssignmentController` | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | Dépréciée |
 
-| API | Base | Contrôleur | Service | DAO |
-|---|---|---|---|---|
-| Affectations typées | `/api/item-assignments` | `ItemAssignmentController` | `ItemAssignmentService` | `ItemAssignmentDAOImpl` |
-| Affectations génériques | `/api/inventory/assignments` | `AssignmentController` | `AssignmentService` | `AssignmentDAOImpl` |
+La façade ne réimplémente rien : elle délègue aux mêmes méthodes du même service, avec les mêmes DTO, les mêmes validations et les mêmes codes HTTP. Ses réponses de succès portent `Deprecation: true` et `Link: </api/item-assignments>; rel="successor-version"`. Le JSON libre et les réponses 200 portant une enveloppe `errors` ont été supprimés.
 
-Cette duplication est une dette d'architecture majeure. Les deux API n'ont ni les mêmes champs, ni les mêmes validations, ni les mêmes codes HTTP, ni les mêmes effets.
+Le code historique du module `assignment` (`AssignmentService`, `AssignmentDAO`/`AssignmentDAOImpl`, `AssignmentRest` et les DTO associés) **subsiste dans l'arborescence mais n'est plus référencé** par aucun composant vivant. Il est candidat à la suppression à la clôture de la fenêtre de dépréciation (décision D-07) ; il ne modifie plus le comportement.
 
----
+### 1.1. Routes canoniques
 
-## 2. Comparaison des contrats
-
-| Sujet | API typée | API générique |
+| Méthode | Route | Effet |
 |---|---|---|
-| Création | DTO `ItemAssignmentCreateRequest` | JSON libre |
-| Validation | `@NotBlank` sur `item_id`, `employee_id`, `post_id` | aucune |
-| Vérification de disponibilité | oui (`AVAILABLE`) | non |
-| Création avec `returned_at` | possible, mais l'article est quand même `ASSIGNED` | possible, même effet |
-| Champs d'audit | absents du DTO | `assigned_by`, `returned_by` acceptés |
-| `expected_return_at` | absent | accepté |
-| Retour | `PATCH` avec `returned_at` | `POST /{id}/return` ou `PATCH` |
-| Retour sans `returned_at` | aucun effet | aucun effet, 200 |
-| Suppression | `DELETE` exposé | service présent, **route absente** |
-| Erreur « inconnu » | 404 | 200 avec `errors` |
-| Création | 201 | 200 |
-| Liste | toutes les affectations | actives uniquement |
+| `GET` | `/api/item-assignments` | Liste paginée (`page`, `pageSize`, `search`, `active`) |
+| `GET` | `/api/item-assignments/{id}` | Lecture, y compris d'une ligne voidée |
+| `GET` | `/api/item-assignments/item/{itemId}` | Affectations d'un article (hors voidées) |
+| `GET` | `/api/item-assignments/employee/{employeeId}` | Affectations d'un employé (hors voidées) |
+| `GET` | `/api/item-assignments/post/{postId}` | Affectations d'un poste (hors voidées) |
+| `POST` | `/api/item-assignments` | Création (201) |
+| `PATCH` | `/api/item-assignments/{id}` | Métadonnées uniquement |
+| `POST` | `/api/item-assignments/{id}/return` | Retour |
+| `POST` | `/api/item-assignments/{id}/void?reason=…` | Annulation auditée |
+| `POST` | `/api/item-assignments/{id}/restore` | Restauration d'un void |
+| `DELETE` | `/api/item-assignments/{id}?reason=…` | Archivage d'une affectation inactive (204) |
 
-Un frontend doit choisir un module. Aucun des deux n'est complet, et ils ne sont pas interchangeables.
+La façade expose les mêmes opérations sous `/api/inventory/assignments`, plus les listes par article, employé et poste aux emplacements historiques `/api/inventory/items/{id}/assignments`, `/api/inventory/employees/{id}/assignments` et `/api/inventory/security-posts/{id}/assignments`.
+
+---
+
+## 2. Contrat courant
+
+| Sujet | Comportement après le Lot 4 |
+|---|---|
+| Création | DTO typé `ItemAssignmentCreateRequest`, `@NotBlank` sur `item_id`, `employee_id`, `post_id` |
+| Code de création | `201` sur les deux préfixes |
+| Erreur « inconnu » | `404 NOT_FOUND` sur les deux préfixes (plus de 200 + `errors`) |
+| Erreur « article non disponible » | `409 ITEM_NOT_AVAILABLE` |
+| Doublon d'affectation active | `409 ASSIGNMENT_ALREADY_ACTIVE` (index unique) |
+| Création avec `returned_at` | Ligne **historique** : `assigned_at` obligatoire, état de l'article inchangé |
+| Retour | `POST /{id}/return` ; date et acteur posés par le serveur |
+| Retour déjà effectué | `409 ASSIGNMENT_ALREADY_RETURNED` |
+| `PATCH` avec `returned_at` | Délègue au retour (compatibilité) |
+| `PATCH` avec `condition_on_return` seul | `400 RETURN_ENDPOINT_REQUIRED` |
+| `PATCH` des liens | `400 IMMUTABLE_ASSIGNMENT_FIELDS` (`item_id`, `employee_id`, `post_id`, `assigned_at`, `condition_on_assignment`) |
+| `PATCH` de `notes` seul | Aucun changement d'état |
+| Suppression d'une affectation active | `409 ACTIVE_ASSIGNMENT` |
+| Suppression d'une affectation déjà voidée | `409 ASSIGNMENT_ALREADY_VOIDED` |
+| Suppression d'un UUID inconnu | `404 NOT_FOUND` |
+| Void sans motif | `400 CLIENT_ERROR` |
+| Void déjà effectué | `409 ASSIGNMENT_ALREADY_VOIDED` |
+| Restauration d'une ligne non voidée | `409 ASSIGNMENT_NOT_VOIDED` |
+| Listes | Les lignes voidées sont exclues ; `active=true` exclut aussi les retours |
 
 ---
 
 ## 3. Modèle de données
 
-`item_assignment` contient :
+`security.item_assignment` compte **19 colonnes** après la migration `20_lot4_assignments.sql` :
 
-- `id` ;
-- `item_id` ;
-- `employee_id` ;
-- `post_id` ;
-- `assigned_at` ;
-- `returned_at` ;
-- `condition_on_assignment` ;
-- `condition_on_return` ;
-- `notes` ;
-- `created_at`, `updated_at` ;
-- `assigned_by`, `returned_by` ;
-- `expected_return_at`.
+`id`, `item_id`, `employee_id`, `post_id`, `assigned_at`, `returned_at`, `condition_on_assignment`, `condition_on_return`, `notes`, `created_at`, `updated_at`, `assigned_by`, `returned_by`, `expected_return_at`, `company_id`, `source_warehouse_id`, `voided_at`, `voided_by`, `void_reason`.
 
-Contraintes :
+### 3.1. Contraintes
 
 - FK `item_id` → `item(id)` RESTRICT ;
 - FK `employee_id` → `employee(id)` RESTRICT ;
 - FK `post_id` → `security_post(id)` RESTRICT ;
+- FK `source_warehouse_id` → `warehouse(id)` RESTRICT (ajoutée au Lot 4) ;
 - `returned_at IS NULL OR returned_at >= assigned_at` ;
-- index partiel unique `uq_item_assignment_active(item_id) WHERE returned_at IS NULL`.
+- `voided_at IS NULL OR returned_at IS NOT NULL` (ajoutée au Lot 4) ;
+- `voided_at IS NULL OR void_reason IS NOT NULL` (ajoutée au Lot 4) ;
+- index partiel unique `uq_item_assignment_active(item_id) WHERE returned_at IS NULL` ;
+- index `idx_item_assignment_source_warehouse`, `idx_item_assignment_voided_at` (partiel) et `idx_item_assignment_company_active` (partiel) ajoutés au Lot 4.
 
-### 3.1. Ce que l'index garantit
+### 3.2. Ce que le schéma garantit
 
-Un article ne peut avoir qu'une affectation active à la fois, au sens de `returned_at IS NULL`.
+Un article ne peut avoir qu'une **affectation active** (`returned_at IS NULL` et `voided_at IS NULL`) à la fois. Une ligne voidée est nécessairement close et motivée, ce qui empêche de conserver une affectation active « annulée ».
 
-### 3.2. Ce que l'index ne garantit pas
+### 3.3. Ce que le schéma ne garantit toujours pas
 
 - que l'article est `ASSIGNED` ;
 - que l'employé est actif ;
 - que l'article, l'employé et le poste appartiennent à la même entreprise ;
 - que le poste correspond à l'employé ;
-- que `assigned_by` ou `returned_by` sont renseignés ;
-- que `returned_at` est cohérent avec le statut de l'article.
+- que `assigned_by` / `returned_by` / `voided_by` sont renseignés ;
+- que `returned_at` est cohérent avec le statut de l'article pour les lignes antérieures au Lot 4.
 
-La table n'a pas de `company_id`. La cohérence de tenant ne peut être vérifiée qu'en joignant `item`, `employee` et `security_post`.
-
----
-
-## 4. Création typée
-
-### 4.1. Flux
-
-`ItemAssignmentService.createItemAssignment` :
-
-1. charge l'article ;
-2. vérifie qu'il existe ;
-3. vérifie `status == AVAILABLE` ;
-4. insère l'affectation ;
-5. passe l'article à `ASSIGNED` ;
-6. vide `current_warehouse_id`.
-
-### 4.2. Ce qui est contrôlé
-
-- existence de l'article ;
-- statut `AVAILABLE`.
-
-### 4.3. Ce qui n'est pas contrôlé
-
-- existence de l'employé (la FK le fera, mais en 500) ;
-- statut actif de l'employé ;
-- appartenance de l'employé à la même entreprise ;
-- existence du poste (FK, 500) ;
-- appartenance du poste à la même entreprise ;
-- cohérence entre l'employé et le poste ;
-- date de retour dans le futur ;
-- date d'affectation antérieure à aujourd'hui.
-
-### 4.4. Création avec `returned_at`
-
-Le DTO accepte `returned_at` à la création. Le service ne le regarde pas : il passe **toujours** l'article à `ASSIGNED` après l'insertion.
-
-Une affectation historique (déjà retournée) peut donc laisser l'article `ASSIGNED`, sans affectation active. C'est une incohérence directe entre la ligne et l'état de l'article.
-
-### 4.5. Date d'affectation
-
-Si `assigned_at` est absent :
-
-- la base applique `now()` ;
-- la réponse de création renvoie `assigned_at: null`, car le DAO construit la réponse avec la valeur d'entrée.
-
-Le test `ItemAssignmentTimestampTests.createWithoutAssignedAtAppliesDatabaseDefault` encode ce comportement : il vérifie la date en base **et** attend `null` dans la réponse HTTP.
-
-### 4.6. Concurrence
-
-Le contrôle « article `AVAILABLE` » et l'insertion ne sont pas atomiques. Deux requêtes simultanées peuvent lire le même article `AVAILABLE` :
-
-- la première insère et passe l'article à `ASSIGNED` ;
-- la seconde a déjà lu `AVAILABLE` et tente d'insérer ;
-- l'index unique rejette la seconde avec `23505` ;
-- l'API renvoie **500**, pas 409.
-
-Le cas nominal séquentiel est couvert par `ItemAssignmentStateTests.secondActiveAssignmentIsRejected`, mais il est rejeté par le contrôle de statut (400), pas par l'index. La concurrence n'est pas testée.
+La cohérence de tenant reste vérifiable uniquement en joignant `item`, `employee` et `security_post` : c'est le reliquat de `P0-01`.
 
 ---
 
-## 5. Restitution typée
+## 4. Machine à états
 
-### 5.1. `PATCH` avec `returned_at`
+### 4.1. Création active
 
-Le service :
+`POST /api/item-assignments` sans `returned_at` :
 
-1. charge l'affectation existante ;
-2. met à jour la ligne ;
-3. si `returned_at` est non nul, passe l'article **existant** à `AVAILABLE`.
+1. charge l'article (`404` s'il n'existe pas) ;
+2. refuse un article archivé (`409 ITEM_ARCHIVED`) ;
+3. refuse un article non `AVAILABLE` (`409 ITEM_NOT_AVAILABLE`) ;
+4. refuse un article déjà affecté (`409 ASSIGNMENT_ALREADY_ACTIVE`) ;
+5. insère l'affectation avec `assigned_by` = UUID du JWT, `source_warehouse_id` = entrepôt courant de l'article ;
+6. passe l'article à `ASSIGNED` et vide `current_warehouse_id` ;
+7. synchronise `stock_balance` via `StockBalanceService.syncItem`.
 
-Il ne :
+L'ensemble est couvert par une seule transaction Spring : affectation, état de l'article et solde sont cohérents ou rien n'est écrit.
 
-- restaure pas `current_warehouse_id` ;
-- renseigne pas `returned_by` ;
-- vérifie pas que `returned_at >= assigned_at` (la base le fait, mais l'erreur devient 500) ;
-- vérifie pas que l'affectation était encore active ;
-- vérifie pas que l'article n'a pas changé.
+### 4.2. Retour
 
-### 5.2. Changement d'article
+`POST /{id}/return` :
 
-`ItemAssignmentUpdateRequest` accepte `item_id`. Si un `PATCH` change `item_id` **et** fournit `returned_at`, le service libère l'ancien article (`existing.getItem_id()`), pas le nouveau. Le nouvel article reste dans l'état où il était, et l'ancien devient `AVAILABLE` alors que l'affectation pointe désormais vers un autre article.
+1. charge l'affectation (`404`) et refuse une ligne voidée (`409 ASSIGNMENT_VOIDED`) ;
+2. refuse un retour déjà effectué (`409 ASSIGNMENT_ALREADY_RETURNED`) ;
+3. refuse un article dans un état incompatible (`409 ITEM_STATE_INCOMPATIBLE`) ;
+4. pose `returned_at` (borné à `assigned_at` si une date future avait été fournie) et `returned_by` (UUID du JWT) ;
+5. remet l'article `AVAILABLE` et restaure `source_warehouse_id`, ou l'entrepôt courant à défaut ;
+6. synchronise le solde.
 
-### 5.3. Absence de date de retour
+Le corps est facultatif ; seul `condition_on_return` est lu.
 
-Un `PATCH` avec seulement `condition_on_return` ne clôt rien : `returned_at` reste `NULL`, l'article reste `ASSIGNED`.
+### 4.3. Void
 
-C'est exactement le comportement du test générique `AssignmentApiTests.returnRecordsCondition`, qui ne vérifie ni la date de retour ni le statut de l'article.
+`POST /{id}/void?reason=…` exige un motif.
 
----
+- **Affectation active** : la ligne est close (`returned_at` renseigné), `voided_at`, `voided_by` et `void_reason` sont posés, l'article est remis `AVAILABLE`, l'entrepôt d'origine est restauré et le solde est synchronisé. Le void est donc un retour avec justification tracée.
+- **Affectation déjà retournée** : la ligne est seulement archivée ; l'état de l'article n'est pas modifié.
 
-## 6. Restitution générique
+### 4.4. Archivage et restauration
 
-`POST /api/inventory/assignments/{id}/return` appelle simplement `AssignmentService.save(id, body, true)`.
+- `DELETE /{id}` n'archive qu'une affectation **déjà retournée** ; une affectation active renvoie `409 ACTIVE_ASSIGNMENT`. Un motif est facultatif (libellé par défaut sinon).
+- `POST /{id}/restore` efface `voided_at`, `voided_by` et `void_reason`. Une affectation voidée alors qu'elle était active conserve son `returned_at` : après restauration, elle reste historique et ne redevient pas active.
 
-### 6.1. Avec `returned_at`
+### 4.5. Invariant d'état
 
-Si `returned_at` est fourni :
+| État de l'article | Affectation active attendue |
+|---|---|
+| `AVAILABLE` | 0 |
+| `ASSIGNED` | exactement 1 |
 
-- la ligne est mise à jour ;
-- `AssignmentService.save` voit `returned_at != null` ;
-- l'article est repassé `AVAILABLE`.
-
-Il ne restaure pas l'entrepôt, ne renseigne pas `returned_by` automatiquement et ne vérifie pas l'état précédent.
-
-### 6.2. Sans `returned_at`
-
-Si le corps ne contient que `condition_on_return` :
-
-- la ligne est mise à jour ;
-- l'article reste `ASSIGNED` ;
-- l'API renvoie **200** avec l'affectation modifiée.
-
-C'est un **no-op métier** présenté comme un succès. Le test `AssignmentApiTests.returnRecordsCondition` le consacre.
-
-### 6.3. Corps libre
-
-Le DAO accepte les clés JSON qui respectent `[A-Za-z_][A-Za-z0-9_]*`, sauf `id`. Il peut donc modifier :
-
-- `item_id`, `employee_id`, `post_id` ;
-- `assigned_at`, `returned_at` ;
-- `condition_on_assignment`, `condition_on_return` ;
-- `notes`, `assigned_by`, `returned_by`, `expected_return_at`.
-
-Aucune whitelist de colonnes métier n'est appliquée. Un client peut réécrire l'historique ou usurper un acteur.
+L'invariant est garanti **par le code** sur les écritures de l'API. Il ne l'est pas sur les données antérieures : une affectation active préexistante de la base de démonstration pointe vers un article `AVAILABLE` (voir § 9.3).
 
 ---
 
-## 7. Suppression
+## 5. Rattachement aux mouvements
 
-### 7.1. Typée
+`StockMovementService` s'appuie désormais sur `ItemAssignmentService` :
 
-`DELETE /api/item-assignments/{id}` :
+| Type de mouvement | Effet sur l'affectation |
+|---|---|
+| `OUT` | Exige `employee_id` **et** `post_id` (`400 CLIENT_ERROR` sinon) ; refuse un article non `AVAILABLE` (`400 CLIENT_ERROR`) ou déjà affecté (`409 ASSIGNMENT_ALREADY_ACTIVE`) ; crée l'affectation active de façon atomique ; l'article passe `ASSIGNED` et le stock est décrémenté |
+| `RETURN` | Clôt l'affectation active (`returned_at`, `returned_by`) ; l'article redevient `AVAILABLE` et le stock est réintégré ; refusé si l'article n'est ni affecté ni `ASSIGNED` (`409 ITEM_NOT_ASSIGNED`) |
+| `IN` | Refusé si l'article a une affectation active (`409 ITEM_ASSIGNED`) |
+| `TRANSFER` | Refusé si l'article a une affectation active (`409 ITEM_ASSIGNED`) |
+| `DESTRUCTION` | Refusé si l'article a une affectation active (`409 ITEM_ASSIGNED`) |
 
-- supprime physiquement la ligne ;
-- ne remet pas l'article `AVAILABLE` ;
-- ne vérifie pas si l'affectation est active ;
-- ne vérifie pas l'existence (204 sur inconnu).
-
-Un article affecté peut donc rester `ASSIGNED` sans aucune ligne d'affectation. L'index unique ne s'applique plus, mais l'état de l'article est faux.
-
-### 7.2. Générique
-
-`AssignmentService.delete` existe, mais aucune route `DELETE` n'est exposée. La suppression n'est pas accessible par l'API générique.
+Il n'existe donc plus deux sources de vérité pour `ASSIGNED` : la table `item_assignment` et le journal de mouvements décrivent le même état.
 
 ---
 
-## 8. Liens avec les employés et les postes
+## 6. Archivage des référentiels
 
-### 8.1. Employé inactif
+Le Lot 4 a généralisé l'archivage logique aux données maîtres :
 
-Aucun contrôle de `employee.status`. Un employé `INACTIVE`, `SUSPENDED` ou `LEFT` peut recevoir du matériel.
+| Référentiel | Archivage | Restauration | Particularité |
+|---|---|---|---|
+| Article | `archived_at`, `archived_by` | `POST /api/inventory/items/{id}/restore` | Refus si l'article a une affectation active (`409 ITEM_ASSIGNED`) ; le stock disponible est retiré puis réintégré |
+| Catégorie | `archived_at`, `archived_by` | `POST /api/inventory/item-categories/{id}/restore` | Exclue des listes |
+| Type | `archived_at`, `archived_by` | `POST /api/inventory/item-types/{id}/restore` | Exclu des listes |
+| Entrepôt | `archived_at`, `archived_by` | `POST /api/inventory/warehouses/{id}/restore` | Exclu des listes |
+| Affectation | `voided_at`, `voided_by`, `void_reason` | `POST /api/item-assignments/{id}/restore` | Motif obligatoire ; exclue des listes |
 
-### 8.2. Employé d'une autre entreprise
+Un UUID inconnu renvoie `404` ; une ressource déjà archivée renvoie `404` (elle n'est plus active) et sa restauration `409` (`ITEM_NOT_ARCHIVED`, `ITEM_CATEGORY_NOT_ARCHIVED`, `ITEM_TYPE_NOT_ARCHIVED`, `WAREHOUSE_NOT_ARCHIVED`).
 
-Aucun contrôle de `employee.company_id` par rapport à `item.company_id`.
-
-### 8.3. Poste d'une autre entreprise
-
-Aucun contrôle de `security_post` ni de son site. Un article peut être affecté à un poste d'une autre entreprise.
-
-### 8.4. Poste incompatible
-
-Aucun contrôle que l'employé occupe réellement le poste, ni que le poste est actif.
-
-### 8.5. Employés et création
-
-`EmployeeDAOImpl.create` insère explicitement `status` même lorsque la valeur est nulle. Le schéma a un `DEFAULT 'ACTIVE'`, mais le `NULL` explicite viole `NOT NULL` et produit **500 `23502`**. Ce n'est pas un problème d'affectation au sens strict, mais il empêche un formulaire minimal de créer un employé.
+**Limite :** la suppression physique définitive n'est pas offerte, et les références vers un référentiel archivé (un article typé par un type archivé, par exemple) ne sont pas systématiquement refusées.
 
 ---
 
-## 9. Conflit avec les mouvements
+## 7. Liens avec les employés et les postes
 
-Le mouvement `OUT` :
+### 7.1. Employé inactif
 
-- vérifie que l'article est `AVAILABLE` ;
-- passe l'article à `ASSIGNED` ;
-- vide l'entrepôt ;
-- **ne crée aucune affectation**.
+Aucun contrôle de `employee.status` : un employé `INACTIVE`, `SUSPENDED` ou `LEFT` peut encore recevoir du matériel. **Ouvert.**
 
-Le mouvement `RETURN` :
+### 7.2. Cohérence d'entreprise
 
-- passe l'article à `AVAILABLE` ;
-- **ne clôt aucune affectation**.
+Aucun contrôle croisé entre `item.company_id`, `employee.company_id` et l'entreprise du poste. La colonne `company_id` est renseignée sur l'affectation, mais elle est déduite de l'article et non vérifiée contre les autres référents. **Ouvert (`P0-01`).**
 
-Il existe donc deux sources de vérité pour le statut `ASSIGNED` :
+### 7.3. Poste incompatible
 
-1. `item_assignment` avec `returned_at IS NULL` ;
-2. un mouvement `OUT` sans affectation.
+Aucun contrôle que l'employé occupe le poste, ni que le poste est actif. **Ouvert.**
 
-Et deux sources pour `AVAILABLE` :
+### 7.4. Acteurs
 
-1. une affectation avec `returned_at` ;
-2. un mouvement `RETURN` ou `IN`.
+`assigned_by`, `returned_by` et `voided_by` sont déduits du JWT lorsqu'il porte un UUID ; un sujet JWT non UUID (identifiant technique) est converti en `NULL` au lieu de faire échouer l'écriture. Les lignes historiques restent sans acteur.
 
-Aucune contrainte ne garantit leur cohérence.
+### 7.5. Création d'employé
+
+`EmployeeDAOImpl.create` n'insère plus `status` lorsqu'il est absent : la base applique `DEFAULT 'ACTIVE'` (Lot 2). Un formulaire minimal ne produit plus de `500 23502`.
 
 ---
 
-## 10. Tests existants
+## 8. Tests
 
 | Classe | Tests | Couverture |
 |---|---|---|
-| `AssignmentApiTests` | 9 | liste active, création, patch notes, retour condition, soft errors, colonne manquante, listes par employé/poste |
-| `ItemAssignmentStateTests` | 4 | affectation → `ASSIGNED`, seconde affectation rejetée, retour → `AVAILABLE`, API générique synchronise l'état |
-| `ItemAssignmentTimestampTests` | 3 | date par défaut, date explicite, date invalide |
+| `AssignmentApiTests` | 14 | Contrat canonique et façade, création, retour, void, restauration, archivage, listes excluant les voidées, acteur, entrepôt d'origine, codes 404/409 |
+| `ItemAssignmentStateTests` | 5 | Machine à états : `AVAILABLE` → `ASSIGNED` → `AVAILABLE`, seconde affectation refusée, void actif, suppression active refusée |
+| `ItemAssignmentTimestampTests` | 3 | Dates par défaut, dates explicites, dates invalides, bornage de `returned_at` |
+| `StockMovementBusinessRulesTests` | 9 | `OUT` avec/sans `employee_id`/`post_id`, `RETURN`, refus `IN`/`TRANSFER`/`DESTRUCTION` sur article affecté |
+| `ItemApiTests` | 16 | Archivage et restauration d'un article, 404 sur UUID inconnu, historique par article |
+| `ItemCategoryApiTests`, `ItemTypeApiTests`, `WarehouseApiTests` | 21 | Archivage, restauration, exclusion des listes, 404 sur UUID inconnu |
+| `OperationApiTests` | 4 | Propagation de l'employé et du poste vers les mouvements |
+| `Lot3StockModelTests` | 8 | Non-régression du solde et du journal |
 
-### 10.1. Ce que les tests figent
+### 8.1. Ce que les tests ne couvrent pas encore
 
-- `GET` inconnu → 200 avec `errors`.
-- `{}` → 200 avec `errors`.
-- création sans ids → 500 `23502`.
-- retour avec seulement `condition_on_return` → 200, sans clôture.
-- `assigned_at` null dans la réponse de création.
-
-Ces tests documentent des comportements douteux comme des attendus.
-
-### 10.2. Ce qui n'est pas couvert
-
-- suppression typée et statut de l'article ;
-- création avec `returned_at` ;
-- employé inactif ;
-- cross-company ;
-- changement d'`item_id` ;
-- concurrence ;
-- `assigned_by` / `returned_by` ;
-- restauration de l'entrepôt ;
-- cohérence avec `OUT`/`RETURN`.
+- la course réelle sur `uq_item_assignment_active` (le `23505` est traduit en 409, mais aucun test de concurrence) ;
+- le refus d'un employé inactif ;
+- le cross-entreprise ;
+- l'immutabilité des liens en cross-article (le cas `item_id` changeant est couvert par le refus global) ;
+- la réconciliation de la donnée de démonstration incohérente.
 
 ---
 
-## 11. Verdict
+## 9. Constats initiaux et statut courant
 
-Les affectations sont **partiellement fonctionnelles** sur le parcours nominal :
+### 9.1. Tableau de correspondance
 
-- article `AVAILABLE` ;
-- création typée ;
-- article `ASSIGNED` ;
-- restitution avec `returned_at` ;
-- article `AVAILABLE`.
+| Constat de l'audit initial | Statut après le Lot 4 |
+|---|---|
+| Deux API divergentes sur la même table | **Corrigé** : un service, un contrat ; `/api/inventory/assignments` est une façade dépréciée |
+| Création générique en JSON libre | **Corrigé** : DTO typés et `@Valid` sur les deux préfixes |
+| Erreur « inconnu » en 200 + `errors` | **Corrigé** : `404` sur les deux préfixes |
+| Retour sans date = no-op présenté en succès | **Corrigé** : `400 RETURN_ENDPOINT_REQUIRED` ; le retour passe par `/return` |
+| `DELETE` supprimant la ligne et laissant l'article `ASSIGNED` | **Corrigé** : `409 ACTIVE_ASSIGNMENT`, archivage logique, article restauré |
+| Création avec `returned_at` laissant l'article `ASSIGNED` | **Corrigé** : ligne historique, état de l'article inchangé |
+| `assigned_by` / `returned_by` absents | **Corrigé** : acteurs alimentés depuis le JWT |
+| Retour ne restaurant pas l'entrepôt | **Corrigé** : `source_warehouse_id` et restauration |
+| `OUT` sans affectation, `RETURN` sans clôture | **Corrigé** : `OUT` crée, `RETURN` clôt |
+| Employé inactif accepté | **Ouvert** |
+| Cross-entreprise accepté | **Ouvert** (`P0-01`) |
+| Poste incompatible accepté | **Ouvert** |
+| Course sur l'index unique renvoyant 500 | **Partiellement corrigé** : traduit en 409, sans verrou ni test de concurrence (`P1-14`) |
+| `assigned_at` nul dans la réponse de création | **Corrigé** : ligne relue après insertion |
+| Absence d'archivage et de restauration | **Corrigé** pour les référentiels et les affectations |
 
-Elles ne sont pas **fiables** :
+### 9.2. Dates
 
-- deux API divergentes ;
-- retour sans date = no-op ;
-- suppression = article bloqué ;
-- création avec date de retour = état faux ;
-- acteurs non tracés ;
-- employés inactifs et cross-company acceptés ;
-- conflit avec les mouvements.
+`assigned_at` est désormais borné : une date future fournie explicitement est conservée, mais le retour et le void sont bornés à `assigned_at` pour ne jamais produire une chronologie inversée. Une affectation historique sans `assigned_at` est refusée (`400`).
 
-Les priorités sont :
+### 9.3. Donnée de démonstration
 
-1. choisir une seule API d'affectation ;
-2. imposer une machine à états unique ;
-3. exiger `returned_at` pour un retour ;
-4. ne jamais supprimer une affectation active ;
-5. contrôler employé, poste et entreprise ;
-6. tracer `assigned_by` et `returned_by` depuis le jeton ;
-7. aligner `OUT`/`RETURN` avec les affectations.
+Une affectation active antérieure au Lot 4 (`f7223d51-39cc-4e3e-8736-24d32d3289ad`, article `54488506-9b2d-4430-b126-7b33f7b784c5`) pointe vers un article `AVAILABLE`. **Aucune correction automatique n'a été appliquée** : la réconciliation d'une donnée existante relève d'une décision de gestion, pas d'une correction de code. Le contrôle SQL de l'invariant retourne `ASSIGNED sans affectation = 0` et `affectation active sur article non ASSIGNED = 1`.
 
-Les endpoints proposés sont dans le rapport 13 ; le plan dans le rapport 14.
+---
+
+## 10. Verdict
+
+Les affectations sont **cohérentes dans le périmètre du Lot 4** :
+
+- un contrat unique et une façade explicitement dépréciée ;
+- une machine à états testée : création, retour, void, archivage, restauration ;
+- l'article, son emplacement et le solde évoluent de façon atomique avec l'affectation ;
+- les mouvements `OUT`/`RETURN` sont raccordés, et les autres types sont refusés sur un article affecté ;
+- la suppression est impossible sur une affectation active ; l'historique est conservé ;
+- les acteurs et les motifs sont tracés.
+
+Les risques résiduels sont :
+
+1. **Tenancy** (`P0-01`) : aucune vérification d'entreprise entre l'article, l'employé et le poste, et aucun contrôle d'employé actif.
+2. **Concurrence et idempotence** (`P1-14`) : pas de `version`, `If-Match` ni `Idempotency-Key` ; un second retour reçoit 409 au lieu d'être idempotent.
+3. **Donnée existante** : une affectation active de démonstration reste incohérente avec le statut de son article.
+4. **Code mort** : l'ancien `AssignmentService` et son DAO ne sont plus référencés et attendent la décision D-07.
+5. **Périmètre d'archivage** : la purge physique définitive n'existe pas et les références vers un référentiel archivé ne sont pas toutes refusées.
+
+Le plan de correction est dans le rapport 14 ; le registre des risques dans le rapport 12 ; les critères de validation dans le rapport 15.

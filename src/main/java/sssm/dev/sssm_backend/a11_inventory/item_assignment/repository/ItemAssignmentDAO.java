@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.item_assignment.repository;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
@@ -8,17 +9,35 @@ import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentRes
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
 
 public interface ItemAssignmentDAO {
-  List<ItemAssignmentResponse> getAllItemAssignments(int page, int pageSize);
+  List<ItemAssignmentResponse> getAllItemAssignments(int page, int pageSize, boolean activeOnly);
 
-  List<ItemAssignmentResponse> searchItemAssignmentsByName(String value, int page, int pageSize);
+  List<ItemAssignmentResponse> searchItemAssignmentsByName(
+      String value, int page, int pageSize, boolean activeOnly);
 
   List<ItemAssignmentResponse> getItemAssignmentsByItem(String itemId, int page, int pageSize);
 
+  List<ItemAssignmentResponse> getItemAssignmentsByEmployee(
+      String employeeId, int page, int pageSize);
+
+  List<ItemAssignmentResponse> getItemAssignmentsByPost(String postId, int page, int pageSize);
+
   Optional<ItemAssignmentResponse> getItemAssignmentById(String id);
 
-  ItemAssignmentResponse createItemAssignment(ItemAssignmentCreateRequest value);
+  Optional<ItemAssignmentResponse> getActiveItemAssignmentByItem(String itemId);
 
-  ItemAssignmentResponse updateItemAssignment(String id, ItemAssignmentUpdateRequest value);
+  ItemAssignmentResponse createItemAssignment(
+      ItemAssignmentCreateRequest value,
+      String companyId,
+      String sourceWarehouseId,
+      String assignedBy);
 
-  void deleteItemAssignment(String id);
+  ItemAssignmentResponse updateItemAssignmentMetadata(String id, ItemAssignmentUpdateRequest value);
+
+  int markReturned(String id, Timestamp returnedAt, String returnedBy, String conditionOnReturn);
+
+  int voidActiveItemAssignment(String id, Timestamp voidedAt, String voidedBy, String reason);
+
+  int archiveInactiveItemAssignment(String id, Timestamp voidedAt, String voidedBy, String reason);
+
+  void restoreItemAssignment(String id);
 }

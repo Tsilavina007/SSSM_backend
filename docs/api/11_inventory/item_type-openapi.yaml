@@ -101,15 +101,45 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     delete:
       tags: [ Item Types ]
-      summary: Supprimer un type
+      summary: Archiver un type
       description: >-
-        Suppression idempotente : un identifiant inexistant ne produit pas
-        d'erreur et renvoie également 204.
+        Archivage logique : renseigne `archived_at`/`archived_by` et exclut le
+        type des listes. Un identifiant inconnu ou déjà archivé renvoie 404
+        `NOT_FOUND`.
       responses:
         '204':
-          description: Opération effectuée (sans corps).
+          description: Type archivé (sans corps).
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/item-types/{itemTypeId}/restore:
+    parameters:
+      - { $ref: '#/components/parameters/ItemTypeId' }
+    post:
+      operationId: restoreItemType
+      tags: [ Item Types ]
+      summary: Restaurer un type archivé
+      description: >-
+        Efface `archived_at`/`archived_by`. Un type non archivé renvoie 409
+        `ITEM_TYPE_NOT_ARCHIVED`.
+      responses:
+        '200':
+          description: Type restauré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemType' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Type déjà actif — enveloppe ItemError.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

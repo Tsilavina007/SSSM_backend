@@ -24,13 +24,30 @@ public class ItemAssignmentController {
   public List<ItemAssignmentRest> getItemAssignments(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
-      @RequestParam Optional<String> search) {
-    return itemAssignmentService.getItemAssignments(search, page, pageSize);
+      @RequestParam Optional<String> search,
+      @RequestParam Optional<Boolean> active) {
+    return itemAssignmentService.getItemAssignments(
+        search, page, pageSize, active.orElse(false));
   }
 
   @GetMapping("/{itemAssignmentId}")
   public ItemAssignmentRest getItemAssignmentById(@PathVariable String itemAssignmentId) {
     return itemAssignmentService.getItemAssignmentById(itemAssignmentId);
+  }
+
+  @GetMapping("/item/{itemId}")
+  public List<ItemAssignmentRest> getItemAssignmentsByItem(@PathVariable String itemId) {
+    return itemAssignmentService.getItemAssignmentsByItem(itemId, 1, 500);
+  }
+
+  @GetMapping("/employee/{employeeId}")
+  public List<ItemAssignmentRest> getItemAssignmentsByEmployee(@PathVariable String employeeId) {
+    return itemAssignmentService.getItemAssignmentsByEmployee(employeeId, 1, 500);
+  }
+
+  @GetMapping("/post/{postId}")
+  public List<ItemAssignmentRest> getItemAssignmentsByPost(@PathVariable String postId) {
+    return itemAssignmentService.getItemAssignmentsByPost(postId, 1, 500);
   }
 
   @PostMapping
@@ -47,9 +64,29 @@ public class ItemAssignmentController {
     return itemAssignmentService.updateItemAssignment(itemAssignmentId, updatedItemAssignment);
   }
 
+  @PostMapping("/{itemAssignmentId}/return")
+  public ItemAssignmentRest returnItemAssignment(
+      @PathVariable String itemAssignmentId,
+      @RequestBody(required = false) ItemAssignmentUpdateRequest value) {
+    return itemAssignmentService.returnItemAssignment(itemAssignmentId, value);
+  }
+
+  @PostMapping("/{itemAssignmentId}/void")
+  public ItemAssignmentRest voidItemAssignment(
+      @PathVariable String itemAssignmentId, @RequestParam String reason) {
+    return itemAssignmentService.voidItemAssignment(itemAssignmentId, reason);
+  }
+
+  @PostMapping("/{itemAssignmentId}/restore")
+  public ItemAssignmentRest restoreItemAssignment(@PathVariable String itemAssignmentId) {
+    return itemAssignmentService.restoreItemAssignment(itemAssignmentId);
+  }
+
   @DeleteMapping("/{itemAssignmentId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void deleteItemAssignment(@PathVariable String itemAssignmentId) {
-    itemAssignmentService.deleteItemAssignment(itemAssignmentId);
+  public void deleteItemAssignment(
+      @PathVariable String itemAssignmentId,
+      @RequestParam(required = false) String reason) {
+    itemAssignmentService.deleteItemAssignment(itemAssignmentId, reason);
   }
 }

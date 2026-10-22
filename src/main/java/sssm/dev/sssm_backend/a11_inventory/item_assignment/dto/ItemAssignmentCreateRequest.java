@@ -24,4 +24,5 @@ public class ItemAssignmentCreateRequest {
   private String condition_on_assignment;
   private String condition_on_return;
   private String notes;
+  private Timestamp expected_return_at;
 }

@@ -305,7 +305,28 @@ class ItemApiTests {
 
     mockMvc
         .perform(get("/api/inventory/items/" + id).header("Authorization", "Bearer " + token))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").value(notNullValue()));
+
+    mockMvc
+        .perform(
+            get("/api/inventory/items")
+                .param("search", marker)
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(0));
+
+    mockMvc
+        .perform(
+            post("/api/inventory/items/" + id + "/restore")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").doesNotExist());
+
+    mockMvc
+        .perform(get("/api/inventory/items/" + id).header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").doesNotExist());
   }
 
   @Test
@@ -320,12 +341,13 @@ class ItemApiTests {
   }
 
   @Test
-  void deleteUnknownIsIdempotent() throws Exception {
+  void deleteUnknownReturnsNotFound() throws Exception {
     mockMvc
         .perform(
             delete("/api/inventory/items/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + token))
-        .andExpect(status().isNoContent());
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
   }
 
   @Test

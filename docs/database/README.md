@@ -129,6 +129,36 @@ cd sssm_backend
 psql -d sssm_db -f docs/database/schema/19_lot3_stock.sql -U your_user
 ```
 
+## Migration Lot 4
+
+`20_lot4_assignments.sql` est une migration **additive** appliquée après
+`19_lot3_stock.sql` :
+
+- ajout de `source_warehouse_id` sur `item_assignment` (FK `warehouse`,
+  `ON DELETE RESTRICT`) : entrepôt d'origine, restauré au retour ou au
+  void ;
+- ajout de `voided_at`, `voided_by` et `void_reason` sur `item_assignment` :
+  trace d'archivage logique d'une affectation ;
+- ajout de `archived_by` sur `item_category`, `item_type` et `warehouse` :
+  acteur de l'archivage logique des données maîtres ;
+- contraintes `item_assignment_voided_requires_return` (une ligne voidée est
+  close) et `item_assignment_voided_requires_reason` (une ligne voidée est
+  motivée) ;
+- index `idx_item_assignment_source_warehouse`, `idx_item_assignment_voided_at`
+  (partiel) et `idx_item_assignment_company_active` (partiel).
+
+Les colonnes restent nullables : les affectations historiques ne sont pas
+devinées et les lignes existantes restent valides. Le script ne contient ni
+`DROP`, ni `DELETE`, ni `TRUNCATE`, ni ajout de `NOT NULL` sur une colonne
+historique. L'index unique `uq_item_assignment_active(item_id) WHERE
+returned_at IS NULL` reste valide : un void renseigne `returned_at` et ne
+crée donc pas de faux conflit.
+
+```bash
+cd sssm_backend
+psql -d sssm_db -f docs/database/schema/20_lot4_assignments.sql -U your_user
+```
+
 ## Exécution complète
 
 Les scripts SQL sont exécutés depuis la racine du projet `sssm_backend` :
@@ -141,8 +171,9 @@ psql -d sssm_db -f docs/database/sssm_schema2_v01.sql -U your_user
 Les fichiers sont exécutés dans l'ordre numérique afin de respecter les
 dépendances entre les types enum, les tables, les index, les triggers et
 les données initiales. Le fichier principal inclut les migrations
-`18_lot1_security.sql` et `19_lot3_stock.sql` ; une installation neuve
-dispose donc directement de `stock_balance`.
+`18_lot1_security.sql`, `19_lot3_stock.sql` et `20_lot4_assignments.sql` ;
+une installation neuve dispose donc directement de `stock_balance` et des
+colonnes de cycle de vie des affectations.
 
 ## Exécution d'une section
 

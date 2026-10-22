@@ -47,6 +47,11 @@ public class ItemCategoryController {
     return itemCategoryService.updateItemCategory(itemCategoryId, updatedItemCategory);
   }
 
+  @PostMapping("/{itemCategoryId}/restore")
+  public ItemCategoryRest restoreItemCategory(@PathVariable String itemCategoryId) {
+    return itemCategoryService.restoreItemCategory(itemCategoryId);
+  }
+
   @DeleteMapping("/{itemCategoryId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteItemCategory(@PathVariable String itemCategoryId) {

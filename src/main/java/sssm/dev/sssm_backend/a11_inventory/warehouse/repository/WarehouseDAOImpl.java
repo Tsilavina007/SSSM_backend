@@ -23,7 +23,8 @@ public class WarehouseDAOImpl implements WarehouseDAO {
 
   @Override
   public List<WarehouseResponse> getAllWarehouses(int page, int pageSize) {
-    String sql = "SELECT * FROM security.warehouse ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.warehouse WHERE archived_at IS NULL ORDER BY id LIMIT ? OFFSET ?";
     List<WarehouseResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -46,7 +47,7 @@ public class WarehouseDAOImpl implements WarehouseDAO {
   @Override
   public List<WarehouseResponse> searchWarehousesByName(String value, int page, int pageSize) {
     String sql =
-        "SELECT * FROM security.warehouse WHERE name ILIKE ? OR address ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+        "SELECT * FROM security.warehouse WHERE archived_at IS NULL AND (name ILIKE ? OR address ILIKE ?) ORDER BY id LIMIT ? OFFSET ?";
     List<WarehouseResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -172,6 +173,37 @@ public class WarehouseDAOImpl implements WarehouseDAO {
                     "Entrepôt introuvable",
                     "Aucun entrepôt ne correspond à l'identifiant " + id + ".",
                     "NOT_FOUND"));
+  }
+
+  @Override
+  public void archiveWarehouse(String id, String archivedBy) {
+    String sql =
+        "UPDATE security.warehouse SET archived_at = now(), archived_by = ?, "
+            + "updated_at = now() WHERE id = ? AND archived_at IS NULL";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, archivedBy == null ? null : UUID.fromString(archivedBy));
+      stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public void restoreWarehouse(String id) {
+    String sql =
+        "UPDATE security.warehouse SET archived_at = NULL, archived_by = NULL, "
+            + "updated_at = now() WHERE id = ?";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
   }
 
   @Override

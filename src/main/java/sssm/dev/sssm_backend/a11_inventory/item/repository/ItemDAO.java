@@ -32,5 +32,9 @@ public interface ItemDAO {
 
   void updateLastInventoryAt(String id, java.sql.Timestamp value);
 
+  void archiveItem(String id, String archivedBy);
+
+  void restoreItem(String id);
+
   void deleteItem(String id);
 }

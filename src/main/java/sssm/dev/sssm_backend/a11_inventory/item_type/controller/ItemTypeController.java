@@ -45,6 +45,11 @@ public class ItemTypeController {
     return itemTypeService.updateItemType(itemTypeId, updatedItemType);
   }
 
+  @PostMapping("/{itemTypeId}/restore")
+  public ItemTypeRest restoreItemType(@PathVariable String itemTypeId) {
+    return itemTypeService.restoreItemType(itemTypeId);
+  }
+
   @DeleteMapping("/{itemTypeId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void deleteItemType(@PathVariable String itemTypeId) {

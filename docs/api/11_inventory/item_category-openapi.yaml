@@ -99,15 +99,45 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     delete:
       tags: [ Item Categories ]
-      summary: Supprimer une catégorie
+      summary: Archiver une catégorie
       description: >-
-        Suppression idempotente : un identifiant inexistant ne produit pas
-        d'erreur et renvoie également 204.
+        Archivage logique : renseigne `archived_at`/`archived_by` et exclut la
+        catégorie des listes. Un identifiant inconnu ou déjà archivé renvoie
+        404 `NOT_FOUND`.
       responses:
         '204':
-          description: Opération effectuée (sans corps).
+          description: Catégorie archivée (sans corps).
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/item-categories/{itemCategoryId}/restore:
+    parameters:
+      - { $ref: '#/components/parameters/ItemCategoryId' }
+    post:
+      operationId: restoreItemCategory
+      tags: [ Item Categories ]
+      summary: Restaurer une catégorie archivée
+      description: >-
+        Efface `archived_at`/`archived_by`. Une catégorie non archivée renvoie
+        409 `ITEM_CATEGORY_NOT_ARCHIVED`.
+      responses:
+        '200':
+          description: Catégorie restaurée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemCategory' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Catégorie déjà active — enveloppe ItemError.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

@@ -23,7 +23,8 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
 
   @Override
   public List<ItemTypeResponse> getAllItemTypes(int page, int pageSize) {
-    String sql = "SELECT * FROM security.item_type ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item_type WHERE archived_at IS NULL ORDER BY id LIMIT ? OFFSET ?";
     List<ItemTypeResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -47,7 +48,8 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
                   rs.getBigDecimal("minimum_stock"),
                   ItemStatus.valueOf(rs.getString("status")),
                   rs.getTimestamp("created_at"),
-                  rs.getTimestamp("updated_at")));
+                  rs.getTimestamp("updated_at"),
+                  rs.getTimestamp("archived_at")));
         }
       }
     } catch (SQLException e) {
@@ -60,7 +62,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   public List<ItemTypeResponse> getAllItemTypesByItemCategoryId(
       String itemCategoryId, int page, int pageSize) {
     String sql =
-        "SELECT * FROM security.item_type WHERE category_id = ? ORDER BY id LIMIT ? OFFSET ?";
+        "SELECT * FROM security.item_type WHERE archived_at IS NULL AND category_id = ? ORDER BY id LIMIT ? OFFSET ?";
     List<ItemTypeResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
     UUID uuid = UUID.fromString(itemCategoryId);
@@ -85,7 +87,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   @Override
   public List<ItemTypeResponse> searchItemTypesByName(String value, int page, int pageSize) {
     String sql =
-        "SELECT * FROM security.item_type WHERE code ILIKE ? OR name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+        "SELECT * FROM security.item_type WHERE archived_at IS NULL AND (code ILIKE ? OR name ILIKE ? OR description ILIKE ?) ORDER BY id LIMIT ? OFFSET ?";
     List<ItemTypeResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -276,6 +278,37 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
   }
 
   @Override
+  public void archiveItemType(String id, String archivedBy) {
+    String sql =
+        "UPDATE security.item_type SET archived_at = now(), archived_by = ?, "
+            + "updated_at = now() WHERE id = ? AND archived_at IS NULL";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, archivedBy == null ? null : UUID.fromString(archivedBy));
+      stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public void restoreItemType(String id) {
+    String sql =
+        "UPDATE security.item_type SET archived_at = NULL, archived_by = NULL, "
+            + "updated_at = now() WHERE id = ?";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
   public void deleteItemType(String id) {
     String sql = "DELETE FROM security.item_type WHERE id = ?";
     UUID uuid = UUID.fromString(id);
@@ -302,6 +335,7 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
         rs.getBigDecimal("minimum_stock"),
         ItemStatus.valueOf(rs.getString("status")),
         rs.getTimestamp("created_at"),
-        rs.getTimestamp("updated_at"));
+        rs.getTimestamp("updated_at"),
+        rs.getTimestamp("archived_at"));
   }
 }

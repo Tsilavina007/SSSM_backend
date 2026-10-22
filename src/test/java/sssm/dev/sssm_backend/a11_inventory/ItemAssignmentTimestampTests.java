@@ -9,12 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jakarta.servlet.Filter;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,19 +31,22 @@ import org.springframework.web.context.WebApplicationContext;
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 
+/** Horodatage serveur, défaut PostgreSQL et valeur explicite d'une affectation. */
 @SpringBootTest
 class ItemAssignmentTimestampTests {
+
+  private static final String TYPE_CODE = "phase4-ts-type";
 
   @Autowired private WebApplicationContext context;
   @Autowired private JwtService jwtService;
 
   private MockMvc mockMvc;
   private String token;
+  private String actorId;
+  private String companyId;
   private String itemId;
   private String employeeId;
   private String postId;
-  private String originalStatus;
-  private String originalWarehouseId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -49,79 +54,41 @@ class ItemAssignmentTimestampTests {
         MockMvcBuilders.webAppContextSetup(context)
             .addFilters(context.getBean("springSecurityFilterChain", Filter.class))
             .build();
-    token = jwtService.createToken("test-user", "timestamp-tester", List.of("ADMIN"));
+    actorId = UUID.randomUUID().toString();
+    token = jwtService.createToken(actorId, "phase4-ts-tester", List.of("ADMIN"));
 
+    purge();
     try (Connection conn = DatabaseConnection.getConnection()) {
-      itemId =
-          firstId(
-              conn,
-              "SELECT i.id FROM security.item i"
-                  + " WHERE i.status = 'AVAILABLE' AND NOT EXISTS ("
-                  + "SELECT 1 FROM security.item_assignment a"
-                  + " WHERE a.item_id = i.id AND a.returned_at IS NULL)"
-                  + " ORDER BY i.id LIMIT 1");
+      companyId = firstId(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
+      String warehouseId = firstId(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 1");
       employeeId = firstId(conn, "SELECT id FROM security.employee ORDER BY id LIMIT 1");
       postId = firstId(conn, "SELECT id FROM security.security_post ORDER BY id LIMIT 1");
-      if (itemId != null) {
-        try (PreparedStatement stmt =
-            conn.prepareStatement(
-                "SELECT status, current_warehouse_id FROM security.item WHERE id = ?")) {
-          stmt.setObject(1, java.util.UUID.fromString(itemId));
-          try (ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-              originalStatus = rs.getString("status");
-              originalWarehouseId = rs.getString("current_warehouse_id");
-            }
-          }
-        }
+      if (companyId != null && warehouseId != null) {
+        String itemTypeId = insertItemType(conn);
+        itemId = insertItem(conn, itemTypeId, warehouseId);
+        insertBalance(conn, warehouseId, itemTypeId);
       }
     }
     Assumptions.assumeTrue(
-        itemId != null && employeeId != null && postId != null,
+        companyId != null && itemId != null && employeeId != null && postId != null,
         "base initialisée avec des données de démonstration requise");
   }
 
   @AfterEach
   void cleanUp() throws Exception {
-    execute("DELETE FROM security.item_assignment WHERE notes LIKE 'phase2-ia-%'");
-    if (itemId != null && originalStatus != null) {
-      try (Connection conn = DatabaseConnection.getConnection();
-          PreparedStatement stmt =
-              conn.prepareStatement(
-                  "UPDATE security.item SET status = CAST(? AS security.item_status),"
-                      + " current_warehouse_id = ? WHERE id = ?")) {
-        stmt.setString(1, originalStatus);
-        stmt.setObject(
-            2,
-            originalWarehouseId == null
-                ? null
-                : java.util.UUID.fromString(originalWarehouseId));
-        stmt.setObject(3, java.util.UUID.fromString(itemId));
-        stmt.executeUpdate();
-      }
-    }
+    purge();
   }
 
   @Test
   void createWithoutAssignedAtAppliesDatabaseDefault() throws Exception {
-    String marker = "phase2-ia-absent-" + System.nanoTime();
-    String body =
-        "{\"item_id\":\""
-            + itemId
-            + "\",\"employee_id\":\""
-            + employeeId
-            + "\",\"post_id\":\""
-            + postId
-            + "\",\"notes\":\""
-            + marker
-            + "\"}";
+    String marker = "phase4-ts-absent-" + System.nanoTime();
 
     mockMvc
         .perform(
             post("/api/item-assignments")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content(body(marker, null)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
         .andExpect(jsonPath("$.assigned_at").value(notNullValue()));
@@ -142,27 +109,15 @@ class ItemAssignmentTimestampTests {
 
   @Test
   void createWithExplicitAssignedAtStoresProvidedValue() throws Exception {
-    String marker = "phase2-ia-valid-" + System.nanoTime();
+    String marker = "phase4-ts-valid-" + System.nanoTime();
     String expected = "2030-01-15T10:30:00.000Z";
-    String body =
-        "{\"item_id\":\""
-            + itemId
-            + "\",\"employee_id\":\""
-            + employeeId
-            + "\",\"post_id\":\""
-            + postId
-            + "\",\"assigned_at\":\""
-            + expected
-            + "\",\"notes\":\""
-            + marker
-            + "\"}";
 
     mockMvc
         .perform(
             post("/api/item-assignments")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content(body(marker, expected)))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
         .andExpect(jsonPath("$.assigned_at").value(notNullValue()));
@@ -186,22 +141,82 @@ class ItemAssignmentTimestampTests {
 
   @Test
   void createWithInvalidAssignedAtReturnsBadRequest() throws Exception {
-    String body =
-        "{\"item_id\":\""
-            + itemId
-            + "\",\"employee_id\":\""
-            + employeeId
-            + "\",\"post_id\":\""
-            + postId
-            + "\",\"assigned_at\":\"not-a-timestamp\"}";
-
     mockMvc
         .perform(
             post("/api/item-assignments")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content(body("phase4-ts-invalid", "not-a-timestamp")))
         .andExpect(status().isBadRequest());
+  }
+
+  private String body(String marker, String assignedAt) {
+    return "{\"item_id\":\""
+        + itemId
+        + "\",\"employee_id\":\""
+        + employeeId
+        + "\",\"post_id\":\""
+        + postId
+        + "\",\"notes\":\""
+        + marker
+        + "\""
+        + (assignedAt == null ? "" : ",\"assigned_at\":\"" + assignedAt + "\"")
+        + "}";
+  }
+
+  private static String insertItemType(Connection conn) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item_type (company_id, code, name) VALUES (?, ?, ?) RETURNING id")) {
+      stmt.setObject(1, UUID.fromString(connCompanyId(conn)));
+      stmt.setString(2, TYPE_CODE);
+      stmt.setString(3, TYPE_CODE);
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
+  private static String connCompanyId(Connection conn) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement("SELECT id FROM security.company ORDER BY id LIMIT 1");
+        ResultSet rs = stmt.executeQuery()) {
+      rs.next();
+      return rs.getString(1);
+    }
+  }
+
+  private static String insertItem(Connection conn, String itemTypeId, String warehouseId)
+      throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item "
+                + "(company_id, item_type_id, qr_code, status, current_warehouse_id) "
+                + "VALUES (?, ?, ?, 'AVAILABLE', ?) RETURNING id")) {
+      stmt.setObject(1, UUID.fromString(connCompanyId(conn)));
+      stmt.setObject(2, UUID.fromString(itemTypeId));
+      stmt.setString(3, "phase4-ts-item-" + System.nanoTime());
+      stmt.setObject(4, UUID.fromString(warehouseId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
+  private static void insertBalance(Connection conn, String warehouseId, String itemTypeId)
+      throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.stock_balance "
+                + "(company_id, warehouse_id, item_type_id, quantity) VALUES (?, ?, ?, ?)")) {
+      stmt.setObject(1, UUID.fromString(connCompanyId(conn)));
+      stmt.setObject(2, UUID.fromString(warehouseId));
+      stmt.setObject(3, UUID.fromString(itemTypeId));
+      stmt.setBigDecimal(4, BigDecimal.ONE);
+      stmt.executeUpdate();
+    }
   }
 
   private static String firstId(Connection conn, String sql) throws Exception {
@@ -209,6 +224,24 @@ class ItemAssignmentTimestampTests {
         ResultSet rs = stmt.executeQuery()) {
       return rs.next() ? rs.getString(1) : null;
     }
+  }
+
+  private static void purge() throws Exception {
+    execute(
+        "DELETE FROM security.item_assignment WHERE item_id IN "
+            + "(SELECT id FROM security.item WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = '" + TYPE_CODE + "'))");
+    execute(
+        "DELETE FROM security.stock_movement WHERE item_id IN "
+            + "(SELECT id FROM security.item WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = '" + TYPE_CODE + "'))");
+    execute(
+        "DELETE FROM security.stock_balance WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = '" + TYPE_CODE + "')");
+    execute(
+        "DELETE FROM security.item WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = '" + TYPE_CODE + "')");
+    execute("DELETE FROM security.item_type WHERE code = '" + TYPE_CODE + "'");
   }
 
   private static void execute(String sql) throws Exception {

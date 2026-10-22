@@ -1,6 +1,8 @@
 package sssm.dev.sssm_backend.a11_inventory.stock_movement.service;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +18,7 @@ import sssm.dev.sssm_backend.a01_common.enums.MovementType;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.CurrentUser;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
 import sssm.dev.sssm_backend.a11_inventory.stock_balance.service.StockBalanceService;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementResponse;
@@ -31,6 +34,7 @@ public class StockMovementService {
   private final ItemDAO itemDAO;
   private final StockMovementRestMapper stockMovementRestMapper;
   private final StockBalanceService stockBalanceService;
+  private final ItemAssignmentService itemAssignmentService;
   private final CurrentUser currentUser;
 
   public List<StockMovementRest> getStockMovements(
@@ -103,6 +107,44 @@ public class StockMovementService {
               + item.getStatus()
               + ").",
           "CLIENT_ERROR");
+    }
+
+    if (type == MovementType.OUT) {
+      if (trim(stockMovement.getEmployee_id()) == null || trim(stockMovement.getPost_id()) == null) {
+        throw new ClientException(
+            "Affectation obligatoire",
+            "Une sortie OUT doit préciser employee_id et post_id pour créer l'affectation.",
+            "CLIENT_ERROR");
+      }
+      if (itemAssignmentService.hasActiveAssignmentForItem(item.getId())) {
+        throw new ConflictException(
+            "Affectation active existante",
+            "L'article " + item.getId() + " possède déjà une affectation active.",
+            "ASSIGNMENT_ALREADY_ACTIVE");
+      }
+    } else if (type == MovementType.RETURN) {
+      boolean hasActiveAssignment = itemAssignmentService.hasActiveAssignmentForItem(item.getId());
+      if (!hasActiveAssignment && item.getStatus() != ItemStatus.ASSIGNED) {
+        throw new ConflictException(
+            "Article non affecté",
+            "Le retour de l'article "
+                + item.getId()
+                + " nécessite une affectation active ou un article encore marqué ASSIGNED.",
+            "ITEM_NOT_ASSIGNED");
+      }
+    } else if (type == MovementType.IN
+        || type == MovementType.TRANSFER
+        || type == MovementType.DESTRUCTION) {
+      if (itemAssignmentService.hasActiveAssignmentForItem(item.getId())) {
+        throw new ConflictException(
+            "Article affecté",
+            "L'article "
+                + item.getId()
+                + " possède une affectation active : clôturez-la par un retour ou un void avant "
+                + type
+                + ".",
+            "ITEM_ASSIGNED");
+      }
     }
 
     String source = trim(stockMovement.getSource_warehouse_id());
@@ -181,8 +223,23 @@ public class StockMovementService {
     stockMovement.setPerformed_by(resolvePerformedBy(stockMovement.getPerformed_by()));
     StockMovementResponse created = stockMovementDAO.createStockMovement(stockMovement);
 
+    if (type == MovementType.OUT) {
+      itemAssignmentService.createItemAssignmentForMovement(
+          stockMovement.getItem_id(),
+          stockMovement.getEmployee_id(),
+          stockMovement.getPost_id(),
+          source,
+          stockMovement.getPerformed_by());
+    }
+
     switch (type) {
       case IN, RETURN -> {
+        if (type == MovementType.RETURN) {
+          itemAssignmentService.closeActiveAssignmentForItem(
+              stockMovement.getItem_id(),
+              Timestamp.from(Instant.now()),
+              stockMovement.getPerformed_by());
+        }
         stockBalanceService.adjust(
             item.getCompany_id(), destination, item.getItem_type_id(), quantity);
         itemDAO.updateItemStatus(stockMovement.getItem_id(), ItemStatus.AVAILABLE);

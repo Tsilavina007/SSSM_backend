@@ -1,6 +1,6 @@
 ﻿# 14 — Plan de correction
 
-**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Le Lot 1 a été exécuté le 21 octobre 2026, le Lot 2 le 22 octobre 2026 et le Lot 3 le 22 octobre 2026 ; les autres lots restent à planifier. Le détail du Lot 1 est consigné dans la section 4.6 et celui du Lot 3 dans la section 6.5.
+**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Les Lots 1 à 4 ont été exécutés les 21 et 22 octobre 2026 ; les autres lots restent à planifier. Le détail du Lot 1 est consigné dans la section 4.6, celui du Lot 3 dans la section 6.5 et celui du Lot 4 dans la section 7.6.
 
 **Principe directeur :** ne pas ajouter d'écran sur un contrat faux. La stabilité de la tenancy, des transactions et du stock précède le frontend.
 
@@ -33,7 +33,7 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | L1 | Identité, tenancy, RBAC | P0 | L0 | XL |
 | L2 | Accès aux données et transactions | P0 | L1 | L |
 | L3 | Modèle de stock — **exécuté le 22 octobre 2026** | P0 | L0, L2 | XL |
-| L4 | Affectations et mouvements | P0 | L3 | L |
+| L4 | Affectations et mouvements — **exécuté le 22 octobre 2026** | P0 | L3 | L |
 | L5 | QR, scan, étiquettes | P1 | L1, L3, L4 | L |
 | L6 | Compléments de comptage et journalisation des ajustements | P1 | L3 | L |
 | L7 | Contrat HTTP, erreurs, pagination | P1 | L1, L3 | M |
@@ -306,7 +306,7 @@ La migration ne contient ni `DROP`, ni `DELETE`, ni `TRUNCATE`, ni ajout de `NOT
 - rejeu de `19_lot3_stock.sql` sur la base de démonstration : `INSERT 0 0`, `COMMIT`, soldes inchangés ;
 - contrôle SQL : aucun marqueur `phase3-lot3-*`, `phase3-*`, `phase2-*` ou `phase5-*` résiduel ; réconciliation ponctuelle des données de démonstration (`UPDATE 1`, RADIO principal 4 → 2), puis `mismatches = 0` entre `stock_balance` et les articles `AVAILABLE`.
 
-**Limites résiduelles :** `P0-01` (tenancy), `P0-06` (affectations non synchronisées avec le solde) et `P1-14` (concurrence/idempotence) restent ouverts. La clôture de comptage ajuste directement le solde sans écrire de mouvement compensatoire ; la reconstitution du solde depuis le seul journal n'est donc pas complète. Un comptage vide peut encore être clôturé (hors périmètre du Lot 3).
+**Limites résiduelles :** `P0-01` (tenancy) et `P1-14` (concurrence/idempotence) restent ouverts. La clôture de comptage ajuste directement le solde sans écrire de mouvement compensatoire ; la reconstitution du solde depuis le seul journal n'est donc pas complète. Un comptage vide peut encore être clôturé (hors périmètre du Lot 3). Le raccordement des affectations au solde, initialement hors Lot 3, a été livré au Lot 4.
 
 ---
 
@@ -358,6 +358,41 @@ Règles :
 - aucun retour sans date ;
 - aucun état modifié par un simple `PATCH` de notes ;
 - les tests de concurrence passent.
+
+**Statut au 22 octobre 2026 :** les quatre premiers critères sont couverts par le code et les tests. Le dernier reste ouvert : les conflits d'unicité sont traduits en 409, mais il n'existe ni `If-Match`, ni `Idempotency-Key`, ni verrou `FOR UPDATE` sur la transition d'affectation (`P1-14`). Une affectation active préexistante de la base de démonstration est également incohérente avec le statut de son article et n'a pas été corrigée automatiquement.
+
+### 7.6. Exécution du Lot 4 — 22 octobre 2026
+
+**Décisions appliquées :** D-04 (archivage logique pour les référentiels et les affectations), D-06 (contrat canonique unique avec façade dépréciée).
+
+**Migration `20_lot4_assignments.sql`.** Additive, appliquée après `19_lot3_stock.sql` et incluse dans `sssm_schema2_v01.sql` :
+
+- `item_assignment.source_warehouse_id` (FK `warehouse`, `ON DELETE RESTRICT`), `voided_at`, `voided_by`, `void_reason` ;
+- `archived_by` sur `item_category`, `item_type` et `warehouse` ;
+- contraintes `item_assignment_voided_requires_return` et `item_assignment_voided_requires_reason` ;
+- index `idx_item_assignment_source_warehouse`, `idx_item_assignment_voided_at` et `idx_item_assignment_company_active`.
+
+Aucun `DROP`, `DELETE`, `TRUNCATE` ni `NOT NULL` sur une colonne historique. Les lignes existantes restent valides avec les nouvelles colonnes nulles. Le script a été appliqué à la base de démonstration, rejoué sans erreur et vérifié comme idempotent.
+
+**Code livré :**
+
+- contrat canonique `/api/item-assignments` : liste, création, lecture, PATCH de métadonnées, retour, void, restauration, archivage et listes par article/employé/poste ;
+- `/api/inventory/assignments` : façade dépréciée déléguant au même `ItemAssignmentService`, avec les mêmes DTO et statuts, en-têtes `Deprecation`/`Link` et suppression du JSON libre et des soft-200 ;
+- machine à états : création active réservée à un article `AVAILABLE`, passage `ASSIGNED`, entrepôt vidé et solde synchronisé ; retour serveur avec date/acteur, entrepôt restauré et article `AVAILABLE` ; refus des doubles retours et des affectations actives multiples ;
+- `StockMovementService` : `OUT` exige `employee_id` et `post_id`, crée l'affectation et refuse un article non disponible ; `RETURN` clôt l'affectation active ; `IN`, `TRANSFER` et `DESTRUCTION` refusent une affectation active ;
+- archivage logique des articles, catégories, types et entrepôts, listes filtrées, routes `/restore`, `404` sur un UUID inconnu et `409` sur un article ayant une affectation active ;
+- affectations : `DELETE` interdit sur une ligne active, void motivé et audité, restauration d'un void ; `PATCH` limité aux métadonnées et refus de `condition_on_return` seul ;
+- historique d'article branché sur les lectures par article (mouvements et affectations) au lieu des listes globales tronquées ;
+- validation UUID renforcée et acteurs JWT non-UUID convertis en `NULL`.
+
+**Preuves :**
+
+- `AssignmentApiTests` : 14 tests ; `ItemAssignmentStateTests` : 5 ; `ItemAssignmentTimestampTests` : 3 ;
+- tests liés : `ItemApiTests` 16, `ItemCategoryApiTests` 6, `ItemTypeApiTests` 10, `WarehouseApiTests` 5, `OperationApiTests` 4, `StockMovementBusinessRulesTests` 9, `StockMovementTimestampTests` 4, `Lot3StockModelTests` 8 ;
+- suite complète : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** ;
+- migration rejouée sur la base de démonstration : colonnes, contraintes et index présents, aucune donnée supprimée.
+
+**Limites résiduelles :** tenancy (`P0-01`), concurrence/idempotence (`P1-14`), cohérence entreprise/article/employé/poste, refus des références vers des référentiels archivés, purge physique définitive (D-04) et réconciliation de la donnée de démonstration incohérente. Le retrait effectif de la façade `/api/inventory/assignments` reste une décision de versionnement (D-07).
 
 ---
 

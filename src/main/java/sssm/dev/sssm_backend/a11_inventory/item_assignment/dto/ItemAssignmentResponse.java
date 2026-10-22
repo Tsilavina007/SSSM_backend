@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ItemAssignmentResponse {
   private String id;
+  private String company_id;
   private String item_id;
   private String employee_id;
   private String post_id;
@@ -18,4 +19,13 @@ public class ItemAssignmentResponse {
   private String condition_on_assignment;
   private String condition_on_return;
   private String notes;
+  private Timestamp created_at;
+  private Timestamp updated_at;
+  private String assigned_by;
+  private String returned_by;
+  private Timestamp expected_return_at;
+  private String source_warehouse_id;
+  private Timestamp voided_at;
+  private String voided_by;
+  private String void_reason;
 }

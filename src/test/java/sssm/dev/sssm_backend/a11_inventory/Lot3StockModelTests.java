@@ -56,6 +56,8 @@ class Lot3StockModelTests {
   private String warehouseId;
   private String secondWarehouseId;
   private String itemTypeId;
+  private String employeeId;
+  private String postId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -67,13 +69,15 @@ class Lot3StockModelTests {
 
     try (Connection conn = DatabaseConnection.getConnection()) {
       companyId = firstId(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
+      employeeId = firstId(conn, "SELECT id FROM security.employee ORDER BY id LIMIT 1");
+      postId = firstId(conn, "SELECT id FROM security.security_post ORDER BY id LIMIT 1");
       List<String> warehouses =
           values(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 2");
       warehouseId = warehouses.isEmpty() ? null : warehouses.get(0);
       secondWarehouseId = warehouses.size() < 2 ? null : warehouses.get(1);
     }
     Assumptions.assumeTrue(
-        companyId != null && warehouseId != null,
+        companyId != null && warehouseId != null && employeeId != null && postId != null,
         "base initialisée avec des données de démonstration requise");
     purge();
     try (Connection conn = DatabaseConnection.getConnection()) {
@@ -132,7 +136,11 @@ class Lot3StockModelTests {
                         + warehouseId
                         + "\",\"item_id\":\""
                         + itemId
-                        + "\",\"movement_type\":\"OUT\",\"quantity\":1,\"notes\":\""
+                        + "\",\"movement_type\":\"OUT\",\"employee_id\":\""
+                        + employeeId
+                        + "\",\"post_id\":\""
+                        + postId
+                        + "\",\"quantity\":1,\"notes\":\""
                         + marker
                         + "-out\"}"))
         .andExpect(status().isCreated())
@@ -198,7 +206,11 @@ class Lot3StockModelTests {
                         + warehouseId
                         + "\",\"item_id\":\""
                         + itemId
-                        + "\",\"movement_type\":\"OUT\",\"quantity\":2,\"notes\":\""
+                        + "\",\"movement_type\":\"OUT\",\"employee_id\":\""
+                        + employeeId
+                        + "\",\"post_id\":\""
+                        + postId
+                        + "\",\"quantity\":2,\"notes\":\""
                         + marker
                         + "\"}"))
         .andExpect(status().isConflict())

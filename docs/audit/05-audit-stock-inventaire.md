@@ -283,13 +283,15 @@ Mais ces champs sont presque toujours nuls ou égaux à 1 dans les données cré
 
 Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, les DAO utilisent la connexion transactionnelle issue du `DataSource` Spring/HikariCP. Un échec après l'insertion du mouvement annule désormais le mouvement et la mise à jour de l'article ; ce rollback est couvert par `StockMovementTransactionTests`.
 
-**Mise à jour du 22 octobre 2026 (Lot 3) :** `stock_balance` est la source du stock disponible ; les mouvements, opérations, créations/modifications/suppressions d'articles et clôtures de comptage mettent à jour le solde. Les opérations multi-lignes sont implémentées et atomiques, et la clôture de comptage réconcilie statut, emplacement et solde avec `last_inventory_at`. Les limites restantes sont :
+**Mise à jour du 22 octobre 2026 (Lot 3) :** `stock_balance` est la source du stock disponible ; les mouvements, opérations, créations/modifications/suppressions d'articles et clôtures de comptage mettent à jour le solde. Les opérations multi-lignes sont implémentées et atomiques, et la clôture de comptage réconcilie statut, emplacement et solde avec `last_inventory_at`.
 
-- les affectations (`P0-06`) peuvent encore changer l'état d'un article sans mettre à jour le solde ;
+**Mise à jour du 22 octobre 2026 (Lot 4) :** les affectations sont raccordées au solde. La création d'une affectation, le retour (`POST /{id}/return`) et le void d'une affectation active synchronisent `stock_balance` dans la même transaction que le changement d'état de l'article. L'archivage d'un article retire son stock disponible et sa restauration le réintègre. Les limites restantes sont :
+
 - les ajustements de clôture de comptage ne créent pas de mouvement compensatoire ;
 - un comptage vide peut encore être clôturé comme complet ;
 - la concurrence entre deux écritures n'est pas contrôlée par version (`P1-14`) ;
-- les mouvements historiques n'ont pas de source/destination/acteur rétroactifs.
+- les mouvements historiques n'ont pas de source/destination/acteur rétroactifs ;
+- une affectation active antérieure au Lot 4 pointe vers un article `AVAILABLE` dans la base de démonstration et n'a pas été corrigée.
 
 ---
 
@@ -309,22 +311,23 @@ Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, le
 
 ### 10.2. Tests existants
 
-- `StockMovementBusinessRulesTests` : 7 tests sur les effets d'état.
-- `StockMovementTimestampTests` : 3 tests sur les dates.
+- `StockMovementBusinessRulesTests` : 9 tests sur les effets d'état et le raccordement aux affectations.
+- `StockMovementTimestampTests` : 4 tests sur les dates.
 - `InventoryCountScanCloseTests` : 6 tests sur le scan et la clôture.
 - `DashboardApiTests` : 3 tests sur les compteurs et le low-stock.
 - `ReportApiTests` : 5 tests sur les filtres du rapport.
 - `OperationApiTests` : 4 tests sur les en-têtes et les erreurs.
 - `Lot3StockModelTests` : 8 tests sur les soldes, l'API, l'acteur, le stock négatif, l'immuabilité, le rollback multi-lignes, le comptage/écart/clôture et les erreurs 404.
-- Suite complète après le Lot 3 : 140 tests, 0 échec, 28 suites.
+- `AssignmentApiTests` : 14 tests sur le cycle de vie des affectations et la synchronisation du solde.
+- Suite complète après le Lot 4 : 150 tests, 0 échec, 28 suites.
 
 ### 10.3. Ce que les tests ne couvrent pas encore
 
-- synchronisation des affectations avec `stock_balance` (`P0-06`) ;
 - concurrence, `If-Match` et idempotence (`P1-14`) ;
 - scénario réel à deux entreprises (`P0-01`) ;
 - journalisation des ajustements de clôture de comptage ;
-- réconciliation complète des mouvements historiques sans source/destination/acteur.
+- réconciliation complète des mouvements historiques sans source/destination/acteur ;
+- la course réelle sur `uq_item_assignment_active` (le conflit est traduit en 409, mais n'est pas testé en concurrence).
 
 ---
 

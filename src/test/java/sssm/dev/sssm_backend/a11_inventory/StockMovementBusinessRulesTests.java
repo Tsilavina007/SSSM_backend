@@ -44,6 +44,8 @@ class StockMovementBusinessRulesTests {
   private String itemTypeId;
   private String warehouseId;
   private String secondWarehouseId;
+  private String employeeId;
+  private String postId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -55,13 +57,18 @@ class StockMovementBusinessRulesTests {
 
     try (Connection conn = DatabaseConnection.getConnection()) {
       companyId = firstValue(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
+      employeeId = firstValue(conn, "SELECT id FROM security.employee ORDER BY id LIMIT 1");
+      postId = firstValue(conn, "SELECT id FROM security.security_post ORDER BY id LIMIT 1");
       List<String> warehouseIds =
           values(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 2");
       warehouseId = warehouseIds.isEmpty() ? null : warehouseIds.get(0);
       secondWarehouseId = warehouseIds.size() < 2 ? null : warehouseIds.get(1);
     }
     Assumptions.assumeTrue(
-        companyId != null && warehouseId != null,
+        companyId != null
+            && warehouseId != null
+            && employeeId != null
+            && postId != null,
         "base initialisée avec des données de démonstration requise");
     purge();
     try (Connection conn = DatabaseConnection.getConnection()) {
@@ -86,7 +93,7 @@ class StockMovementBusinessRulesTests {
   }
 
   @Test
-  void outMovementMarksItemAssignedAndClearsWarehouse() throws Exception {
+  void outMovementMarksItemAssignedAndCreatesAssignment() throws Exception {
     String id = createItem("AVAILABLE", warehouseId);
 
     createMovement(id, "OUT", warehouseId);
@@ -94,6 +101,8 @@ class StockMovementBusinessRulesTests {
     Map<String, String> state = itemState(id);
     assertEquals("ASSIGNED", state.get("status"));
     assertNull(state.get("current_warehouse_id"));
+    assertEquals(1, assignmentCount(id));
+    assertEquals(warehouseId, assignmentSource(id));
   }
 
   @Test
@@ -125,16 +134,77 @@ class StockMovementBusinessRulesTests {
   }
 
   @Test
-  void returnMovementRestoresAvailabilityAndWarehouse() throws Exception {
+  void returnMovementRestoresAvailabilityAndWarehouseAndClosesAssignment() throws Exception {
     String id = createItem("AVAILABLE", warehouseId);
     createMovement(id, "OUT", warehouseId);
     assertEquals("ASSIGNED", itemState(id).get("status"));
+    assertEquals(1, assignmentCount(id));
 
     createMovement(id, "RETURN", warehouseId);
 
     Map<String, String> state = itemState(id);
     assertEquals("AVAILABLE", state.get("status"));
     assertEquals(warehouseId, state.get("current_warehouse_id"));
+    assertEquals(0, assignmentCount(id));
+  }
+
+  @Test
+  void outWithoutEmployeeOrPostIsRejected() throws Exception {
+    String id = createItem("AVAILABLE", warehouseId);
+
+    mockMvc
+        .perform(
+            post("/api/inventory/movements")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"warehouse_id\":\""
+                        + warehouseId
+                        + "\",\"item_id\":\""
+                        + id
+                        + "\",\"movement_type\":\"OUT\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.message").value("Affectation obligatoire"));
+
+    assertEquals("AVAILABLE", itemState(id).get("status"));
+    assertEquals(0, assignmentCount(id));
+  }
+
+  @Test
+  void inTransferAndDestructionRejectActiveAssignment() throws Exception {
+    String id = createItem("AVAILABLE", warehouseId);
+    createMovement(id, "OUT", warehouseId);
+    assertEquals(1, assignmentCount(id));
+
+    mockMvc
+        .perform(
+            post("/api/inventory/movements")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(movementBody(id, "IN", warehouseId)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors.code").value("ITEM_ASSIGNED"));
+
+    mockMvc
+        .perform(
+            post("/api/inventory/movements")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(movementBody(id, "TRANSFER", secondWarehouseId)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors.code").value("ITEM_ASSIGNED"));
+
+    mockMvc
+        .perform(
+            post("/api/inventory/movements")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(movementBody(id, "DESTRUCTION", warehouseId)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors.code").value("ITEM_ASSIGNED"));
+
+    assertEquals(1, assignmentCount(id));
+    assertEquals("ASSIGNED", itemState(id).get("status"));
   }
 
   @Test
@@ -199,10 +269,14 @@ class StockMovementBusinessRulesTests {
         .andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.notNullValue()));
   }
 
-  private static String movementBody(String itemId, String type, String warehouse) {
+  private String movementBody(String itemId, String type, String warehouse) {
     String adjustmentDestination =
         "ADJUSTMENT".equals(type) || "TRANSFER".equals(type)
             ? ",\"destination_warehouse_id\":\"" + warehouse + "\""
+            : "";
+    String assignment =
+        "OUT".equals(type)
+            ? ",\"employee_id\":\"" + employeeId + "\",\"post_id\":\"" + postId + "\""
             : "";
     return "{\"warehouse_id\":\""
         + warehouse
@@ -212,7 +286,8 @@ class StockMovementBusinessRulesTests {
         + type
         + "\""
         + adjustmentDestination
-        + "}";
+        + assignment
+        + ",\"notes\":\"phase4-out-" + itemId + "\"}";
   }
 
   private static String insertItemType(Connection conn, String companyId) throws Exception {
@@ -242,6 +317,33 @@ class StockMovementBusinessRulesTests {
         state.put("status", rs.getString("status"));
         state.put("current_warehouse_id", rs.getString("current_warehouse_id"));
         return state;
+      }
+    }
+  }
+
+  private static int assignmentCount(String itemId) throws Exception {
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt =
+            conn.prepareStatement(
+                "SELECT count(*) FROM security.item_assignment "
+                    + "WHERE item_id = ? AND returned_at IS NULL AND voided_at IS NULL")) {
+      stmt.setObject(1, UUID.fromString(itemId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getInt(1);
+      }
+    }
+  }
+
+  private static String assignmentSource(String itemId) throws Exception {
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt =
+            conn.prepareStatement(
+                "SELECT source_warehouse_id FROM security.item_assignment "
+                    + "WHERE item_id = ? AND returned_at IS NULL AND voided_at IS NULL")) {
+      stmt.setObject(1, UUID.fromString(itemId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getString(1) : null;
       }
     }
   }

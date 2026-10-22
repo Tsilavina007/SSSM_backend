@@ -1,56 +1,74 @@
 openapi: 3.0.3
 info:
   title: SSSM Inventory — Item Assignments API
-  version: 1.0.0
+  version: 2.0.0
   description: >-
-    API des affectations d'articles (module a11_inventory/item_assignment),
-    dérivée du contrôleur ItemAssignmentController. Attention : ce module est
-    exposé sous /api/item-assignments (hors préfixe /api/inventory), distinct du
-    module assignment exposé sous /api/inventory/assignments (dette
-    d'architecture A/B, non décidée). Toutes les routes exigent un JWT
-    (Authorization: Bearer …). Erreurs : enveloppe {"errors": {message, detail,
-    code}} ; une requête malformée renvoie l'erreur enveloppe ItemError.
-    Pagination : page=1, pageSize=10 par défaut. La validation Jakarta
-    (`@Valid`) s'applique aux corps de création et de mise à jour. Le type
-    exposé ne couvre que 9 des 14 colonnes de security.item_assignment
-    (created_at, updated_at, assigned_by, returned_by, expected_return_at non
-    exposés ici).
+    Contrat canonique des affectations d'articles (module
+    a11_inventory/item_assignment). Toutes les routes exigent un JWT
+    (Authorization: Bearer …). Le service applique une machine à états unique :
+
+    - une affectation active est une ligne dont `returned_at` et `voided_at`
+      sont nuls ;
+    - créer une affectation active exige un article `AVAILABLE` sans
+      affectation active ; l'article passe `ASSIGNED`, son entrepôt est vidé et
+      le stock disponible est décrémenté atomiquement ;
+    - `POST /{id}/return` clôt l'affectation, renseigne la date et l'acteur
+      côté serveur, restaure l'entrepôt d'origine et remet l'article
+      `AVAILABLE` ;
+    - `POST /{id}/void` exige un motif et audite l'annulation ; un void actif
+      clôt l'affectation et restaure l'article, un void inactif archive
+      l'historique ;
+    - `DELETE` n'archive qu'une affectation déjà retournée ; une affectation
+      active renvoie 409 `ACTIVE_ASSIGNMENT` ;
+    - les listes excluent les lignes voidées ; `active=true` exclut aussi les
+      retours ;
+    - une affectation historique peut être créée avec `returned_at`, à condition
+      de fournir `assigned_at`, sans modifier l'état courant de l'article.
+
+    Erreurs : enveloppe `{"errors": {message, detail, code}}`. L'ancien préfixe
+    `/api/inventory/assignments` est une façade dépréciée qui délègue à ce même
+    service ; voir `assignment-openapi.yaml`.
 servers:
   - url: http://localhost:8080
 security:
   - bearerAuth: []
 tags:
   - name: Item Assignments
-    description: Affectations d'articles (module typé)
+    description: Affectations d'articles (contrat canonique)
 paths:
   /api/item-assignments:
     get:
+      operationId: listItemAssignments
       tags: [ Item Assignments ]
       summary: Lister les affectations
       parameters:
         - { $ref: '#/components/parameters/Search' }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Active' }
       responses:
         '200':
-          description: Liste paginée des affectations
+          description: Liste paginée des affectations non voidées
           content:
             application/json:
               schema: { type: array, items: { $ref: '#/components/schemas/ItemAssignment' } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
     post:
+      operationId: createItemAssignment
       tags: [ Item Assignments ]
       summary: Créer une affectation
       description: >-
-        assigned_at absent → défaut base now() mais la réponse fait écho du
-        corps de la requête : assigned_at y est alors null (comportement voulu,
-        tests de non-régression associés). Un article déjà affecté (contrainte
-        uq_item_assignment_active) provoque une erreur 500.
+        `item_id`, `employee_id` et `post_id` sont obligatoires. Sans
+        `returned_at`, l'article doit être `AVAILABLE` et sans affectation
+        active ; la création, le passage à `ASSIGNED`, le vidage de l'entrepôt
+        et la mise à jour du solde sont atomiques. Avec `returned_at`, la ligne
+        est historique : `assigned_at` est obligatoire et l'état de l'article
+        n'est pas modifié.
       requestBody:
         required: true
         content:
@@ -63,33 +81,50 @@ paths:
               schema: { $ref: '#/components/schemas/ItemAssignment' }
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
   /api/item-assignments/{itemAssignmentId}:
     parameters:
       - { $ref: '#/components/parameters/ItemAssignmentId' }
     get:
+      operationId: getItemAssignment
       tags: [ Item Assignments ]
       summary: Récupérer une affectation par identifiant
+      description: >-
+        Une affectation voidée reste lisible par identifiant afin de permettre
+        sa restauration ; les listes l'excluent.
       responses:
         '200':
           description: Affectation trouvée
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ItemAssignment' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
     patch:
+      operationId: updateItemAssignment
       tags: [ Item Assignments ]
-      summary: Mettre à jour partiellement une affectation
+      summary: Mettre à jour les métadonnées d'une affectation
+      description: >-
+        Seuls `notes` et `expected_return_at` sont modifiables. `item_id`,
+        `employee_id`, `post_id`, `assigned_at` et `condition_on_assignment`
+        sont immuables (400 `IMMUTABLE_ASSIGNMENT_FIELDS`). Un `returned_at`
+        fourni délègue à `POST /{id}/return` ; la date et l'acteur sont posés par
+        le serveur. Un `condition_on_return` seul renvoie 400
+        `RETURN_ENDPOINT_REQUIRED`. Un PATCH de notes ne change donc ni le statut
+        de l'article ni le cycle de vie.
       requestBody:
         required: true
         content:
@@ -102,27 +137,188 @@ paths:
               schema: { $ref: '#/components/schemas/ItemAssignment' }
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
     delete:
+      operationId: archiveItemAssignment
       tags: [ Item Assignments ]
-      summary: Supprimer une affectation
+      summary: Archiver une affectation inactive
       description: >-
-        Suppression idempotente : un identifiant inexistant ne produit pas
-        d'erreur et renvoie également 204.
+        Archive logiquement une affectation déjà retournée (`voided_at`,
+        `voided_by`, `void_reason`). Une affectation active renvoie 409
+        `ACTIVE_ASSIGNMENT` : utilisez `/void` ou `/return`. Une affectation
+        déjà voidée renvoie 409 `ASSIGNMENT_ALREADY_VOIDED` ; un identifiant
+        inconnu renvoie 404 `NOT_FOUND`.
+      parameters:
+        - { $ref: '#/components/parameters/ReasonOptional' }
       responses:
         '204':
-          description: Opération effectuée (sans corps).
+          description: Affectation archivée (sans corps).
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+  /api/item-assignments/{itemAssignmentId}/return:
+    parameters:
+      - { $ref: '#/components/parameters/ItemAssignmentId' }
+    post:
+      operationId: returnItemAssignment
+      tags: [ Item Assignments ]
+      summary: Enregistrer le retour d'une affectation
+      description: >-
+        Clôt l'affectation active, pose `returned_at` et `returned_by` depuis le
+        serveur, restaure `source_warehouse_id` (ou l'entrepôt courant) et
+        remet l'article `AVAILABLE` avec mise à jour du solde. Le corps est
+        facultatif et seul `condition_on_return` est lu. Un second appel renvoie
+        409 `ASSIGNMENT_ALREADY_RETURNED`.
+      requestBody:
+        required: false
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/ItemAssignmentReturn' } }
+      responses:
+        '200':
+          description: Affectation clôturée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemAssignment' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/item-assignments/{itemAssignmentId}/void:
+    parameters:
+      - { $ref: '#/components/parameters/ItemAssignmentId' }
+    post:
+      operationId: voidItemAssignment
+      tags: [ Item Assignments ]
+      summary: Annuler et auditer une affectation
+      description: >-
+        Exige un motif. Une affectation active est clôturée, l'article est remis
+        `AVAILABLE` et son entrepôt d'origine est restauré ; une affectation
+        déjà retournée est seulement archivée. Le void et l'annulation sont
+        tracés par `voided_at`, `voided_by` et `void_reason`. Un second void
+        renvoie 409 `ASSIGNMENT_ALREADY_VOIDED`.
+      parameters:
+        - { $ref: '#/components/parameters/ReasonRequired' }
+      responses:
+        '200':
+          description: Affectation annulée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemAssignment' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/item-assignments/{itemAssignmentId}/restore:
+    parameters:
+      - { $ref: '#/components/parameters/ItemAssignmentId' }
+    post:
+      operationId: restoreItemAssignment
+      tags: [ Item Assignments ]
+      summary: Restaurer une affectation voidée
+      description: >-
+        Efface `voided_at`, `voided_by` et `void_reason`. Une affectation non
+        voidée renvoie 409 `ASSIGNMENT_NOT_VOIDED`. Un void actif a également
+        posé `returned_at` : après restauration, la ligne reste donc historique
+        et ne redevient pas active.
+      responses:
+        '200':
+          description: Affectation restaurée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItemAssignment' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/item-assignments/item/{itemId}:
+    parameters:
+      - { $ref: '#/components/parameters/ItemId' }
+    get:
+      operationId: listItemAssignmentsByItem
+      tags: [ Item Assignments ]
+      summary: Lister les affectations non voidées d'un article
+      responses:
+        '200':
+          description: Affectations de l'article, retours inclus
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/ItemAssignment' } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/item-assignments/employee/{employeeId}:
+    parameters:
+      - { $ref: '#/components/parameters/EmployeeId' }
+    get:
+      operationId: listItemAssignmentsByEmployee
+      tags: [ Item Assignments ]
+      summary: Lister les affectations non voidées d'un employé
+      responses:
+        '200':
+          description: Affectations de l'employé, retours inclus
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/ItemAssignment' } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/item-assignments/post/{postId}:
+    parameters:
+      - { $ref: '#/components/parameters/PostId' }
+    get:
+      operationId: listItemAssignmentsByPost
+      tags: [ Item Assignments ]
+      summary: Lister les affectations non voidées d'un poste
+      responses:
+        '200':
+          description: Affectations du poste, retours inclus
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/ItemAssignment' } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
 components:
   securitySchemes:
     bearerAuth:
@@ -135,7 +331,7 @@ components:
       in: query
       required: false
       schema: { type: string }
-      description: Recherche libre (ILIKE) selon la ressource.
+      description: Recherche ILIKE sur les conditions et les notes.
     Page:
       name: page
       in: query
@@ -145,9 +341,45 @@ components:
       name: pageSize
       in: query
       required: false
-      schema: { type: integer, minimum: 1, default: 10 }
+      schema: { type: integer, minimum: 1, maximum: 500, default: 10 }
+    Active:
+      name: active
+      in: query
+      required: false
+      schema: { type: boolean, default: false }
+      description: >-
+        Si vrai, ne retourne que les affectations actives (`returned_at` et
+        `voided_at` nuls). Si faux ou absent, retourne aussi les affectations
+        retournées non voidées.
+    ReasonRequired:
+      name: reason
+      in: query
+      required: true
+      schema: { type: string }
+      description: Motif obligatoire du void.
+    ReasonOptional:
+      name: reason
+      in: query
+      required: false
+      schema: { type: string }
+      description: Motif d'archivage ; un libellé par défaut est appliqué s'il est absent.
     ItemAssignmentId:
       name: itemAssignmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    EmployeeId:
+      name: employeeId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PostId:
+      name: postId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -168,9 +400,18 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: >-
+        Conflit de cycle de vie (409) : `ITEM_NOT_AVAILABLE`,
+        `ITEM_ARCHIVED`, `ASSIGNMENT_ALREADY_ACTIVE`,
+        `ASSIGNMENT_ALREADY_RETURNED`, `ASSIGNMENT_ALREADY_VOIDED`,
+        `ASSIGNMENT_VOIDED`, `ASSIGNMENT_NOT_VOIDED`, `ACTIVE_ASSIGNMENT`,
+        `ITEM_STATE_INCOMPATIBLE` ou conflit SQL d'unicité.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
-        code).
+      description: Erreur serveur ou SQL (500) — enveloppe ItemError.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -188,31 +429,36 @@ components:
           description: Message lisible en français, toujours renseigné.
         detail:
           type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+          description: Précision contextuelle (identifiant, champ, cause).
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
-            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
-            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
+            Code applicatif stable (VALIDATION_ERROR, NOT_FOUND, CLIENT_ERROR,
+            CONFLICT, SERVER_ERROR, etc.) ou SQLState PostgreSQL.
     ItemAssignment:
       type: object
       properties:
         id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid, nullable: true }
         item_id: { type: string, format: uuid }
         employee_id: { type: string, format: uuid }
         post_id: { type: string, format: uuid }
-        assigned_at: { type: string, format: date-time, nullable: true }
+        assigned_at: { type: string, format: date-time }
         returned_at: { type: string, format: date-time, nullable: true }
         condition_on_assignment: { type: string, nullable: true }
         condition_on_return: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        assigned_by: { type: string, format: uuid, nullable: true }
+        returned_by: { type: string, format: uuid, nullable: true }
+        expected_return_at: { type: string, format: date-time, nullable: true }
+        source_warehouse_id: { type: string, format: uuid, nullable: true }
+        voided_at: { type: string, format: date-time, nullable: true }
+        voided_by: { type: string, format: uuid, nullable: true }
+        void_reason: { type: string, nullable: true }
     ItemAssignmentCreate:
       type: object
-      description: >-
-        Corps de création validé par Jakarta : item_id, employee_id et post_id
-        sont obligatoires et leur omission renvoie 400.
       required: [ item_id, employee_id, post_id ]
       properties:
         item_id: { type: string, format: uuid }
@@ -223,9 +469,12 @@ components:
         condition_on_assignment: { type: string, nullable: true }
         condition_on_return: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        expected_return_at: { type: string, format: date-time, nullable: true }
     ItemAssignmentUpdate:
       type: object
-      description: Tous les champs sont facultatifs (mise à jour partielle).
+      description: >-
+        Champs facultatifs. Les liens et `assigned_at` sont refusés ; `notes` et
+        `expected_return_at` sont les seules métadonnées modifiables.
       properties:
         item_id: { type: string, format: uuid }
         employee_id: { type: string, format: uuid }
@@ -235,3 +484,9 @@ components:
         condition_on_assignment: { type: string, nullable: true }
         condition_on_return: { type: string, nullable: true }
         notes: { type: string, nullable: true }
+        expected_return_at: { type: string, format: date-time, nullable: true }
+    ItemAssignmentReturn:
+      type: object
+      description: Corps facultatif du retour ; seul `condition_on_return` est lu.
+      properties:
+        condition_on_return: { type: string, nullable: true }

@@ -18,5 +18,9 @@ public interface WarehouseDAO {
 
   WarehouseResponse updateWarehouse(String id, WarehouseUpdateRequest value);
 
+  void archiveWarehouse(String id, String archivedBy);
+
+  void restoreWarehouse(String id);
+
   void deleteWarehouse(String id);
 }

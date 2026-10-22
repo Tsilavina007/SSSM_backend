@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** la suite complète a été exécutée après le Lot 3 : **140 tests, 140 succès, 0 échec, 28 suites**. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés. Les statuts ci-dessous intègrent les corrections des Lots 2 et 3 vérifiées par les tests ; le détail historique reste disponible dans les rapports 11 et 16.
+**Important :** la suite complète a été exécutée après le Lot 4 : **150 tests, 150 succès, 0 échec, 28 suites**. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés. Les statuts ci-dessous intègrent les corrections des Lots 2 à 4 vérifiées par les tests ; le détail historique reste disponible dans les rapports 11 et 16.
 
 ### 1.2. Règle de décision
 
@@ -48,11 +48,11 @@ Une capture d'écran ne remplace pas un test de contrat.
 | **G0-3** | Un compte sans entreprise ou sans rôle ne peut pas accéder à l'inventaire | **PARTIEL** | Un compte sans rôle est bloqué ; un admin plateforme sans entreprise reste autorisé par conception. |
 | **G0-4** | Les écritures multi-lignes sont atomiques | **PASS** | Opérations `receipt`/`issue`/`transfer` avec lignes et mouvements atomiques ; rollback testé après échec sur la deuxième ligne (`P1-06`). |
 | **G0-5** | Le stock a une source de vérité unique et testée | **PASS** | `stock_balance` alimenté par les mouvements, opérations, articles et clôtures de comptage ; `GET /stock-balances` et dashboard low-stock testés (`P0-05`). Les ajustements de clôture ne sont pas encore journalisés. |
-| **G0-6** | `ASSIGNED` implique exactement une affectation active | **FAIL** | `OUT`, `RETURN`, `DELETE`, retour no-op (`P0-06`, Lot 4) |
+| **G0-6** | `ASSIGNED` implique exactement une affectation active | **PASS** | Création, `OUT`, retour, void et suppression passent par le même service transactionnel ; index unique actif et tests dédiés (`P0-06`, Lot 4). Réserve : une affectation active préexistante de la base de démonstration pointe vers un article `AVAILABLE` ; elle n'est pas créée par le code corrigé. |
 | **G0-7** | Aucune erreur de saisie ne produit 500 avec SQLSTATE | **PASS** | Doublons 409, FK/CHECK 422, NOT NULL/format 400 ; aucun SQLSTATE exposé. |
 | **G0-8** | Un rôle révoqué ne peut pas être rafraîchi | **PASS** | `/refresh` recharge les rôles et permissions en base ; rotation testée. |
 
-**Verdict :** 4 portes sur 8 en `PASS` (`G0-4`, `G0-5`, `G0-7`, `G0-8`), 1 `PARTIEL` (`G0-3`), 3 `FAIL` (`G0-1`, `G0-2`, `G0-6`). La production reste bloquée par la tenancy et les affectations.
+**Verdict :** 5 portes sur 8 en `PASS` (`G0-4`, `G0-5`, `G0-6`, `G0-7`, `G0-8`), 1 `PARTIEL` (`G0-3`), 2 `FAIL` (`G0-1`, `G0-2`). La production reste bloquée par la tenancy ; les affectations sont couvertes par le code mais une donnée de démonstration antérieure reste à réconcilier.
 
 ---
 
@@ -144,13 +144,13 @@ Et l'accès à /api/v1/users renvoie 403
 | CAT-09 | Les transitions de statut d'article sont contrôlées | **FAIL** | `PATCH` libre |
 | CAT-10 | On peut retirer une relation nullable par `PATCH` | **FAIL** | Convention « non nul seulement » |
 | CAT-11 | Une suppression référencée renvoie 409, pas 500 | **PARTIEL** | `23503` → 422 (plus de 500), mais le critère attend 409. |
-| CAT-12 | Une suppression inconnue renvoie 404, pas 204 | **FAIL** | 204 |
-| CAT-13 | Les éléments archivés ne figurent pas dans les listes | **FAIL** | Aucun filtre `archived_at` |
-| CAT-14 | `GET /items/{id}/history` renvoie 404 pour un article inconnu | **FAIL** | 200 + listes vides |
-| CAT-15 | L'historique est filtré et paginé côté SQL | **FAIL** | 100 lignes globales + filtre mémoire |
+| CAT-12 | Une suppression inconnue renvoie 404, pas 204 | **PASS** | `DELETE` d'un article, type, catégorie ou entrepôt inconnu renvoie 404 ; tests dédiés Lot 4. |
+| CAT-13 | Les éléments archivés ne figurent pas dans les listes | **PASS** | Filtres `archived_at IS NULL` sur articles, catégories, types et entrepôts ; tests de suppression/restauration. |
+| CAT-14 | `GET /items/{id}/history` renvoie 404 pour un article inconnu | **FAIL** | Toujours 200 + listes vides ; l'historique a seulement été filtré par article. |
+| CAT-15 | L'historique est filtré et paginé côté SQL | **PASS** | Lectures `by item` des mouvements et affectations, plafonnées à 500 lignes chacune ; pas encore de pagination complète. |
 | CAT-16 | Le bulk est atomique ou retourne des échecs indexés | **FAIL** | Partiel, sans index, sans `@Valid` |
 | CAT-17 | Les filtres article couvrent type, catégorie, entrepôt, statut, dates | **FAIL** | Filtres limités |
-| CAT-18 | Un article supprimé conserve son historique | **PASS** | FK RESTRICT |
+| CAT-18 | Un article supprimé conserve son historique | **PASS** | Archivage logique ; la ligne, les affectations et les mouvements sont conservés. |
 
 ---
 
@@ -165,10 +165,10 @@ Et l'accès à /api/v1/users renvoie 403
 | STK-05 | Un mouvement validé est immuable | **PASS** | `PATCH`/`DELETE` renvoient `409 IMMUTABLE_RESOURCE`. |
 | STK-06 | Une correction crée un mouvement inverse | **PARTIEL** | Un mouvement inverse manuel est possible ; aucune compensation automatique. |
 | STK-07 | `IN` incrémente le stock | **PASS** | Solde incrémenté et article remis `AVAILABLE`. |
-| STK-08 | `OUT` décrémente le stock et exige une affectation | **PARTIEL** | Solde décrémenté et article `ASSIGNED` ; aucune affectation active n'est créée (`P0-06`). |
+| STK-08 | `OUT` décrémente le stock et exige une affectation | **PASS** | `employee_id` et `post_id` obligatoires, affectation créée dans la transaction, solde décrémenté ; test dédié (`P0-06`). |
 | STK-09 | `TRANSFER` déplace une quantité d'un entrepôt à l'autre | **PASS** | Solde source/destination et emplacement de l'article mis à jour. |
-| STK-10 | `RETURN` clôt l'affectation active | **FAIL** | Le retour ne clôt pas l'affectation active (`P0-06`). |
-| STK-11 | `DESTRUCTION` interdit un article affecté | **FAIL** | Aucun contrôle d'affectation active. |
+| STK-10 | `RETURN` clôt l'affectation active | **PASS** | Le retour clôt l'affectation active et restaure l'article ; test dédié (`P0-06`). |
+| STK-11 | `DESTRUCTION` interdit un article affecté | **PASS** | `IN`, `TRANSFER` et `DESTRUCTION` refusent une affectation active (`409 ITEM_ASSIGNED`) ; test dédié. |
 | STK-12 | `ADJUSTMENT` modifie une quantité | **PASS** | Solde ajusté selon la source/destination, sans changer l'état physique. |
 | STK-13 | La réponse de création renvoie le type et la date réellement stockés | **PASS** | Création relue depuis la base (Lot 2). |
 | STK-14 | Un mouvement inconnu renvoie 404 | **PASS** | Code + test. |
@@ -195,24 +195,24 @@ Et un second OUT de 4 renvoie 409 sans modifier le stock
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| ASG-01 | Une seule API d'affectation est exposée | **FAIL** | Deux modules |
-| ASG-02 | Affecter un article non disponible renvoie 409 | **PARTIEL** | 400 dans le module typé ; aucun contrôle générique |
+| ASG-01 | Un seul contrat d'affectation est exposé | **PARTIEL** | `/api/item-assignments` est canonique ; `/api/inventory/assignments` reste une façade dépréciée déléguant au même service. Deux préfixes subsistent jusqu'à D-07. |
+| ASG-02 | Affecter un article non disponible renvoie 409 | **PASS** | `409 ITEM_NOT_AVAILABLE` ; test dédié. |
 | ASG-03 | Affecter à un employé inactif renvoie 422 | **FAIL** | Aucun contrôle |
-| ASG-04 | Affecter à un employé d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle |
-| ASG-05 | Affecter à un poste d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle |
-| ASG-06 | L'affectation et le passage à `ASSIGNED` sont atomiques | **PASS** | Service `@Transactional` + DAO sur connexion Spring ; infrastructure de rollback testée. |
-| ASG-07 | Un retour exige une date de retour | **FAIL** | `returned_at` facultatif |
-| ASG-08 | Un retour restaure l'entrepôt | **FAIL** | Non restauré |
-| ASG-09 | Un retour renseigne `returned_by` | **FAIL** | Aucun acteur |
-| ASG-10 | Un retour est idempotent | **FAIL** | Non testé / non garanti |
-| ASG-11 | Un retour avec seulement une condition ne renvoie pas 200 | **FAIL** | No-op accepté |
-| ASG-12 | Une affectation active ne peut pas être supprimée | **FAIL** | `DELETE` exposé |
-| ASG-13 | Une annulation est auditée et remet l'article disponible | **FAIL** | Pas de `void` |
-| ASG-14 | `ASSIGNED` implique exactement une affectation active | **FAIL** | Plusieurs chemins incohérents |
-| ASG-15 | `AVAILABLE` implique aucune affectation active | **FAIL** | `RETURN`/`IN` peuvent le faire |
-| ASG-16 | Deux affectations concurrentes produisent un 409 | **PARTIEL** | Index unique + `23505` → 409 ; pas de test de course dédié |
-| ASG-17 | Les affectations en retard sont identifiables | **FAIL** | `expected_return_at` non exploité |
-| ASG-18 | L'historique des acteurs est conservé | **FAIL** | `assigned_by`/`returned_by` non alimentés |
+| ASG-04 | Affecter à un employé d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle (`P0-01`) |
+| ASG-05 | Affecter à un poste d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle (`P0-01`) |
+| ASG-06 | L'affectation et le passage à `ASSIGNED` sont atomiques | **PASS** | Service `@Transactional`, DAO sur connexion Spring, solde synchronisé ; tests de création et rollback. |
+| ASG-07 | Un retour exige une date de retour | **PASS** | `POST /{id}/return` pose `returned_at` côté serveur ; date bornée à `assigned_at` si nécessaire. |
+| ASG-08 | Un retour restaure l'entrepôt | **PASS** | `source_warehouse_id` ajouté et restauré ; test dédié. |
+| ASG-09 | Un retour renseigne `returned_by` | **PASS** | Acteur JWT UUID ; test `returned_by`. Un acteur non-UUID reste nul. |
+| ASG-10 | Un retour est idempotent | **PARTIEL** | Un second retour renvoie 409 `ASSIGNMENT_ALREADY_RETURNED` de façon déterministe, mais aucune clé d'idempotence (`P1-14`). |
+| ASG-11 | Un retour avec seulement une condition ne renvoie pas 200 | **PASS** | `PATCH` avec `condition_on_return` seul renvoie 400 `RETURN_ENDPOINT_REQUIRED`. |
+| ASG-12 | Une affectation active ne peut pas être supprimée | **PASS** | `DELETE` renvoie 409 `ACTIVE_ASSIGNMENT` ; test dédié. |
+| ASG-13 | Une annulation est auditée et remet l'article disponible | **PASS** | `void` motivé, `voided_at`/`voided_by`/`void_reason`, article et stock restaurés. |
+| ASG-14 | `ASSIGNED` implique exactement une affectation active | **PASS** | Tous les chemins passent par le service ; index unique actif et tests. |
+| ASG-15 | `AVAILABLE` implique aucune affectation active | **PARTIEL** | Le code corrigé garantit la règle ; une affectation active préexistante de la base de démonstration pointe encore vers un article `AVAILABLE`. |
+| ASG-16 | Deux affectations concurrentes produisent un 409 | **PARTIEL** | Index unique + `23505` → 409 ; pas de test de course dédié. |
+| ASG-17 | Les affectations en retard sont identifiables | **FAIL** | `expected_return_at` est modifiable mais aucune route ni requête de retard n'existe. |
+| ASG-18 | L'historique des acteurs est conservé | **PASS** | `assigned_by`, `returned_by` et `voided_by` alimentés depuis le JWT ; les lignes historiques restent nulles. |
 
 ### Scénario d'acceptation ASG-A
 
@@ -315,7 +315,7 @@ Et un comptage déjà clôturé renvoie 409
 | API-10 | Les créations sensibles acceptent `Idempotency-Key` | **FAIL** | Absent |
 | API-11 | Les `PATCH` sensibles utilisent `If-Match`/ETag | **FAIL** | Absent |
 | API-12 | Les erreurs ont un `code` stable et documenté | **PASS** | Codes applicatifs (`CONFLICT`, `BAD_REQUEST`, `UNPROCESSABLE_ENTITY`, etc.) documentés dans `ItemError`. |
-| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 26 fichiers, 183 avertissements à l'audit initial (non rejoués après `7e3f196`) |
+| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 26 fichiers ; lint Redocly rejoué au Lot 4 : 179 avertissements, 0 erreur (183 à l'audit initial). Les exemples et les `license` manquent encore. |
 | API-14 | Le CORS est restreint par environnement | **FAIL** | `*` |
 | API-15 | Les filtres couvrent les besoins des écrans | **FAIL** | Voir rapports 02 et 10 |
 | API-16 | Chaque réponse d'erreur contient un `traceId` | **FAIL** | Absent |

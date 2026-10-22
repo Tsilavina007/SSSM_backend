@@ -23,7 +23,8 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
 
   @Override
   public List<ItemCategoryResponse> getAllItemCategories(int page, int pageSize) {
-    String sql = "SELECT * FROM security.item_category ORDER BY id LIMIT ? OFFSET ?";
+    String sql =
+        "SELECT * FROM security.item_category WHERE archived_at IS NULL ORDER BY id LIMIT ? OFFSET ?";
     List<ItemCategoryResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -55,7 +56,7 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
   public List<ItemCategoryResponse> searchItemCategoriesByName(
       String value, int page, int pageSize) {
     String sql =
-        "SELECT * FROM security.item_category WHERE name ILIKE ? OR description ILIKE ? ORDER BY id LIMIT ? OFFSET ?";
+        "SELECT * FROM security.item_category WHERE archived_at IS NULL AND (name ILIKE ? OR description ILIKE ?) ORDER BY id LIMIT ? OFFSET ?";
     List<ItemCategoryResponse> values = new ArrayList<>();
     int offset = (page - 1) * pageSize;
 
@@ -170,6 +171,37 @@ public class ItemCategoryDAOImpl implements ItemCategoryDAO {
                     "Catégorie d'article introuvable",
                     "Aucune catégorie d'article ne correspond à l'identifiant " + id + ".",
                     "NOT_FOUND"));
+  }
+
+  @Override
+  public void archiveItemCategory(String id, String archivedBy) {
+    String sql =
+        "UPDATE security.item_category SET archived_at = now(), archived_by = ?, "
+            + "updated_at = now() WHERE id = ? AND archived_at IS NULL";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, archivedBy == null ? null : UUID.fromString(archivedBy));
+      stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public void restoreItemCategory(String id) {
+    String sql =
+        "UPDATE security.item_category SET archived_at = NULL, archived_by = NULL, "
+            + "updated_at = now() WHERE id = ?";
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
   }
 
   @Override

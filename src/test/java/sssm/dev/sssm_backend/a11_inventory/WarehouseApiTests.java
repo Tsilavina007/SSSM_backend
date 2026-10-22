@@ -144,7 +144,28 @@ class WarehouseApiTests {
     mockMvc
         .perform(
             get("/api/inventory/warehouses/" + id).header("Authorization", "Bearer " + token))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").value(notNullValue()));
+
+    mockMvc
+        .perform(
+            get("/api/inventory/warehouses")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.id == '" + id + "')]").isEmpty());
+
+    mockMvc
+        .perform(
+            post("/api/inventory/warehouses/" + id + "/restore")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").doesNotExist());
+
+    mockMvc
+        .perform(
+            get("/api/inventory/warehouses/" + id).header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").doesNotExist());
   }
 
   @Test
@@ -158,12 +179,13 @@ class WarehouseApiTests {
   }
 
   @Test
-  void deleteUnknownIsIdempotent() throws Exception {
+  void deleteUnknownReturnsNotFound() throws Exception {
     mockMvc
         .perform(
             delete("/api/inventory/warehouses/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + token))
-        .andExpect(status().isNoContent());
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
   }
 
   private static void purge() throws Exception {

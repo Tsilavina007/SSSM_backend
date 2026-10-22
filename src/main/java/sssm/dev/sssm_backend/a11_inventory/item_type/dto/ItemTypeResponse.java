@@ -24,4 +24,5 @@ public class ItemTypeResponse {
   private ItemStatus status;
   private Timestamp created_at;
   private Timestamp updated_at;
+  private Timestamp archived_at;
 }

@@ -136,15 +136,52 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     delete:
       tags: [ Items ]
-      summary: Supprimer un article
+      summary: Archiver un article
       description: >-
-        Suppression idempotente : un identifiant inexistant ne produit pas
-        d'erreur et renvoie également 204 (le DELETE SQL n'affecte aucune ligne).
+        Archivage logique : renseigne `archived_at`/`archived_by`, retire le
+        stock disponible et conserve la ligne. Un article avec une affectation
+        active renvoie 409 `ITEM_ASSIGNED`. Un identifiant inconnu ou déjà
+        archivé renvoie 404 `NOT_FOUND`.
       responses:
         '204':
-          description: Opération effectuée (sans corps).
+          description: Article archivé (sans corps).
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Affectation active ou état incompatible — enveloppe ItemError.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '500':
           $ref: '#/components/responses/ServerError'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/items/{itemId}/restore:
+    parameters:
+      - { $ref: '#/components/parameters/ItemId' }
+    post:
+      operationId: restoreItem
+      tags: [ Items ]
+      summary: Restaurer un article archivé
+      description: >-
+        Efface `archived_at`/`archived_by` et réintègre le stock disponible si
+        l'article est `AVAILABLE` et rattaché à un entrepôt. Un article non
+        archivé renvoie 409 `ITEM_NOT_ARCHIVED`.
+      responses:
+        '200':
+          description: Article restauré
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Article déjà actif — enveloppe ItemError.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":

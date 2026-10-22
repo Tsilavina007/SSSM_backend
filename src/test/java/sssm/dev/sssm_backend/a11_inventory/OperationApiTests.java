@@ -47,6 +47,8 @@ class OperationApiTests {
   private String warehouseId;
   private String secondWarehouseId;
   private String itemTypeId;
+  private String employeeId;
+  private String postId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -58,13 +60,15 @@ class OperationApiTests {
 
     try (Connection conn = DatabaseConnection.getConnection()) {
       companyId = firstValue(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
+      employeeId = firstValue(conn, "SELECT id FROM security.employee ORDER BY id LIMIT 1");
+      postId = firstValue(conn, "SELECT id FROM security.security_post ORDER BY id LIMIT 1");
       List<String> warehouseIds =
           values(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 2");
       warehouseId = warehouseIds.isEmpty() ? null : warehouseIds.get(0);
       secondWarehouseId = warehouseIds.size() < 2 ? null : warehouseIds.get(1);
     }
     Assumptions.assumeTrue(
-        companyId != null && warehouseId != null,
+        companyId != null && warehouseId != null && employeeId != null && postId != null,
         "base initialisée avec des données de démonstration requise");
     purge();
     try (Connection conn = DatabaseConnection.getConnection()) {
@@ -159,6 +163,10 @@ class OperationApiTests {
                         + issueMarker
                         + "\",\"source_warehouse_id\":\""
                         + warehouseId
+                        + "\",\"employee_id\":\""
+                        + employeeId
+                        + "\",\"post_id\":\""
+                        + postId
                         + "\",\"lines\":[{\"item_id\":\""
                         + issueItem
                         + "\"}]}"))
@@ -313,6 +321,10 @@ class OperationApiTests {
     execute(
         "DELETE FROM security.stock_balance WHERE item_type_id IN "
             + "(SELECT id FROM security.item_type WHERE code LIKE 'phase5-op-type-%')");
+    execute(
+        "DELETE FROM security.item_assignment WHERE item_id IN "
+            + "(SELECT id FROM security.item WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code LIKE 'phase5-op-type-%'))");
     execute(
         "DELETE FROM security.item WHERE item_type_id IN "
             + "(SELECT id FROM security.item_type WHERE code LIKE 'phase5-op-type-%')");

@@ -18,5 +18,9 @@ public interface ItemCategoryDAO {
 
   ItemCategoryResponse updateItemCategory(String id, ItemCategoryUpdateRequest value);
 
+  void archiveItemCategory(String id, String archivedBy);
+
+  void restoreItemCategory(String id);
+
   void deleteItemCategory(String id);
 }

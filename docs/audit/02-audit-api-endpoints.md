@@ -344,7 +344,7 @@ Les 26 fichiers OpenAPI couvrent les 26 contrôleurs métier, dont 12 fichiers p
 
 Aucune route fantôme majeure n'a été détectée dans les spécifications. En revanche, la documentation ne compense pas les incohérences de comportement : elle les décrit parfois, ce qui confirme qu'elles sont connues.
 
-La vérification OpenAPI de l'audit initial a relevé **183 avertissements Redocly non bloquants**, principalement des réponses d'erreur incomplètes, des exemples manquants et des `operationId` absents. Ce décompte n'a pas été rejoué après `7e3f196` ; il n'est pas corrigé dans cette passe.
+La vérification OpenAPI de l'audit initial a relevé **183 avertissements Redocly non bloquants**, principalement des réponses d'erreur incomplètes, des exemples manquants et des `operationId` absents. Le décompte a été **rejoué au Lot 4** avec la version utilisée par la CI (`@redocly/cli@2.65.1`) : **179 avertissements, 0 erreur** sur les 26 fichiers. Les opérations écrites ou modifiées au Lot 4 portent désormais un `operationId` ; les avertissements restants concernent les opérations antérieures (`license`, `localhost`, exemples) et ne sont pas bloquants.
 
 ---
 

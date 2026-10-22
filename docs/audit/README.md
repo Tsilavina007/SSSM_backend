@@ -1,9 +1,9 @@
 # Audit technique et fonctionnel — Backend SSSM
 
-**Date de l'audit :** 21 octobre 2026, mise à jour du 22 octobre 2026 (Lot 2)  
+**Date de l'audit :** 21 octobre 2026, mise à jour du 22 octobre 2026 (Lots 2, 3 et 4)  
 **Périmètre :** backend Spring Boot, API HTTP, PostgreSQL, modules inventaire / stock / QR Code / affectations / authentification  
-**Nature :** audit statique initial, puis exécution du Lot 1 (identité, tenancy mono-entreprise, RBAC, durcissement de l'authentification) et du Lot 2 (DataSource, pool, transactions, erreurs SQL, défauts de création)
-**Statut de la mission :** audit initial et revue de cohérence terminés ; **Lot 1 exécuté le 21 octobre 2026**, **Lot 2 exécuté le 22 octobre 2026** ; lots 3 à 9 non démarrés ; aucun frontend démarré. Le correctif QR `7e3f196` est postérieur à l'audit initial.
+**Nature :** audit statique initial, puis exécution des Lots 1 à 4 (identité et RBAC, DataSource et transactions, modèle de stock, cycle de vie des affectations et archivage)
+**Statut de la mission :** audit initial et revue de cohérence terminés ; **Lots 1 à 4 exécutés** (21 et 22 octobre 2026) ; lots 5 à 9 non démarrés ; aucun frontend démarré. Le correctif QR `7e3f196` est postérieur à l'audit initial.
 **Revue de cohérence :** 21 octobre 2026, mise à jour du 22 octobre 2026 — voir [`16-revue-coherence.md`](16-revue-coherence.md)
 
 ---
@@ -29,14 +29,14 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Domaine | Éléments examinés |
 |---|---|
 | Cartographie | packages, contrôleurs, services, DAO, DTO, mappers, configuration, dépendances |
-| API | 27 contrôleurs REST, 133 routes applicatives après le Lot 3 (130 à l'audit initial, 131 après le Lot 1), codes HTTP, validation, erreurs, pagination |
-| Base de données | schéma `security`, scripts `00_init.sql` à `19_lot3_stock.sql`, contraintes, index, triggers |
+| API | 27 contrôleurs REST, 147 routes applicatives après le Lot 4 (130 à l'audit initial, 131 après le Lot 1), codes HTTP, validation, erreurs, pagination |
+| Base de données | schéma `security`, scripts `00_init.sql` à `20_lot4_assignments.sql`, contraintes, index, triggers |
 | Catalogue | catégories, types de matériel, entrepôts, articles |
 | Stock | mouvements, opérations, comptages, tableau de bord, rapports |
 | QR Code | génération, image PNG, résolution, scan |
-| Affectations | deux modules distincts (`item_assignment` et `assignment`) |
+| Affectations | un contrat canonique (`item_assignment`) et une façade dépréciée (`assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 28 suites / 140 tests après le Lot 3 ; suite complète exécutée : 140 succès, 0 échec |
+| Tests | 28 suites / 150 tests après le Lot 4 ; suite complète exécutée : 150 succès, 0 échec |
 | OpenAPI | 26 fichiers YAML, dont 12 pour l'inventaire |
 
 ## 3. Périmètre exclu
@@ -60,10 +60,10 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Sécurité | Spring Security, JJWT `0.12.6`, BCrypt |
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
-| Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations Lots 1 et 3 appliquées ensuite, tests Lots 2 et 3 avec nettoyage des marqueurs |
-| Rapports de tests | Exécution complète du 22 octobre 2026 après le Lot 3 : 140 tests, 140 succès, 0 échec, 28 suites. Tests ciblés authentification/RBAC : 29 succès. |
+| Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations Lots 1, 3 et 4 appliquées ensuite, tests des Lots 2 à 4 avec nettoyage des marqueurs |
+| Rapports de tests | Exécution complète du 22 octobre 2026 après le Lot 4 : 150 tests, 150 succès, 0 échec, 28 suites. Tests ciblés authentification/RBAC : 29 succès. |
 | Documentation API | `docs/api/**/*.yaml` — 26 fichiers |
-| Scripts SQL | `docs/database/schema/00_init.sql` à `19_lot3_stock.sql` — 20 fichiers |
+| Scripts SQL | `docs/database/schema/00_init.sql` à `20_lot4_assignments.sql` — 21 fichiers |
 
 Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196`. Le Lot 1 a ensuite été exécuté sur le HEAD `13bb79b` (`docs(audit): reconcile reports with current HEAD`), sans commit de correction à ce stade.
 
@@ -74,12 +74,14 @@ Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond a
 1. **Lecture statique** des contrôleurs, services, DAO, DTO, mappers, filtres de sécurité et fichiers de configuration.
 2. **Lecture croisée** du schéma PostgreSQL, des scripts SQL, des index, des triggers et des spécifications OpenAPI.
 3. **Vérifications en lecture seule** sur la base locale : tables, colonnes, contraintes, index, triggers, valeurs d'énumérations et comptages agrégés.
-4. **Analyse des rapports de tests existants** dans `target/surefire-reports`, puis **exécution complète** de la suite après les Lots 1 et 2.
+4. **Analyse des rapports de tests existants** dans `target/surefire-reports`, puis **exécution complète** de la suite après les Lots 1, 2, 3 et 4.
 5. **Consolidation** des anomalies, de leur impact et de leur priorité, puis rédaction des propositions et des critères de validation.
 6. **Exécution du Lot 1** : migration additive, code d'authentification/RBAC, tests ciblés et mise à jour des rapports.
 7. **Exécution du Lot 2** : DataSource/HikariCP, transactions effectives, mapping SQL, défauts et réponses de création, tests de non-régression et mise à jour des rapports.
+8. **Exécution du Lot 3** : modèle de stock calculé, journal append-only, opérations et comptages, migration `19_lot3_stock.sql` et mise à jour des rapports.
+9. **Exécution du Lot 4** : cycle de vie des affectations, contrat canonique et façade dépréciée, archivage logique, migration `20_lot4_assignments.sql` et mise à jour des rapports.
 
-L'audit initial n'a effectué aucun test destructif, aucune migration, aucune insertion, aucune modification de données. Le Lot 1 a appliqué la migration `18_lot1_security.sql` à la base de démonstration (colonnes, backfill, index, tables de jetons, permissions) et exécuté les tests ; aucun reset ni suppression de données n'a été effectué. Le Lot 2 n'a appliqué **aucune migration** : il réutilise le schéma courant et n'a supprimé aucune donnée.
+L'audit initial n'a effectué aucun test destructif, aucune migration, aucune insertion, aucune modification de données. Le Lot 1 a appliqué la migration `18_lot1_security.sql` à la base de démonstration (colonnes, backfill, index, tables de jetons, permissions) et exécuté les tests ; aucun reset ni suppression de données n'a été effectué. Le Lot 2 n'a appliqué **aucune migration** : il réutilise le schéma courant et n'a supprimé aucune donnée. Les Lots 3 et 4 ont appliqué des migrations **strictement additives** (`19_lot3_stock.sql`, `20_lot4_assignments.sql`), rejouées pour vérifier leur idempotence ; aucune suppression, aucun `TRUNCATE` et aucun reset n'ont été effectués.
 
 ---
 
@@ -95,7 +97,7 @@ L'audit initial n'a effectué aucun test destructif, aucune migration, aucune in
 | [`05-audit-stock-inventaire.md`](05-audit-stock-inventaire.md) | Quantités, stock réel, opérations, comptages, tableau de bord | Statique + base |
 | [`06-audit-qrcode.md`](06-audit-qrcode.md) | Génération, PNG, unicité, scan, limites pour le mobile | Statique + tests |
 | [`07-audit-mouvements-stock.md`](07-audit-mouvements-stock.md) | Règles IN/OUT/TRANSFER/RETURN/DESTRUCTION/ADJUSTMENT, journal, erreurs | Statique + tests |
-| [`08-audit-affectations-employes.md`](08-audit-affectations-employes.md) | Deux modules d'affectation, cohérence d'état, restitution, suppressions | Statique + tests |
+| [`08-audit-affectations-employes.md`](08-audit-affectations-employes.md) | Cycle de vie des affectations, contrat canonique et façade dépréciée, restitution, archivage — état après le Lot 4 | Statique + tests |
 | [`09-audit-authentification-securite.md`](09-audit-authentification-securite.md) | Inscription, JWT, refresh, RBAC, CORS, fuites d'erreurs — état initial et corrections du Lot 1 | Statique + tests |
 | [`10-audit-architecture-api-frontend.md`](10-audit-architecture-api-frontend.md) | Adéquation de l'API aux frontends web/mobile, conventions, performance | Statique |
 | [`11-audit-tests-fiabilite.md`](11-audit-tests-fiabilite.md) | Couverture réelle, limites, tests qui figent des comportements douteux | Rapports + code |
@@ -131,19 +133,19 @@ Les priorités utilisées dans le registre sont :
 
 ## 8. Limites de l'audit
 
-- **La suite complète a été exécutée après le Lot 3** : 140 tests, 140 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites. L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre ; l'anomalie fonctionnelle de l'historique reste ouverte (`P1-12`) et n'est plus couverte par un test négatif. Les résultats historiques (105 tests, puis 120 tests après le Lot 1, 132 après le Lot 2) proviennent d'exécutions antérieures et ne décrivent plus l'état courant.
+- **La suite complète a été exécutée après le Lot 4** : 150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites. L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre ; l'anomalie fonctionnelle de l'historique reste ouverte (`P1-12`) et n'est plus couverte par un test négatif. Les résultats historiques (105 tests, puis 120 tests après le Lot 1, 132 après le Lot 2, 140 après le Lot 3) proviennent d'exécutions antérieures et ne décrivent plus l'état courant.
 - **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise. Le Lot 1 applique l'hypothèse mono-entreprise et ajoute le scope entreprise sur les utilisateurs et rôles, mais les DAO d'inventaire ne filtrent pas encore par `company_id`.
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
 - **Les secrets réels n'ont pas été lus.** Les conclusions portent sur la présence de valeurs par défaut et sur la configuration, pas sur la divulgation d'un secret d'exploitation.
-- **OpenAPI** a été vérifié structurellement. Les 183 avertissements Redocly relevés lors de l'audit initial ne sont pas corrigés dans ce dossier ; ils sont signalés comme dette de documentation. Ce décompte n'a pas été rejoué après le commit `7e3f196`.
+- **OpenAPI** a été vérifié structurellement et linté avec la version de la CI (`@redocly/cli@2.65.1`) au Lot 4 : **179 avertissements, 0 erreur** sur 26 fichiers (183 à l'audit initial). Les avertissements restants concernent les opérations antérieures et ne sont pas bloquants ; ils restent signalés comme dette de documentation.
 - **Les propositions** des fichiers 13 à 15 sont des spécifications. Elles ne constituent ni du code livré, ni un engagement de délai.
 
 ---
 
 ## 9. Verdict en une phrase
 
-**Le backend n'est pas prêt pour la production.** Il est partiellement utilisable pour un prototype mono-entreprise, en lecture et CRUD encadré. Le Lot 1 a fermé l'inscription publique, ajouté le RBAC sur l'inventaire et l'administration, et durci les jetons (refresh rotatif, révocation, logout). Le Lot 2 a rétabli un pool Spring/HikariCP, des transactions effectives pour les cas d'usage existants, des erreurs SQL maîtrisées et des créations relues depuis la base. Il ne permet pas encore de garantir un stock fiable, une isolation multi-entreprise complète, une traçabilité des affectations, la concurrence ou un RBAC sur tous les modules métier.
+**Le backend n'est pas prêt pour la production.** Il est partiellement utilisable pour un prototype mono-entreprise, en lecture et CRUD encadré. Le Lot 1 a fermé l'inscription publique, ajouté le RBAC sur l'inventaire et l'administration, et durci les jetons (refresh rotatif, révocation, logout). Le Lot 2 a rétabli un pool Spring/HikariCP, des transactions effectives pour les cas d'usage existants, des erreurs SQL maîtrisées et des créations relues depuis la base. Le Lot 3 a posé un stock calculé, un journal immuable et des comptages réconciliés ; le Lot 4 a unifié le contrat d'affectation, fiabilisé son cycle de vie et rendu l'archivage logique effectif. Il ne permet pas encore de garantir une isolation multi-entreprise complète, la concurrence et l'idempotence, ni un RBAC sur tous les modules métier.
 
 Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout frontend sont dans [`00-resume-executif.md`](00-resume-executif.md). Les preuves sont dans les rapports 01 à 11, la revue de cohérence dans le rapport 16, et les corrections proposées dans les rapports 12 à 15.
 
@@ -195,6 +197,19 @@ Le **Lot 3**, exécuté le 22 octobre 2026, a modifié :
 - les DTO, DAO, mappers et contrôleurs associés ;
 - `Lot3StockModelTests` et les tests existants adaptés.
 
-La suite complète est verte : **140 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. La migration a été appliquée puis rejouée sans écraser les soldes existants. Aucune dépendance n'a été ajoutée et aucun fichier OpenAPI n'a été modifié. `P0-01`, `P0-06` et `P1-14` restent ouverts : la tenancy, les affectations et la concurrence ne sont pas couvertes par le Lot 3.
+La suite complète est verte : **140 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. La migration a été appliquée puis rejouée sans écraser les soldes existants. Aucune dépendance n'a été ajoutée et aucun fichier OpenAPI n'a été modifié. `P0-01`, `P0-06` et `P1-14` restaient ouverts à l'issue du Lot 3 : la tenancy, les affectations et la concurrence n'étaient pas couvertes par le Lot 3.
 
-Le Lot 4 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.
+Le **Lot 4**, exécuté le 22 octobre 2026, a modifié :
+
+- la migration additive `20_lot4_assignments.sql` et l'orchestrateur `sssm_schema2_v01.sql` ;
+- le module `item_assignment` (DTO, DAO, mapper, service, contrôleur) et la façade `assignment` devenue dépréciée ;
+- le service de mouvement (`OUT`/`RETURN` raccordés aux affectations, refus sur article affecté) et le DTO de création de mouvement (`post_id`) ;
+- les services, DAO et contrôleurs d'article, de catégorie, de type et d'entrepôt (archivage logique, restauration, filtres de listes) ;
+- l'historique d'article (lectures par article) et la validation des UUID ;
+- les tests du cycle de vie des affectations et les tests existants adaptés ;
+- les spécifications OpenAPI `item_assignment`, `assignment`, `stock_movement`, `item`, `item_category`, `item_type` et `warehouse` ;
+- les rapports `docs/audit/` concernés.
+
+La suite complète est verte : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. La migration a été appliquée puis rejouée, sans suppression de ligne ni de colonne. Aucune dépendance n'a été ajoutée. `P0-06`, `P1-05` et `P1-11` sont corrigés dans le périmètre documenté ; `P0-01` (tenancy) et `P1-14` (concurrence et idempotence) restent ouverts, ainsi qu'une affectation active antérieure de la base de démonstration incohérente avec le statut de son article, laissée en l'état.
+
+Le Lot 5 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.

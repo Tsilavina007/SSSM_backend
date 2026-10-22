@@ -46,6 +46,8 @@ class StockMovementTimestampTests {
   private String itemTypeId;
   private String warehouseId;
   private String itemId;
+  private String employeeId;
+  private String postId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -58,9 +60,11 @@ class StockMovementTimestampTests {
     try (Connection conn = DatabaseConnection.getConnection()) {
       companyId = firstId(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
       warehouseId = firstId(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 1");
+      employeeId = firstId(conn, "SELECT id FROM security.employee ORDER BY id LIMIT 1");
+      postId = firstId(conn, "SELECT id FROM security.security_post ORDER BY id LIMIT 1");
     }
     Assumptions.assumeTrue(
-        companyId != null && warehouseId != null,
+        companyId != null && warehouseId != null && employeeId != null && postId != null,
         "base initialisée avec des données de démonstration requise");
 
     purge();
@@ -155,7 +159,11 @@ class StockMovementTimestampTests {
             + warehouseId
             + "\",\"item_id\":\""
             + itemId
-            + "\",\"movement_type\":\"OUT\",\"movement_date\":\""
+            + "\",\"movement_type\":\"OUT\",\"employee_id\":\""
+            + employeeId
+            + "\",\"post_id\":\""
+            + postId
+            + "\",\"movement_date\":\""
             + expected
             + "\",\"notes\":\""
             + marker
@@ -261,6 +269,9 @@ class StockMovementTimestampTests {
 
   private static void purge() throws Exception {
     execute("DELETE FROM security.stock_movement WHERE notes LIKE 'phase2-ts-%'");
+    execute(
+        "DELETE FROM security.item_assignment WHERE item_id IN "
+            + "(SELECT id FROM security.item WHERE qr_code = '" + ITEM_QR + "')");
     execute(
         "DELETE FROM security.stock_balance WHERE item_type_id IN "
             + "(SELECT id FROM security.item_type WHERE code = '" + TYPE_CODE + "')");

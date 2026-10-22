@@ -1,6 +1,6 @@
 ﻿# 11 — Audit des tests et de la fiabilité
 
-**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 22 octobre 2026 après le Lot 3 : **140 tests, 140 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites**.
+**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 22 octobre 2026 après le Lot 4 : **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites**.
 
 ---
 
@@ -102,6 +102,23 @@ Le Lot 2 ajoute des tests de pool HikariCP, de rollback DAO, de rollback du serv
 
 Le Lot 3 ajoute les tests de solde calculé, d'immuabilité du journal, de stock négatif, d'acteur JWT, de rollback des opérations multi-lignes, de comptage avec écart serveur, de clôture réconciliée et de rollback de clôture. La suite reste exécutée sur la base de démonstration partagée : elle ne prouve ni la tenancy A/B, ni la concurrence, ni la synchronisation des affectations.
 
+### 1.5. État après le Lot 4 (22 octobre 2026)
+
+| Indicateur | Valeur |
+|---|---|
+| Suites de tests | 28 |
+| Tests exécutés | 150 |
+| Succès | 150 |
+| Échecs | 0 |
+| Erreurs | 0 |
+| Ignorés | 0 |
+| Commande | `.\mvnw.cmd -q test` |
+| Tests dédiés | `AssignmentApiTests` : 14, `ItemAssignmentStateTests` : 5, `ItemAssignmentTimestampTests` : 3 |
+| Tests adaptés | `ItemApiTests` 16, `ItemCategoryApiTests` 6, `ItemTypeApiTests` 10, `WarehouseApiTests` 5, `OperationApiTests` 4, `StockMovementBusinessRulesTests` 9, `StockMovementTimestampTests` 4, `Lot3StockModelTests` 8 |
+| Migration | `20_lot4_assignments.sql` appliquée puis rejouée : aucun reset, aucune donnée supprimée |
+
+Le Lot 4 ajoute la couverture du cycle de vie des affectations (création, retour, void motivé, archivage, restauration), de la cohérence entre les deux préfixes, du rejet des articles affectés sur `IN`/`TRANSFER`/`DESTRUCTION`, de l'archivage et de la restauration des référentiels, et des 404 sur UUID inconnu. La synchronisation des affectations avec `stock_balance` est désormais prouvée par les tests. Restent non prouvés : la tenancy A/B, la concurrence réelle et l'idempotence.
+
 ---
 
 ## 2. Nature des tests
@@ -158,13 +175,13 @@ Conséquences :
 
 | Domaine | Classes | Ce qui est couvert | Ce qui ne l'est pas |
 |---|---|---|---|
-| Articles | `ItemApiTests` | CRUD, QR, image, filtres, bulk partiel, historique nominal | cross-company, doublons, suppression référencée, historique inconnu, N+1 |
-| Types | `ItemTypeApiTests` | CRUD, liste par catégorie, stubs vides | omission de `unit`/quantités, doublons, archived |
-| Catégories | `ItemCategoryApiTests` | CRUD nominal | doublons, suppression utilisée, archived |
-| Entrepôts | `WarehouseApiTests` | CRUD nominal, suppression inconnue | doublons de nom, suppression référencée, cross-company |
-| Mouvements | `StockMovementBusinessRulesTests`, `StockMovementTimestampTests` | effets d'état, dates | quantité, source/destination, acteur, patch/delete, historique |
-| Affectations typées | `ItemAssignmentStateTests`, `ItemAssignmentTimestampTests` | état, retour, date | suppression, returned_at à la création, employé inactif, cross-company |
-| Affectations génériques | `AssignmentApiTests` | liste active, création, patch notes, retour condition, soft errors | no-op réel, `returned_at`, suppression, colonnes arbitraires |
+| Articles | `ItemApiTests` | CRUD, QR, image, filtres, bulk partiel, historique par article, archivage et restauration, 404 sur UUID inconnu | cross-company, doublons, suppression référencée, historique inconnu, N+1 |
+| Types | `ItemTypeApiTests` | CRUD, liste par catégorie, archivage et restauration | omission de `unit`/quantités, doublons |
+| Catégories | `ItemCategoryApiTests` | CRUD nominal, archivage et restauration | doublons, suppression utilisée |
+| Entrepôts | `WarehouseApiTests` | CRUD nominal, archivage, restauration, 404 sur UUID inconnu | doublons de nom, suppression référencée, cross-company |
+| Mouvements | `StockMovementBusinessRulesTests`, `StockMovementTimestampTests` | effets d'état, dates, `OUT`/`RETURN` raccordés aux affectations, refus sur article affecté | quantité multi-unités, patch/delete, historique |
+| Affectations (canoniques) | `ItemAssignmentStateTests`, `ItemAssignmentTimestampTests` | machine à états, retour, void, dates | employé inactif, cross-company, concurrence |
+| Affectations (contrat et façade) | `AssignmentApiTests` | création, retour, void motivé, archivage, restauration, parité des deux préfixes, 404/409 | idempotence, course sur l'index unique |
 | Comptages | `InventoryCountScanCloseTests` | scan, doublon, clôture sans corps | réconciliation, `last_inventory_at`, `completed_at`, cross-company |
 | Opérations | `OperationApiTests` | en-têtes, type manquant, soft error | lignes d'articles, mouvements, type déduit |
 | QR | `QrScanApiTests`, `ItemApiTests` | résolution connue/inconnue, PNG | cross-company, code modifié, code vide, journal |
@@ -401,7 +418,7 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 
 ## 11. Verdict
 
-Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a renforcé la couverture de l'identité, du RBAC et de la révocation ; le Lot 2 ajoute le pool, le rollback transactionnel, les défauts de création et le mapping SQL ; le Lot 3 ajoute les soldes calculés, l'immuabilité du journal, le rollback des opérations multi-lignes et la réconciliation des comptages. La suite complète exécutée donne **140 tests, 140 succès, 0 échec, 28 suites**.
+Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a renforcé la couverture de l'identité, du RBAC et de la révocation ; le Lot 2 ajoute le pool, le rollback transactionnel, les défauts de création et le mapping SQL ; le Lot 3 ajoute les soldes calculés, l'immuabilité du journal, le rollback des opérations multi-lignes et la réconciliation des comptages ; le Lot 4 ajoute le cycle de vie des affectations, l'archivage et la restauration des référentiels. La suite complète exécutée donne **150 tests, 150 succès, 0 échec, 28 suites**.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 

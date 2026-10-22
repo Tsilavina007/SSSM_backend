@@ -15,7 +15,7 @@ Client HTTP
 Spring Security (JwtAuthenticationFilter)
    |
    v
-@RestController  (27 contrôleurs, 133 routes après le Lot 3)
+@RestController  (27 contrôleurs, 147 routes après le Lot 4)
    |
    v
 @Service         (règles métier, parfois @Transactional)
@@ -75,7 +75,7 @@ Le code est rangé sous `sssm.dev.sssm_backend`, avec une convention de préfixe
 | `a11_inventory` | inventaire, stock, QR, affectations, comptages, dashboard, rapports | 13 |
 | `controller_test` | contrôleurs de test (`Hello`, `Ping`) | 2 |
 
-Total : **27 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **133 routes applicatives après le Lot 3** (130 à l'audit initial, 131 après le Lot 1 ; 135 en incluant `Hello` et `Ping`).
+Total : **27 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **147 routes applicatives après le Lot 4** (130 à l'audit initial, 131 après le Lot 1, 133 après le Lot 3 ; 149 annotations de mapping en incluant `Hello` et `Ping`).
 
 ### 3.1. Détail du module inventaire
 
@@ -88,14 +88,16 @@ Total : **27 contrôleurs REST métier**, plus deux contrôleurs de test et un c
 | `stock_movement` | `StockMovementController` | `StockMovementService` | `StockMovementDAOImpl` | `stock_movement` |
 | `stock_balance` | `StockBalanceController` | `StockBalanceService` | `StockBalanceDAOImpl` | `stock_balance` |
 | `item_assignment` | `ItemAssignmentController` | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | `item_assignment` |
-| `assignment` | `AssignmentController` | `AssignmentService` | `AssignmentDAOImpl` | `item_assignment` |
+| `assignment` | `AssignmentController` (façade dépréciée) | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | `item_assignment` |
 | `qr_scan` | `QrScanController` | `QrScanService` | `QrScanDAOImpl` | `item` |
 | `inventory_count` | `InventoryCountController` | `InventoryCountService` | `InventoryCountDAOImpl` | `inventory_count`, `inventory_count_scan` |
 | `operation` | `OperationController` | `OperationService` | `OperationDAOImpl` | `inventory_operation` |
 | `dashboard` | `DashboardController` | `DashboardService` | `DashboardDAOImpl` | `item`, `warehouse`, `inventory_operation`, `item_type`, `stock_balance`, `warehouse_stock_config` |
 | `report` | `ReportController` | `ReportService` | `ReportDAOImpl` | `stock_movement` |
 
-Deux modules distincts manipulent la même table `item_assignment` : `item_assignment` (API typée `/api/item-assignments`) et `assignment` (API générique `/api/inventory/assignments`). Cette duplication est une dette d'architecture majeure, détaillée dans le rapport 08.
+**Mise à jour du 22 octobre 2026 (Lot 4) :** les deux modules historiques ne sont plus deux implémentations. `item_assignment` porte le contrat canonique `/api/item-assignments` ; `assignment` est une façade dépréciée de `/api/inventory/assignments` qui délègue au même `ItemAssignmentService`, avec les mêmes DTO, les mêmes validations et les mêmes codes HTTP. Les réponses de succès de la façade portent `Deprecation: true` et `Link: </api/item-assignments>; rel="successor-version"`. Le JSON libre et les réponses 200 portant une erreur douce ont été supprimés.
+
+Le code historique du module `assignment` (`AssignmentService`, `AssignmentDAO`/`AssignmentDAOImpl`, `AssignmentRest` et ses DTO) subsiste dans l'arborescence mais n'est plus référencé par aucun composant vivant : il est candidat à la suppression à la clôture de la fenêtre de dépréciation (D-07). Le détail du cycle de vie unifié figure dans le rapport 08.
 
 ---
 
@@ -119,9 +121,9 @@ Deux modules distincts manipulent la même table `item_assignment` : `item_assig
 - Les `NotFoundException` deviennent des **404**.
 - Les `ServerException` deviennent des **500**.
 - Les erreurs de validation Spring deviennent des **400** avec `VALIDATION_ERROR`.
-- Les erreurs PostgreSQL sont converties par `ErrorMapper` en **500** avec le SQLSTATE dans `errors.code` et un message PostgreSQL dans `errors.detail`.
+- Les erreurs PostgreSQL sont converties par `ErrorMapper` en **400**, **409**, **422** ou **503** selon la SQLSTATE, sans exposer le SQLSTATE ni le message PostgreSQL (Lot 2). Les conflits d'unicité, dont la course sur `uq_item_assignment_active`, remontent en **409**.
 
-Certains modules génériques (`assignment`, `inventory_count`, `operation`) ne lèvent pas d'exception pour les cas « introuvable » ou « corps vide » : ils renvoient **200** avec une enveloppe `errors`. Ce comportement est décrit dans le rapport 02.
+Le module `assignment` ne lève plus d'exception douce : il délègue au service canonique et renvoie les mêmes 404/409 que `/api/item-assignments` (Lot 4). Les modules `inventory_count` et `operation` conservent des cas d'erreur douce en 200, décrits dans le rapport 02.
 
 ---
 
@@ -166,11 +168,11 @@ Le couplage statique reste une dette de conception, mais il ne contourne plus Sp
 |---|---|
 | Pagination | `page`/`pageSize` (inventaire typé), `page`/`size` (modules génériques), valeurs par défaut 10, 50 ou 500 |
 | Plafond de pagination | absent sur les modules typés, plafonné à 500 sur les modules génériques |
-| Codes de création | `201` pour les modules typés, `200` pour `assignment`, `inventory_count` et `operation` |
-| Erreurs « introuvable » | `404` pour les modules typés, `200` avec `errors` pour `assignment` et `inventory_count` |
+| Codes de création | `201` pour les modules typés, `200` pour `inventory_count` et `operation` ; la façade `assignment` renvoie `201` comme le contrat canonique (Lot 4) |
+| Erreurs « introuvable » | `404` pour les modules typés, `200` avec `errors` pour `inventory_count` ; la façade `assignment` renvoie `404` (Lot 4) |
 | Réponses de liste | objets imbriqués pour `ItemRest`, identifiants plats pour les mouvements et affectations |
-| Champs d'audit | `assigned_by`/`returned_by` dans le module générique, absents du module typé |
-| Nommage | `/api/item-assignments` contre `/api/inventory/assignments` |
+| Champs d'audit | `assigned_by`, `returned_by` et `voided_by` exposés par le contrat d'affectation canonique et par la façade |
+| Nommage | `/api/item-assignments` (canonique) contre `/api/inventory/assignments` (façade dépréciée) |
 
 ---
 
@@ -215,7 +217,7 @@ Le détail est dans le rapport 09.
 | Artefact | Nombre | État |
 |---|---|---|
 | Scripts SQL | 20 (`00` à `19`) | Présents, non migrés automatiquement ; `19_lot3_stock.sql` est additive |
-| Fichiers OpenAPI | 26 | Présents, structure valide, 183 avertissements Redocly relevés à l'audit initial (non rejoués après `7e3f196`) |
+| Fichiers OpenAPI | 26 | Présents, structure valide ; lint Redocly 2.65.1 rejoué au Lot 4 : **179 avertissements, 0 erreur** (183 à l'audit initial) |
 | Fichiers OpenAPI inventaire | 12 | Présents, cohérents avec les routes principales |
 | Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests ; après Lot 2 : 27 suites, 132 tests ; après Lot 3 : 28 suites, 140 tests | Suite courante exécutée : 140 succès, 0 échec, 0 erreur, 0 ignoré. |
 | Rapport Surefire | `target/surefire-reports` | Rapport complet courant : 28 suites, 140 tests. |
@@ -230,14 +232,16 @@ Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquiba
 |---|---|---|
 | Absence de couche de tenancy | Aucun filtre `company_id` dans les DAO d'inventaire | Fuite et mélange de données entre entreprises |
 | Couplage statique au `DataSource` | `DatabaseConnection` statique | Tests et injection moins explicites, mais transactions effectives |
-| Deux modules d'affectation | `item_assignment` et `assignment` | Contrats et règles divergents |
-| DAO génériques à colonnes libres | `AssignmentDAOImpl.save`, `InventoryCountDAOImpl.save`, `OperationDAOImpl.save` | Contournement des DTO et des validations |
+| Code mort du module `assignment` | `AssignmentService`, `AssignmentDAOImpl` et DTO associés ne sont plus référencés (Lot 4) | Confusion de lecture ; à supprimer à la clôture de la dépréciation (D-07) |
+| DAO génériques à colonnes libres | `InventoryCountDAOImpl.save`, `OperationDAOImpl.save` | Contournement des DTO et des validations |
 | Stock déclaratif | `item_type.quantity_total` manuel | Stock non fiable |
 | Opérations vides | `inventory_operation` sans lignes ni mouvements | Faux sentiment de traçabilité |
 | N+1 | `ItemRestMapper` | Performance dégradée |
 | Absence de contrôle de concurrence | Aucune colonne `version`, aucun `If-Match` | Écrasements silencieux |
 | Pas de version de schéma | scripts SQL manuels | Déploiements non reproductibles |
-| Documentation API partielle | 183 avertissements à l'audit initial | Contrats incomplets pour les frontends |
+| Documentation API partielle | 179 avertissements Redocly au Lot 4 (`license`, `localhost`, `operationId` absents sur les opérations antérieures, exemples manquants) | Contrats incomplets pour les frontends |
+
+**Dettes closes par les Lots 2 à 4 :** `DriverManager` et les connexions hors transaction (Lot 2), le stock déclaratif et les opérations vides (Lot 3), la double implémentation des affectations et les suppressions physiques (Lot 4). Les lignes « deux modules d'affectation », « DAO génériques à colonnes libres » (volet affectations) et « stock déclaratif » décrivent l'état initial ; leur situation courante est détaillée dans les rapports 05, 08 et 12.
 
 ---
 

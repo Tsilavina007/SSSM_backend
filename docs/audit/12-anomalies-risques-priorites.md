@@ -2,7 +2,7 @@
 
 **Objectif :** centraliser les constats dans un registre unique, les qualifier par gravité et fournir l'ordre d'attaque du plan de correction. Les preuves détaillées restent dans les rapports 01 à 11 ; ce document ne les remplace pas.
 
-**Portée :** audit statique initial, puis exécution du Lot 1 (identité, tenancy mono-entreprise, RBAC, durcissement de l'authentification). Les constats restent la photographie de l'audit initial ; chaque P0 concerné porte désormais un statut d'exécution daté.
+**Portée :** audit statique initial, puis exécution des Lots 1 à 4 (identité, tenancy mono-entreprise, RBAC, transactions, stock calculé, cycle de vie des affectations et archivage logique). Les constats restent la photographie de l'audit initial ; chaque P0/P1 concerné porte désormais un statut d'exécution daté.
 
 ---
 
@@ -125,7 +125,7 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P0-05 — Stock non calculé et non réconcilié
 
-**Statut au 22 octobre 2026 (Lot 3) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 3.** La migration additive `19_lot3_stock.sql` crée `security.stock_balance` (clé unique entreprise/entrepôt/type, quantité et version), ajoute les quantités de comptage et backfille les soldes depuis les articles disponibles. `GET /api/inventory/stock-balances` expose le solde réel. Les mouvements `IN`, `OUT`, `TRANSFER`, `RETURN`, `DESTRUCTION` et `ADJUSTMENT` mettent à jour ce solde dans la même transaction ; un solde négatif est refusé en `409 INSUFFICIENT_STOCK`. Le dashboard low-stock lit désormais `stock_balance` et le seuil effectif `warehouse_stock_config`/`item_type.minimum_stock`. La clôture d'un comptage réconcilie l'article, son emplacement et le solde, et écrit `last_inventory_at`. **Limites résiduelles :** les lignes de mouvement antérieures au Lot 3 n'ont pas de source/destination/acteur ; `item_type.quantity_total` existe encore et reste modifiable mais n'est plus le critère low-stock ; les affectations (`P0-06`) peuvent encore changer l'état d'un article sans mettre à jour le solde ; les ajustements de clôture ne créent pas de mouvement compensatoire dans le journal.
+**Statut au 22 octobre 2026 (Lot 3) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 3.** La migration additive `19_lot3_stock.sql` crée `security.stock_balance` (clé unique entreprise/entrepôt/type, quantité et version), ajoute les quantités de comptage et backfille les soldes depuis les articles disponibles. `GET /api/inventory/stock-balances` expose le solde réel. Les mouvements `IN`, `OUT`, `TRANSFER`, `RETURN`, `DESTRUCTION` et `ADJUSTMENT` mettent à jour ce solde dans la même transaction ; un solde négatif est refusé en `409 INSUFFICIENT_STOCK`. Le dashboard low-stock lit désormais `stock_balance` et le seuil effectif `warehouse_stock_config`/`item_type.minimum_stock`. La clôture d'un comptage réconcilie l'article, son emplacement et le solde, et écrit `last_inventory_at`. **Limites résiduelles :** les lignes de mouvement antérieures au Lot 3 n'ont pas de source/destination/acteur ; `item_type.quantity_total` existe encore et reste modifiable mais n'est plus le critère low-stock ; les ajustements de clôture ne créent pas de mouvement compensatoire dans le journal. Depuis le Lot 4, les affectations synchronisent aussi `stock_balance` à la création, au retour et au void actif.
 
 **Constat initial :**
 
@@ -168,6 +168,8 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 **Score :** 25.
 
 **Références :** rapports 07, 08.
+
+**Statut au 22 octobre 2026 (Lot 4) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 4.** `/api/item-assignments` devient le contrat canonique et `/api/inventory/assignments` une façade dépréciée déléguant au même service, avec les mêmes validations, DTO typés et codes HTTP. Une affectation active exige un article `AVAILABLE` sans affectation active, passe l'article `ASSIGNED`, vide son emplacement et synchronise le solde dans la même transaction. `POST /{id}/return` clôt l'affectation et restaure l'article ; un mouvement `OUT` crée l'affectation et un `RETURN` la clôture ; `IN`, `TRANSFER` et `DESTRUCTION` refusent une affectation active. La migration additive `20_lot4_assignments.sql` ajoute `source_warehouse_id`, `voided_at`, `voided_by` et `void_reason` ainsi que les index/contraintes associés. Le void, l'archivage et la restauration sont audités ; une suppression active renvoie 409. **Limites résiduelles :** les contrôles de cohérence entreprise/article/employé/poste restent absents (`P0-01`), et la concurrence n'est pas idempotente (`P1-14`). Une affectation active préexistante de la base de démonstration pointe encore vers un article `AVAILABLE` ; elle n'a pas été corrigée automatiquement.
 
 ---
 
@@ -244,6 +246,8 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 **Impact :** le frontend doit choisir un contrat incomplet ; les données peuvent être modifiées différemment selon la route.
 
 **Références :** rapport 08.
+
+**Statut au 22 octobre 2026 (Lot 4) : CORRIGÉ.** Le contrat canonique est `/api/item-assignments`. `/api/inventory/assignments` reste une façade dépréciée qui délègue au même `ItemAssignmentService`, utilise les mêmes DTO et renvoie les mêmes statuts (201, 404, 409). Les réponses de succès portent `Deprecation: true` et `Link` vers le successeur ; il n'y a plus de JSON libre ni de soft-200. Les deux préfixes restent exposés jusqu'au retrait planifié de la façade.
 
 ---
 
@@ -334,6 +338,8 @@ Les tests correspondants vérifient la base **et** acceptent `null` dans la rép
 
 **Références :** rapports 03, 04, 07 et 08.
 
+**Statut au 22 octobre 2026 (Lot 4) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 4.** Les articles, catégories, types et entrepôts sont archivés logiquement (`archived_at`, `archived_by`), exclus des listes et restaurables par `/restore`. Un UUID inconnu ou déjà archivé renvoie 404. L'archivage d'un article avec affectation active renvoie 409. Les affectations utilisent un void motivé et audité, et ne sont supprimables que lorsqu'elles sont déjà retournées ; une affectation active renvoie 409. Les mouvements restent append-only. **Limites résiduelles :** les références vers un type, une catégorie ou un entrepôt archivé ne sont pas toutes refusées, et la purge physique définitive n'est pas modélisée.
+
 ---
 
 ### P1-12 — Historique d'article global, tronqué et non testé correctement
@@ -345,6 +351,8 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 **Impact :** historique incomplet, réponse 200 pour un article inexistant, et absence de garde-fou sur ce cas.
 
 **Références :** rapports 02, 07 et 11.
+
+**Statut au 22 octobre 2026 (Lot 4) : PARTIEL.** L'historique lit désormais les mouvements et affectations filtrés par article (jusqu'à 500 lignes chacun) au lieu de charger 100 lignes globales puis filtrer en mémoire. L'existence de l'article n'est toutefois toujours pas vérifiée : un UUID inconnu renvoie encore 200 avec des listes vides.
 
 ---
 
@@ -379,7 +387,7 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 
 ### P2-01 — Archivage et suppression non modélisés
 
-Les champs `archived_at`/`archived_by` sont inertes. Le produit doit décider entre suppression physique, archivage logique et conservation légale. Aucun endpoint ne permet aujourd'hui d'archiver ou de restaurer.
+**Statut au 22 octobre 2026 (Lot 4) : CORRIGÉ pour les référentiels et les affectations.** Les articles, catégories, types et entrepôts disposent d'un archivage logique et d'une route `/restore` ; les affectations utilisent un void motivé et une restauration. La purge physique définitive et la conservation légale restent à décider (D-04).
 
 ### P2-02 — Contrat de pagination et de filtrage insuffisant
 
@@ -399,13 +407,13 @@ Le PNG est disponible, mais il n'existe ni PDF, ni planche, ni file d'impression
 
 ### P2-06 — CI, couverture et documentation de contrat
 
-Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 éphémère, initialisation du schéma et des données de démonstration, tests, lint OpenAPI et packaging. Il ne couvre cependant ni la tenancy, ni le RBAC, ni les transactions, ni la concurrence, et la couverture n'est pas mesurée. L'OpenAPI contenait 183 avertissements Redocly non bloquants lors de l'audit initial (non rejoués après `7e3f196`) ; les erreurs et les exemples ne sont pas contractuels.
+Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 éphémère, initialisation du schéma et des données de démonstration, tests, lint OpenAPI et packaging. Il ne couvre cependant ni la tenancy, ni le RBAC, ni les transactions, ni la concurrence, et la couverture n'est pas mesurée. Le lint OpenAPI a été rejoué au Lot 4 avec la version de la CI (`@redocly/cli@2.65.1`) : **179 avertissements non bloquants, 0 erreur** sur 26 fichiers (183 à l'audit initial) ; les exemples ne sont toujours pas contractuels.
 
 ---
 
 ## 5. Matrice de risque
 
-La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. `P0-01`, `P0-06`, les autres P1 et la concurrence (`P1-14`) restent ouverts.
+La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. Après le Lot 4 : **P0-06, P1-05 et P1-11 sont corrigés dans le périmètre documenté**, et **P2-01 est corrigé** pour les articles, catégories, types, entrepôts et affectations. `P0-01`, `P1-04`, `P1-08`, `P1-12` (partiel), `P1-13`, la concurrence (`P1-14`) et les autres P2 restent ouverts.
 
 | ID | Risque | Probabilité | Impact | Score | Niveau |
 |---|---|---:|---:|---:|---|
@@ -469,7 +477,16 @@ L'ordre recommandé n'est pas l'ordre alphabétique des modules. Il suit les dé
 2. Si calculé : ajouter les quantités, les soldes par entrepôt et les mouvements immuables. **Fait : migration 19, API de soldes, journal append-only, opérations et comptages réconciliés.**
 3. Si déclaratif : assumer que le dashboard n'est pas un stock réel. **Sans objet.**
 
-**Sortie :** `GET /api/inventory/stock-balances` fournit une réponse testée par entrepôt et type ; le dashboard low-stock utilise ce solde. Les affectations (`P0-06`) et la concurrence (`P1-14`) restent à traiter.
+**Sortie :** `GET /api/inventory/stock-balances` fournit une réponse testée par entrepôt et type ; le dashboard low-stock utilise ce solde. Les affectations sont raccordées au stock depuis le Lot 4 ; seule la concurrence (`P1-14`) reste à traiter.
+
+### Étape 4 - Fiabiliser le cycle de vie des affectations et l'archivage - **FAIT au Lot 4**
+
+1. Unifier les deux contrats d'affectation derrière un service et un contrat canoniques. **Fait** (`/api/item-assignments`, façade dépréciée).
+2. Lier `OUT`/`RETURN` aux affectations et synchroniser le solde. **Fait**.
+3. Rendre le retour, le void et l'archivage explicites et audités. **Fait** (`source_warehouse_id`, `voided_at`, `voided_by`, `void_reason`).
+4. Archiver logiquement les référentiels et les affectations, avec restauration. **Fait**.
+
+**Sortie :** un article `ASSIGNED` possède au plus une affectation active, un retour restaure l'article et son stock, et une suppression active est refusée. **Réserves :** isolation entreprise (`P0-01`), idempotence (`P1-14`) et réconciliation de la donnée de démonstration préexistante.
 
 ### Étape 4 — Unifier les affectations
 

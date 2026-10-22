@@ -26,3 +26,5 @@
 COMMIT;
 
 \i docs/database/schema/19_lot3_stock.sql
+
+\i docs/database/schema/20_lot4_assignments.sql

@@ -1,194 +1,288 @@
 openapi: 3.0.3
 info:
-  title: SSSM Inventory — Assignments API
-  version: 1.0.0
+  title: SSSM Inventory — Assignments API (deprecated facade)
+  version: 2.0.0
   description: >-
-    API des affectations (module a11_inventory/assignment), dérivée du
-    contrôleur AssignmentController. Attention : module distinct de
-    item_assignment exposé sous /api/item-assignments (dette d'architecture
-    A/B, non décidée). Toutes les routes exigent un JWT (Authorization: Bearer
-    …). Les corps de création et de mise à jour utilisent des DTO typés
-    (AssignmentCreateRequest / AssignmentUpdateRequest) ; les champs inconnus
-    sont ignorés. Réponses en 200 : ligne sérialisée en AssignmentRest, ou
-    enveloppe {"errors": ItemError} en cas d'échec doux (corps vide, aucune
-    colonne writable, affectation introuvable) — l'identifiant inexistant ne
-    renvoie jamais 404 ici (comportement historique conservé). Pagination :
-    page=1, pageSize=50 (max 500).
+    Façade dépréciée de l'ancien module `a11_inventory/assignment`. Toutes les
+    routes délèguent désormais au service canonique
+    `ItemAssignmentService` et au contrat `item_assignment-openapi.yaml` :
+    mêmes validations, mêmes DTO typés, mêmes codes HTTP et même cycle de vie.
+    Le JSON libre et les réponses 200 portant une erreur douce ont été
+    supprimés.
+
+    Les réponses de succès portent `Deprecation: true` et
+    `Link: </api/item-assignments>; rel="successor-version"`. Les erreurs
+    suivent l'enveloppe `{"errors": {message, detail, code}}` et ne portent pas
+    ces en-têtes. Préférez `/api/item-assignments` ; cette façade ne reçoit que
+    des correctifs de compatibilité.
 servers:
   - url: http://localhost:8080
 security:
   - bearerAuth: []
 tags:
-  - name: Assignments
-    description: Affectations (module générique)
+  - name: Assignments (deprecated)
+    description: Façade de compatibilité — utiliser /api/item-assignments
 paths:
   /api/inventory/assignments:
     get:
-      tags: [ Assignments ]
-      summary: Lister les affectations actives
+      operationId: listAssignments
+      tags: [ Assignments (deprecated) ]
+      summary: Lister les affectations
+      deprecated: true
       parameters:
+        - { $ref: '#/components/parameters/Search' }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
+        - { $ref: '#/components/parameters/Active' }
       responses:
         '200':
-          description: Liste paginée des affectations
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/Assignment' } }
+          $ref: '#/components/responses/AssignmentList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
     post:
-      tags: [ Assignments ]
+      operationId: createAssignment
+      tags: [ Assignments (deprecated) ]
       summary: Créer une affectation
-      requestBody:
-        required: true
-        content:
-          application/json: { schema: { $ref: '#/components/schemas/AssignmentUpsert' } }
-      responses:
-        '200':
-          description: 'Affectation créée, ou enveloppe {"errors": ItemError} si le corps
-            est vide ou sans colonne writable'
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/Assignment' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /api/inventory/assignments/{id}:
-    parameters:
-      - { $ref: '#/components/parameters/AssignmentId' }
-    get:
-      tags: [ Assignments ]
-      summary: Récupérer une affectation
-      description: 'Identifiant inexistant → 200 avec {"errors": ItemError}
-        (message « Affectation d''article introuvable », code NOT_FOUND) ; jamais
-        404.'
-      responses:
-        '200':
-          description: 'Affectation trouvée, ou enveloppe {"errors": ItemError} si
-            introuvable'
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/Assignment' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
-        '500':
-          $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-    patch:
-      tags: [ Assignments ]
-      summary: Mettre à jour partiellement une affectation
-      requestBody:
-        required: true
-        content:
-          application/json: { schema: { $ref: '#/components/schemas/AssignmentUpsert' } }
-      responses:
-        '200':
-          description: 'Affectation mise à jour, ou enveloppe {"errors": ItemError}'
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/Assignment' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '500':
-          $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /api/inventory/assignments/{id}/return:
-    parameters:
-      - { $ref: '#/components/parameters/AssignmentId' }
-    post:
-      tags: [ Assignments ]
-      summary: Enregistrer le retour d une affectation
+      deprecated: true
       description: >-
-        Même mécanique que PATCH, avec le DTO AssignmentUpdateRequest
-        (typiquement returned_at, condition_on_return, returned_by).
-        Identifiant inexistant → 200 enveloppe {"errors": ItemError}.
+        Mêmes règles que `POST /api/item-assignments` : article `AVAILABLE`,
+        aucune affectation active sans `returned_at`, création atomique de l'état
+        `ASSIGNED` et du stock.
       requestBody:
         required: true
         content:
-          application/json: { schema: { $ref: '#/components/schemas/AssignmentUpsert' } }
+          application/json: { schema: { $ref: '#/components/schemas/ItemAssignmentCreate' } }
       responses:
-        '200':
-          description: 'Affectation mise à jour, ou enveloppe {"errors": ItemError}'
-          content:
-            application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/Assignment' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
+        '201':
+          $ref: '#/components/responses/AssignmentCreated'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/assignments/{itemAssignmentId}:
+    parameters:
+      - { $ref: '#/components/parameters/ItemAssignmentId' }
+    get:
+      operationId: getAssignment
+      tags: [ Assignments (deprecated) ]
+      summary: Récupérer une affectation
+      deprecated: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      operationId: updateAssignment
+      tags: [ Assignments (deprecated) ]
+      summary: Mettre à jour les métadonnées
+      deprecated: true
+      description: >-
+        Mêmes règles que le PATCH canonique : liens et `assigned_at` immuables,
+        `returned_at` délègue au retour, `condition_on_return` seul renvoie 400
+        `RETURN_ENDPOINT_REQUIRED`.
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/ItemAssignmentUpdate' } }
+      responses:
+        '200':
+          $ref: '#/components/responses/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      operationId: archiveAssignment
+      tags: [ Assignments (deprecated) ]
+      summary: Archiver une affectation inactive
+      deprecated: true
+      description: >-
+        Une affectation active renvoie 409 `ACTIVE_ASSIGNMENT` ; une affectation
+        déjà voidée renvoie 409 `ASSIGNMENT_ALREADY_VOIDED` ; un identifiant
+        inconnu renvoie 404.
+      parameters:
+        - { $ref: '#/components/parameters/ReasonOptional' }
+      responses:
+        '204':
+          $ref: '#/components/responses/NoContentDeprecated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/assignments/{itemAssignmentId}/return:
+    parameters:
+      - { $ref: '#/components/parameters/ItemAssignmentId' }
+    post:
+      operationId: returnAssignment
+      tags: [ Assignments (deprecated) ]
+      summary: Enregistrer un retour
+      deprecated: true
+      description: >-
+        Corps facultatif ; seul `condition_on_return` est lu. Date et acteur du
+        retour sont posés par le serveur.
+      requestBody:
+        required: false
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/ItemAssignmentReturn' } }
+      responses:
+        '200':
+          $ref: '#/components/responses/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/assignments/{itemAssignmentId}/void:
+    parameters:
+      - { $ref: '#/components/parameters/ItemAssignmentId' }
+    post:
+      operationId: voidAssignment
+      tags: [ Assignments (deprecated) ]
+      summary: Annuler et auditer une affectation
+      deprecated: true
+      parameters:
+        - { $ref: '#/components/parameters/ReasonRequired' }
+      responses:
+        '200':
+          $ref: '#/components/responses/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/assignments/{itemAssignmentId}/restore:
+    parameters:
+      - { $ref: '#/components/parameters/ItemAssignmentId' }
+    post:
+      operationId: restoreAssignment
+      tags: [ Assignments (deprecated) ]
+      summary: Restaurer une affectation voidée
+      deprecated: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Assignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/inventory/items/{itemId}/assignments:
+    parameters:
+      - { $ref: '#/components/parameters/ItemId' }
+    get:
+      operationId: listAssignmentsByItem
+      tags: [ Assignments (deprecated) ]
+      summary: Lister les affectations non voidées d'un article
+      deprecated: true
+      description: Jusqu'à 500 lignes, retours inclus, voidées exclues.
+      responses:
+        '200':
+          $ref: '#/components/responses/AssignmentList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
   /api/inventory/employees/{employeeId}/assignments:
     parameters:
-      - name: employeeId
-        in: path
-        required: true
-        schema: { type: string, format: uuid }
+      - { $ref: '#/components/parameters/EmployeeId' }
     get:
-      tags: [ Assignments ]
-      summary: Lister les affectations d un employé
+      operationId: listAssignmentsByEmployee
+      tags: [ Assignments (deprecated) ]
+      summary: Lister les affectations non voidées d'un employé
+      deprecated: true
+      description: Jusqu'à 500 lignes, retours inclus, voidées exclues.
       responses:
         '200':
-          description: Liste des affectations de l'employé
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/Assignment' } }
+          $ref: '#/components/responses/AssignmentList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
   /api/inventory/security-posts/{postId}/assignments:
     parameters:
-      - name: postId
-        in: path
-        required: true
-        schema: { type: string, format: uuid }
+      - { $ref: '#/components/parameters/PostId' }
     get:
-      tags: [ Assignments ]
-      summary: Lister les affectations d un poste de sécurité
+      operationId: listAssignmentsByPost
+      tags: [ Assignments (deprecated) ]
+      summary: Lister les affectations non voidées d'un poste
+      deprecated: true
+      description: Jusqu'à 500 lignes, retours inclus, voidées exclues.
       responses:
         '200':
-          description: Liste des affectations du poste
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/Assignment' } }
+          $ref: '#/components/responses/AssignmentList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+  headers:
+    Deprecation:
+      description: Marqueur de dépréciation.
+      schema: { type: string, example: 'true' }
+    Link:
+      description: Lien vers le successeur canonique.
+      schema: { type: string, example: '</api/item-assignments>; rel="successor-version"' }
   parameters:
+    Search:
+      name: search
+      in: query
+      required: false
+      schema: { type: string }
     Page:
       name: page
       in: query
@@ -198,27 +292,99 @@ components:
       name: pageSize
       in: query
       required: false
-      schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
-    AssignmentId:
-      name: id
+      schema: { type: integer, minimum: 1, maximum: 500, default: 10 }
+    Active:
+      name: active
+      in: query
+      required: false
+      schema: { type: boolean, default: false }
+      description: Si vrai, uniquement les affectations actives.
+    ReasonRequired:
+      name: reason
+      in: query
+      required: true
+      schema: { type: string }
+    ReasonOptional:
+      name: reason
+      in: query
+      required: false
+      schema: { type: string }
+    ItemAssignmentId:
+      name: itemAssignmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    EmployeeId:
+      name: employeeId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PostId:
+      name: postId
       in: path
       required: true
       schema: { type: string, format: uuid }
   responses:
+    Assignment:
+      description: Affectation sérialisée avec les en-têtes de dépréciation.
+      headers:
+        Deprecation: { $ref: '#/components/headers/Deprecation' }
+        Link: { $ref: '#/components/headers/Link' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ItemAssignment' }
+    AssignmentCreated:
+      description: Affectation créée avec les en-têtes de dépréciation.
+      headers:
+        Deprecation: { $ref: '#/components/headers/Deprecation' }
+        Link: { $ref: '#/components/headers/Link' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ItemAssignment' }
+    AssignmentList:
+      description: Liste d'affectations avec les en-têtes de dépréciation.
+      headers:
+        Deprecation: { $ref: '#/components/headers/Deprecation' }
+        Link: { $ref: '#/components/headers/Link' }
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: '#/components/schemas/ItemAssignment' }
+    NoContentDeprecated:
+      description: Affectation archivée (sans corps), avec les en-têtes de dépréciation.
+      headers:
+        Deprecation: { $ref: '#/components/headers/Deprecation' }
+        Link: { $ref: '#/components/headers/Link' }
     BadRequest:
-      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+      description: Requête invalide — enveloppe ItemError.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Affectation ou article introuvable — enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: >-
+        Conflit de cycle de vie ou d'unicité — enveloppe ItemError. Cette façade
+        renvoie les mêmes codes que le contrat canonique, sans erreur douce.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
-        code).
+      description: Erreur serveur — enveloppe ItemError.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -231,53 +397,34 @@ components:
       type: object
       required: [message, detail, code]
       properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
-        code:
-          type: string
-          description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
-            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
-            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
-    FamilyCError:
-      type: object
-      description: >-
-        Erreur douce renvoyée en 200 par les opérations de cette famille
-        (enveloppe ItemError, code NOT_FOUND ou BAD_REQUEST).
-      properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    Assignment:
+        message: { type: string }
+        detail: { type: string }
+        code: { type: string }
+    ItemAssignment:
       type: object
       properties:
         id: { type: string, format: uuid }
+        company_id: { type: string, format: uuid, nullable: true }
         item_id: { type: string, format: uuid }
         employee_id: { type: string, format: uuid }
         post_id: { type: string, format: uuid }
-        assigned_at: { type: string, format: date-time, nullable: true }
+        assigned_at: { type: string, format: date-time }
         returned_at: { type: string, format: date-time, nullable: true }
         condition_on_assignment: { type: string, nullable: true }
         condition_on_return: { type: string, nullable: true }
         notes: { type: string, nullable: true }
-        created_at: { type: string, format: date-time, nullable: true }
-        updated_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
         assigned_by: { type: string, format: uuid, nullable: true }
         returned_by: { type: string, format: uuid, nullable: true }
         expected_return_at: { type: string, format: date-time, nullable: true }
-    AssignmentUpsert:
+        source_warehouse_id: { type: string, format: uuid, nullable: true }
+        voided_at: { type: string, format: date-time, nullable: true }
+        voided_by: { type: string, format: uuid, nullable: true }
+        void_reason: { type: string, nullable: true }
+    ItemAssignmentCreate:
       type: object
-      description: >-
-        Corps typé (AssignmentCreateRequest / AssignmentUpdateRequest). Les
-        champs absents ne sont pas transmis au SQL. Colonnes NOT NULL sans
-        défaut : item_id, employee_id, post_id — leur omission provoque une
-        erreur 500 (et non 400). Les champs created_at et updated_at ne sont
-        pas modifiables par le client.
       required: [ item_id, employee_id, post_id ]
-      additionalProperties: false
       properties:
         item_id: { type: string, format: uuid }
         employee_id: { type: string, format: uuid }
@@ -287,6 +434,20 @@ components:
         condition_on_assignment: { type: string, nullable: true }
         condition_on_return: { type: string, nullable: true }
         notes: { type: string, nullable: true }
-        assigned_by: { type: string, format: uuid, nullable: true }
-        returned_by: { type: string, format: uuid, nullable: true }
         expected_return_at: { type: string, format: date-time, nullable: true }
+    ItemAssignmentUpdate:
+      type: object
+      properties:
+        item_id: { type: string, format: uuid }
+        employee_id: { type: string, format: uuid }
+        post_id: { type: string, format: uuid }
+        assigned_at: { type: string, format: date-time, nullable: true }
+        returned_at: { type: string, format: date-time, nullable: true }
+        condition_on_assignment: { type: string, nullable: true }
+        condition_on_return: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        expected_return_at: { type: string, format: date-time, nullable: true }
+    ItemAssignmentReturn:
+      type: object
+      properties:
+        condition_on_return: { type: string, nullable: true }

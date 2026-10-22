@@ -167,7 +167,37 @@ class ItemTypeApiTests {
 
     mockMvc
         .perform(get("/api/inventory/item-types/" + id).header("Authorization", "Bearer " + token))
-        .andExpect(status().isNotFound());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").value(notNullValue()));
+
+    mockMvc
+        .perform(
+            get("/api/inventory/item-types")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[?(@.id == '" + id + "')]").isEmpty());
+
+    mockMvc
+        .perform(
+            post("/api/inventory/item-types/" + id + "/restore")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").doesNotExist());
+
+    mockMvc
+        .perform(get("/api/inventory/item-types/" + id).header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.archived_at").doesNotExist());
+  }
+
+  @Test
+  void deleteUnknownReturnsNotFound() throws Exception {
+    mockMvc
+        .perform(
+            delete("/api/inventory/item-types/" + UUID.randomUUID())
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
   }
 
   @Test

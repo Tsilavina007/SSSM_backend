@@ -21,5 +21,9 @@ public interface ItemTypeDAO {
 
   ItemTypeResponse updateItemType(String id, ItemTypeUpdateRequest value);
 
+  void archiveItemType(String id, String archivedBy);
+
+  void restoreItemType(String id);
+
   void deleteItemType(String id);
 }

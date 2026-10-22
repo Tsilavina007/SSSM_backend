@@ -122,6 +122,8 @@ public class OperationService {
       movement.setQuantity(quantity);
       movement.setSource_warehouse_id(source);
       movement.setDestination_warehouse_id(destination);
+      movement.setEmployee_id(request.getEmployee_id());
+      movement.setPost_id(request.getPost_id());
       movement.setOperation_id(operation.getId());
       movement.setPerformed_by(request.getPerformed_by());
       movement.setReference(request.getReference());

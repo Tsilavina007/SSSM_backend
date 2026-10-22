@@ -23,6 +23,10 @@ public class StockMovementCreateRequest {
   @Size(max = 36, message = "36 caractères maximum")
   private String employee_id;
 
+  // Requis pour OUT : l'affectation créée doit porter un poste.
+  @Size(max = 36, message = "36 caractères maximum")
+  private String post_id;
+
   // Facultatif : le DAO applique le type IN lorsque le champ est absent.
   private MovementType movement_type;
 
