@@ -230,6 +230,8 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 **Références :** rapports 06 et 10.
 
+**Statut au 22 octobre 2026 (Lot 5) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 5.** La résolution est scoped à l'entreprise de l'appelant (`company_id` du JWT) : un code d'une autre entreprise est traité comme inconnu (404). La réponse est enrichie (type, catégorie, entrepôt, affectation active, détenteur, poste) et ne contient plus de champ technique interne. Un code inconnu renvoie 404 au lieu de 200 `[]`. Chaque tentative alimente la table `qr_scan` (acteur, horodatage, terminal, résultat `RESOLVED`/`NOT_FOUND`). Une limitation de débit en mémoire protège l'énumération (429 `RATE_LIMITED`). Le code QR est rendu immuable (`PATCH` refusé en 400 `IMMUTABLE_QR_CODE`, décision D-05) et l'image PNG est mise en cache avec `ETag`. Une planche d'étiquettes HTML est disponible, sans dépendance PDF. **Limites résiduelles :** le journal n'est pas purgé (pas de politique de rétention), le limiteur n'est pas partagé entre instances, et la résolution reste mono-entreprise (le contrôle `company_id` des autres modules n'est pas généralisé, `P0-01`).
+
 ---
 
 ### P1-05 — Deux modules d'affectation divergents
@@ -371,7 +373,7 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 
 **Référence :** rapport 11.
 
-**Statut au 22 octobre 2026 (réduction de la suite) : AGGRAVÉ.** La suite fonctionnelle a été supprimée : il ne reste que **4 classes et 20 tests** qui contrôlent la conformité du schéma SQL à l'application (`DatabaseSchemaConformanceTests`, `SchemaScriptsConformanceTests`, `SssmBackendApplicationTests`, `PingControllerTest`). Aucun test ne couvre désormais un comportement métier : ni le stock, ni les affectations, ni la sécurité, ni les transactions, ni l'archivage. La suite reste verte, mais elle ne prouve plus rien sur le domaine. La probabilité du risque passe de 5 à 5 et l'impact de 4 à 5 : **score 25, niveau Critique**. Le critère de résolution (base isolée, fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction) reste entièrement à faire.
+**Statut au 22 octobre 2026 (réduction de la suite) : AGGRAVÉ.** La suite fonctionnelle a été supprimée : elle ne compte plus que **6 classes et 38 tests**, dont 20 de conformité du schéma SQL à l'application et 17 sur le contrat QR (Lot 5). Aucun test ne couvre désormais un comportement métier : ni le stock, ni les affectations, ni la sécurité, ni les transactions, ni l'archivage. La suite reste verte, mais elle ne prouve plus rien sur le domaine. La probabilité du risque passe de 5 à 5 et l'impact de 4 à 5 : **score 25, niveau Critique**. Le critère de résolution (base isolée, fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction) reste entièrement à faire.
 
 ---
 
@@ -406,6 +408,8 @@ Compteurs globaux, low-stock basé sur `quantity_total`, pas de stock par entrep
 ### P2-05 — Absence d'étiquettes et d'impression en lot
 
 Le PNG est disponible, mais il n'existe ni PDF, ni planche, ni file d'impression, ni texte lisible, ni cache. Un déploiement réel devra imprimer des centaines d'étiquettes.
+
+**Statut au 22 octobre 2026 (Lot 5) : PARTIELLEMENT CORRIGÉ.** Une étiquette HTML imprimable existe pour un article et pour une planche de 100 articles en un seul appel : le QR code est intégré dans la page et le texte est lisible (code, type, description, catégorie, entrepôt, entreprise). L'image PNG est désormais mise en cache (`ETag`, `Cache-Control`, 304) et accepte une taille configurable. **Limites :** il n'y a toujours pas de PDF généré par le serveur (l'impression passe par le navigateur), pas de file d'impression ni de gestion d'impression en cours.
 
 ### P2-06 — CI, couverture et documentation de contrat
 

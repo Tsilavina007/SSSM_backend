@@ -1,0 +1,137 @@
+openapi: 3.0.3
+info:
+  title: SSSM Inventory - Labels API
+  version: 1.0.0
+  description: >-
+    API des étiquettes imprimables (module a11_inventory/label), dérivée du
+    contrôleur LabelController. Toutes les routes exigent un JWT
+    (Authorization: Bearer …) et une permission d'inventaire.
+
+    Les étiquettes sont rendues en HTML : le QR code est intégré directement
+    dans la page (donnée base64) et le texte est lisible. Aucune dépendance
+    PDF n'est ajoutée : l'impression ou l'export PDF se fait depuis le
+    navigateur. Une planche de cent étiquettes est produite en un seul appel.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - name: Labels
+    description: Étiquettes et planches d'étiquettes
+paths:
+  /api/inventory/items/{itemId}/label:
+    parameters:
+      - { $ref: '#/components/parameters/ItemId' }
+    get:
+      operationId: getItemLabel
+      tags: [ Labels ]
+      summary: Étiquette imprimable d'un article
+      description: >-
+        Renvoie une étiquette HTML : QR code intégré, code lisible, type,
+        description, catégorie, entrepôt et entreprise. Un article inconnu
+        renvoie 404.
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 100, maximum: 1000, default: 300 }
+          description: Taille du QR code intégré en pixels (300 par défaut).
+      responses:
+        '200':
+          description: Étiquette HTML
+          content:
+            text/html:
+              schema: { type: string }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/inventory/labels/batch:
+    post:
+      operationId: getItemLabelsBatch
+      tags: [ Labels ]
+      summary: Planche d'étiquettes
+      description: >-
+        Produit la planche HTML d'un lot d'articles (100 maximum) en un seul
+        appel. Les articles introuvables ou hors entreprise sont ignorés.
+      requestBody:
+        required: true
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/QrLabelBatchRequest' } }
+      responses:
+        '200':
+          description: Planche HTML
+          content:
+            text/html:
+              schema: { type: string }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    BadRequest:
+      description: Requête invalide (JSON illisible, liste vide, taille hors bornes) - enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: JWT absent, invalide ou expiré - enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Article introuvable dans l'entreprise de l'appelant - enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    ServerError:
+      description: Erreur serveur ou SQL - enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        errors: { $ref: '#/components/schemas/ItemError' }
+    ItemError:
+      type: object
+      required: [message, detail, code]
+      properties:
+        message: { type: string }
+        detail: { type: string }
+        code: { type: string }
+    QrLabelBatchRequest:
+      type: object
+      required: [ item_ids ]
+      properties:
+        item_ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { type: string, format: uuid }
+          description: Articles à étiqueter.
+        size:
+          type: integer
+          minimum: 100
+          maximum: 1000
+          default: 300
+          description: Taille du QR code intégré en pixels.

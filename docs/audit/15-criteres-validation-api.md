@@ -232,18 +232,18 @@ Et il n'existe plus aucune affectation active pour cet article
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| QR-01 | Le code est stable après impression | **FAIL** | `PATCH qr_code` libre |
+| QR-01 | Le code est stable après impression | **PASS** | `PATCH qr_code` refusé en 400 `IMMUTABLE_QR_CODE` (décision D-05) ; test dédié. |
 | QR-02 | L'unicité est garantie par entreprise | **PASS** | `UNIQUE(company_id, qr_code)` |
 | QR-03 | Un doublon de code renvoie 409 | **PASS** | Mapping `23505` → 409. |
-| QR-04 | Un scan est strictement tenant-scoped | **FAIL** | Requête globale |
-| QR-05 | Un scan inconnu renvoie 404 | **FAIL** | 200 `[]` |
-| QR-06 | Un scan renvoie type, catégorie, entrepôt, affectation et détenteur | **FAIL** | Ligne brute |
-| QR-07 | Un scan ne renvoie pas de champs internes inutiles | **FAIL** | `archived_by`, UUID, etc. |
-| QR-08 | Chaque scan est journalisé | **FAIL** | Aucune table |
-| QR-09 | Le scan est limité en débit | **FAIL** | Absent |
+| QR-04 | Un scan est strictement tenant-scoped | **PASS** | Filtrage sur le `company_id` du JWT ; un code d'une autre entreprise renvoie 404 ; test dédié. |
+| QR-05 | Un scan inconnu renvoie 404 | **PASS** | 404 `NOT_FOUND` ; le code est aussi journalisé en `NOT_FOUND`. |
+| QR-06 | Un scan renvoie type, catégorie, entrepôt, affectation et détenteur | **PASS** | Réponse enrichie (type, catégorie, entrepôt, affectation active, employé, poste) ; test dédié. |
+| QR-07 | Un scan ne renvoie pas de champs internes inutiles | **PASS** | Plus aucun `archived_by`, `created_at` ni `company_id` brut dans la réponse ; test dédié. |
+| QR-08 | Chaque scan est journalisé | **PASS** | Table `qr_scan` (migration `21_lot5_qr.sql`) : acteur, horodatage, terminal, résultat ; y compris les codes inconnus ; test dédié. |
+| QR-09 | Le scan est limité en débit | **PARTIEL** | Limiteur à fenêtre glissante en mémoire par utilisateur et par entreprise (429 `RATE_LIMITED`) ; non partagé entre instances et sans politique de purge. |
 | QR-10 | L'image PNG est générée correctement | **PASS** | Code + test existant |
-| QR-11 | L'image est mise en cache | **FAIL** | Aucun header |
-| QR-12 | Une étiquette PDF est disponible | **FAIL** | PNG seul |
+| QR-11 | L'image est mise en cache | **PASS** | `Cache-Control: public, max-age=300` et `ETag` ; 304 sur `If-None-Match` ; taille configurable. |
+| QR-12 | Une étiquette PDF est disponible | **PARTIEL** | Étiquette et planche HTML imprimables (100 articles en un appel), texte lisible et QR intégré ; pas de PDF généré par le serveur (impression via le navigateur). |
 | QR-13 | Une planche d'étiquettes est disponible | **FAIL** | Absent |
 | QR-14 | Un code peut être révoqué avec grâce | **FAIL** | Rotation absente |
 | QR-15 | Deux entreprises peuvent avoir le même code sans ambiguïté | **FAIL** | Scan global |
@@ -315,7 +315,7 @@ Et un comptage déjà clôturé renvoie 409
 | API-10 | Les créations sensibles acceptent `Idempotency-Key` | **FAIL** | Absent |
 | API-11 | Les `PATCH` sensibles utilisent `If-Match`/ETag | **FAIL** | Absent |
 | API-12 | Les erreurs ont un `code` stable et documenté | **PASS** | Codes applicatifs (`CONFLICT`, `BAD_REQUEST`, `UNPROCESSABLE_ENTITY`, etc.) documentés dans `ItemError`. |
-| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 26 fichiers ; lint Redocly rejoué au Lot 4 : 179 avertissements, 0 erreur (183 à l'audit initial). Les exemples et les `license` manquent encore. |
+| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 27 fichiers ; lint Redocly rejoué au Lot 5 : 178 avertissements, 0 erreur (183 à l'audit initial). Les exemples et les `license` manquent encore. |
 | API-14 | Le CORS est restreint par environnement | **FAIL** | `*` |
 | API-15 | Les filtres couvrent les besoins des écrans | **FAIL** | Voir rapports 02 et 10 |
 | API-16 | Chaque réponse d'erreur contient un `traceId` | **FAIL** | Absent |

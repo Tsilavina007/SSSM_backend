@@ -3,10 +3,12 @@ package sssm.dev.sssm_backend.a11_inventory.item.controller;
 import com.google.zxing.WriterException;
 import jakarta.validation.Valid;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -95,12 +97,28 @@ public class ItemController {
    * court-circuitée et l'erreur arrive toujours.
    */
   @GetMapping(value = "/{itemId}/qr-code/image", produces = MediaType.IMAGE_PNG_VALUE)
-  public ResponseEntity<byte[]> getQrCodeImage(@PathVariable String itemId) {
+  public ResponseEntity<byte[]> getQrCodeImage(
+      @PathVariable String itemId,
+      @RequestParam(defaultValue = "300") int size,
+      @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+    int requestedSize = Math.min(1000, Math.max(100, size));
     try {
       ItemQrCodeRest qrCodeRest = itemService.getQrCodeByItemId(itemId);
+      String etag = "\"" + itemId + "-" + qrCodeRest.getQr_code() + "-" + requestedSize + "\"";
+      if (etag.equals(ifNoneMatch)) {
+        // L'image ne change pas tant que le code QR de l'article ne change pas.
+        return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+            .eTag(etag)
+            .cacheControl(cacheControl())
+            .build();
+      }
       try {
-        byte[] image = qrCodeService.generatePng(qrCodeRest.getQr_code());
-        return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(image);
+        byte[] image = qrCodeService.generatePng(qrCodeRest.getQr_code(), requestedSize, requestedSize);
+        return ResponseEntity.ok()
+            .contentType(MediaType.IMAGE_PNG)
+            .eTag(etag)
+            .cacheControl(cacheControl())
+            .body(image);
       } catch (IllegalArgumentException e) {
         // Try imbriqué : cette IllegalArgumentException ne peut venir que du
         // contenu du QR code (ZXing "Found empty contents"), pas de
@@ -135,6 +153,11 @@ public class ItemController {
       log.error("Échec de la requête d'image QR code pour l'article {}", itemId, e);
       return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ErrorMapper.toItemError(e));
     }
+  }
+
+  /** Politique de cache appliquée aux images QR : le contenu ne change qu'après rotation du code. */
+  private static CacheControl cacheControl() {
+    return CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic();
   }
 
   /**

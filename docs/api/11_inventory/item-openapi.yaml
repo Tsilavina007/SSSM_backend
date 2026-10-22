@@ -114,8 +114,14 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
     patch:
+      operationId: updateItem
       tags: [ Items ]
       summary: Mettre à jour partiellement un article
+      description: >-
+        Le code QR est **immuable** (décision D-05) : le champ `qr_code` est
+        refusé avec 400 `IMMUTABLE_QR_CODE`. Modifier un code invaliderait les
+        étiquettes déjà imprimées, sans laisser de trace. Un code erroné se
+        corrige en recréant l'article.
       requestBody:
         required: true
         content:
@@ -210,6 +216,7 @@ paths:
     parameters:
       - { $ref: '#/components/parameters/ItemId' }
     get:
+      operationId: getItemQrCodeImage
       tags: [ Items ]
       summary: Générer l'image PNG du QR code d'un article
       description: >-
@@ -228,18 +235,38 @@ paths:
         * 500 (code QR_CODE_GENERATION_FAILED) : l'encodage ZXing ou
         l'écriture du flux PNG a échoué (détail technique dans detail).
 
+        L'image est **mise en cache** (`Cache-Control: public, max-age=300`) et
+        identifiée par un `ETag` dérivé de l'article, de son code QR et de la
+        taille demandée. Une requête portant l'`ETag` reçu renvoie 304 sans
+        corps.
+
         Négociation de contenu : les erreurs sont gérées localement et
         sérialisées en application/json avec un Content-Type explicite, de
         sorte que l'enveloppe reste lisible même si le client n'accepte que
         Accept: image/png (sinon le GlobalExceptionHandler échouerait avec une
         HttpMediaTypeNotAcceptableException). L'attribut Accept doit néanmoins
         contenir image/png pour que la route elle-même soit sélectionnée.
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema: { type: integer, minimum: 100, maximum: 1000, default: 300 }
+          description: Côté de l'image PNG en pixels (300 par défaut).
       responses:
         '200':
           description: Image PNG du QR code
+          headers:
+            ETag:
+              description: Empreinte de l'image, à renvoyer dans If-None-Match.
+              schema: { type: string }
+            Cache-Control:
+              description: Politique de cache HTTP de l'image.
+              schema: { type: string }
           content:
             image/png:
               schema: { type: string, format: binary }
+        '304':
+          description: Image inchangée (ETag correspondant) - sans corps.
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -438,12 +465,20 @@ components:
         current_warehouse_id: { type: string, format: uuid, nullable: true }
     ItemUpdate:
       type: object
-      description: Tous les champs sont facultatifs (mise à jour partielle).
+      description: >-
+        Tous les champs sont facultatifs (mise à jour partielle), sauf
+        `qr_code` qui est refusé (400 `IMMUTABLE_QR_CODE`).
       properties:
         company_id: { type: string, format: uuid }
         category_id: { type: string, format: uuid, nullable: true }
         item_type_id: { type: string, format: uuid }
-        qr_code: { type: string }
+        qr_code:
+          type: string
+          readOnly: true
+          description: >-
+            Lecture seule : toute valeur fournie est refusée avec 400
+            `IMMUTABLE_QR_CODE` (décision D-05, le code est stable après
+            impression).
         description: { type: string, nullable: true }
         status: { $ref: '#/components/schemas/ItemStatus' }
         current_warehouse_id: { type: string, format: uuid, nullable: true }

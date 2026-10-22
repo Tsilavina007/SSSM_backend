@@ -41,12 +41,12 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Mouvements | **CORRIGÉ — LOT 3** | Critique | Quantités, source/destination, opération et acteur exposés ; journal append-only ; stock négatif refusé. |
 | Opérations | **CORRIGÉ — LOT 3** | Critique | Type imposé par la route, lignes et mouvements créés atomiquement, statut `COMPLETED`. |
 | Affectations | **CORRIGÉ — LOT 4** | Critique | Contrat canonique unique (façade dépréciée) ; création, retour, void, archivage et restauration audités ; `OUT`/`RETURN` raccordés au stock. Restent la cohérence entreprise et l'idempotence. |
-| QR Code | **PARTIEL** | Élevé | Génération PNG et scan fonctionnent, mais résolution globale, code modifiable, pas de contrat mobile enrichi. |
+| QR Code | **CORRIGÉ — LOT 5** | Moyen | Scan enrichi, tenant-scoped, 404, journalisé et limité en débit ; code immuable ; image mise en cache ; planche d'étiquettes HTML. Restent la rétention du journal, le limiteur non partagé et l'absence de PDF serveur. |
 | Comptages d'inventaire | **CORRIGÉ — LOT 3** | Élevé | Quantité attendue figée, écart calculé serveur, clôture réconciliée avec `last_inventory_at`. Ajustements non journalisés. |
 | Contrat API | **PARTIEL** | Élevé | Erreurs SQL corrigées (400/409/422/503) ; le contrat d'affectation est unifié et sans erreur douce ; restent les erreurs douces des autres modules et une pagination non bornée. |
 | Performance | **PARTIEL** | Élevé | Pool HikariCP désormais utilisé par les DAO ; chaîne N+1 sur chaque article et pagination non bornée restent ouvertes. |
 | Tests | **PARTIEL — RÉDUIT** | Élevé | La suite fonctionnelle a été supprimée le 22 octobre 2026 : il ne reste que 20 tests de conformité schéma/application et 2 tests techniques. Les comportements métier ne sont plus prouvés automatiquement. |
-| Documentation OpenAPI | **PARTIEL** | Moyen | 26 fichiers cohérents avec les routes ; lint Redocly rejoué au Lot 4 : **179 avertissements, 0 erreur** (contre 183 à l'audit initial). Restent les exemples, les `license` et les réponses d'erreur incomplètes. |
+| Documentation OpenAPI | **PARTIEL** | Moyen | 27 fichiers cohérents avec les routes ; lint Redocly rejoué au Lot 5 : **178 avertissements, 0 erreur** (contre 183 à l'audit initial). Restent les exemples, les `license` et les réponses d'erreur incomplètes. |
 
 ---
 
@@ -153,13 +153,13 @@ Ces acquis sont réels, mais ils ne compensent pas les garanties encore incompl�
 
 | Indicateur | Valeur |
 |---|---|
-| Contrôleurs REST | 27 contrôleurs métier (+ 2 contrôleurs de test) |
-| Routes applicatives | 147 après le Lot 4 (130 à l'audit initial, plus logout, soldes, lecture d'un comptage et le cycle de vie des affectations) |
-| Routes d'inventaire | 73 sur 13 contrôleurs |
-| Fichiers OpenAPI | 26 |
-| Fichiers OpenAPI inventaire | 12 |
-| Scripts SQL | 21 (dont `18_lot1_security.sql`, `19_lot3_stock.sql` et `20_lot4_assignments.sql`) |
-| Tests | 20 après la réduction de la suite (4 suites de conformité schéma) |
+| Contrôleurs REST | 28 contrôleurs métier (+ 2 contrôleurs de test) |
+| Routes applicatives | 149 après le Lot 5 (130 à l'audit initial, plus logout, soldes, lecture d'un comptage, le cycle de vie des affectations et les étiquettes) |
+| Routes d'inventaire | 75 sur 14 contrôleurs |
+| Fichiers OpenAPI | 27 |
+| Fichiers OpenAPI inventaire | 13 |
+| Scripts SQL | 22 (dont `18_lot1_security.sql`, `19_lot3_stock.sql`, `20_lot4_assignments.sql` et `21_lot5_qr.sql`) |
+| Tests | 38 après le Lot 5 (6 suites : 20 de conformité schéma, 17 QR) |
 | Échecs de tests | 0 |
 | Pool de connexions | HikariCP via le `DataSource` Spring |
 | Entreprises en base de démonstration | 1 |

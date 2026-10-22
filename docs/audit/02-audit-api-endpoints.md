@@ -334,7 +334,7 @@ Toutes ces routes sont accessibles à **tout utilisateur authentifié**, car `Se
 
 ## 6. Cohérence avec OpenAPI
 
-Les 26 fichiers OpenAPI couvrent les 26 contrôleurs métier, dont 12 fichiers pour les 12 contrôleurs d'inventaire. Ces 12 fichiers décrivent les mêmes routes que les contrôleurs, avec plusieurs dettes explicitement documentées :
+Les 27 fichiers OpenAPI couvrent les 28 contrôleurs métier, dont 13 fichiers pour 14 contrôleurs d'inventaire. Ces fichiers décrivent les mêmes routes que les contrôleurs, avec plusieurs dettes explicitement documentées :
 
 - le double module d'affectation ;
 - l'absence de déduction de `operation_type` depuis la route ;

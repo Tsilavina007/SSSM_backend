@@ -127,9 +127,9 @@ Le Lot 4 avait ajouté la couverture du cycle de vie des affectations (création
 
 | Indicateur | Valeur |
 |---|---|
-| Suites de tests | 4 |
-| Tests exécutés | 20 |
-| Succès | 20 |
+| Suites de tests | 6 |
+| Tests exécutés | 38 |
+| Succès | 38 |
 | Échecs | 0 |
 | Erreurs | 0 |
 | Ignorés | 0 |
@@ -140,6 +140,8 @@ Le Lot 4 avait ajouté la couverture du cycle de vie des affectations (création
 |---|---|---|
 | `DatabaseSchemaConformanceTests` | 13 | Tables lues par les DAO, colonnes exposées par l'API, types énumérés Java ↔ PostgreSQL, types des colonnes du cycle de vie, colonnes d'archivage, tables du stock, clés étrangères, index unique partiel, application des règles de void, tables applicatives, clés primaires, tables de la base ↔ scripts |
 | `SchemaScriptsConformanceTests` | 5 | Inclusion de tous les scripts par le runner, absence d'opération destructive, ordre et unicité des scripts, tables ciblées par les données de démonstration, contenu de la migration Lot 4 |
+| `QrScanApiTests` | 13 | Résolution enrichie, absence de fuite, 404 inconnu, 404 code d'une autre entreprise, journal (résolu et 404), code QR immuable, cache et 304, étiquette, planche, code vide, code au format UUID |
+| `QrScanRateLimiterTests` | 4 | Limite de débit, dépassement, cloisonnement par utilisateur, désactivation |
 | `SssmBackendApplicationTests` | 1 | Démarrage du contexte Spring |
 | `PingControllerTest` | 1 | Endpoint technique `/ping` |
 

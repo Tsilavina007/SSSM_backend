@@ -15,7 +15,7 @@ Client HTTP
 Spring Security (JwtAuthenticationFilter)
    |
    v
-@RestController  (27 contrôleurs, 147 routes après le Lot 4)
+@RestController  (28 contrôleurs, 149 routes après le Lot 5)
    |
    v
 @Service         (règles métier, parfois @Transactional)
@@ -72,10 +72,10 @@ Le code est rangé sous `sssm.dev.sssm_backend`, avec une convention de préfixe
 | `a04_personnel` | employés, documents employés | 2 |
 | `a05_clients` | clients, contacts clients | 2 |
 | `a06_sites` | sites, postes de sécurité, exigences de poste | 3 |
-| `a11_inventory` | inventaire, stock, QR, affectations, comptages, dashboard, rapports | 13 |
+| `a11_inventory` | inventaire, stock, QR, affectations, étiquettes, comptages, dashboard, rapports | 14 |
 | `controller_test` | contrôleurs de test (`Hello`, `Ping`) | 2 |
 
-Total : **27 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **147 routes applicatives après le Lot 4** (130 à l'audit initial, 131 après le Lot 1, 133 après le Lot 3 ; 149 annotations de mapping en incluant `Hello` et `Ping`).
+Total : **28 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **149 routes applicatives après le Lot 5** (130 à l'audit initial, 131 après le Lot 1, 133 après le Lot 3, 147 après le Lot 4 ; 151 annotations de mapping en incluant `Hello` et `Ping`).
 
 ### 3.1. Détail du module inventaire
 
@@ -89,7 +89,8 @@ Total : **27 contrôleurs REST métier**, plus deux contrôleurs de test et un c
 | `stock_balance` | `StockBalanceController` | `StockBalanceService` | `StockBalanceDAOImpl` | `stock_balance` |
 | `item_assignment` | `ItemAssignmentController` | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | `item_assignment` |
 | `assignment` | `AssignmentController` (façade dépréciée) | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | `item_assignment` |
-| `qr_scan` | `QrScanController` | `QrScanService` | `QrScanDAOImpl` | `item` |
+| `qr_scan` | `QrScanController` | `QrScanService` | `QrScanDAOImpl` | `item`, `qr_scan` |
+| `label` | `LabelController` | `LabelService` | `LabelDAO` | `item`, `item_type`, `item_category`, `warehouse`, `company` |
 | `inventory_count` | `InventoryCountController` | `InventoryCountService` | `InventoryCountDAOImpl` | `inventory_count`, `inventory_count_scan` |
 | `operation` | `OperationController` | `OperationService` | `OperationDAOImpl` | `inventory_operation` |
 | `dashboard` | `DashboardController` | `DashboardService` | `DashboardDAOImpl` | `item`, `warehouse`, `inventory_operation`, `item_type`, `stock_balance`, `warehouse_stock_config` |

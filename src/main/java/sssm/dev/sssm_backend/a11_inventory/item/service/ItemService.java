@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
@@ -102,6 +103,14 @@ public class ItemService {
 
   @Transactional
   public ItemRest updateItem(String itemId, ItemUpdateRequest updatedItem) {
+    if (updatedItem != null && updatedItem.getQr_code() != null) {
+      // D-05 : le code QR est stable après impression. Modifier un code invalide
+      // les étiquettes déjà collées sans laisser de trace.
+      throw new ClientException(
+          "Code QR immuable",
+          "Le code QR d'un article ne peut pas être modifié après sa création.",
+          "IMMUTABLE_QR_CODE");
+    }
     ItemResponse before =
         itemDAO
             .getItemById(itemId)

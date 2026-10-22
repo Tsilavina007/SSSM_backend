@@ -6,6 +6,8 @@
 
 **Mise à jour du 22 octobre 2026 (Lot 2) :** un doublon de QR/code renvoie désormais 409 (`23505`) et les violations de FK/`CHECK` renvoient 422, sans SQLSTATE. Les mentions de « 500 » dans les sections 3 et 4 décrivent l'état initial, sauf les 500 fonctionnels `QR_CODE_MISSING` et `QR_CODE_GENERATION_FAILED` qui restent volontaires.
 
+**Mise à jour du 22 octobre 2026 (Lot 5) :** le scan est **strictement limité à l'entreprise de l'appelant**, renvoie **404** sur un code inconnu et renvoie un article **enrichi** (type, catégorie, entrepôt, affectation active, détenteur, poste) sans champ technique interne. Chaque tentative est **journalisée** dans la nouvelle table `qr_scan`. Les résolutions sont **limitées en débit** (429 `RATE_LIMITED`). Le code QR est **immuable** (décision D-05) : `PATCH qr_code` est refusé en 400 `IMMUTABLE_QR_CODE`. L'image PNG est **mise en cache** (`ETag`, `Cache-Control`, 304) et accepte une taille configurable. Une **planche HTML** d'étiquettes (une ou cent) est produite sans nouvelle dépendance. Les sections 2 à 7 décrivent l'état initial ; le détail courant est dans les sections 10 et 11.
+
 ---
 
 ## 1. Ce qui existe

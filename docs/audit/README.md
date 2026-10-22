@@ -29,15 +29,15 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Domaine | Éléments examinés |
 |---|---|
 | Cartographie | packages, contrôleurs, services, DAO, DTO, mappers, configuration, dépendances |
-| API | 27 contrôleurs REST, 147 routes applicatives après le Lot 4 (130 à l'audit initial, 131 après le Lot 1), codes HTTP, validation, erreurs, pagination |
-| Base de données | schéma `security`, scripts `00_init.sql` à `20_lot4_assignments.sql`, contraintes, index, triggers |
+| API | 28 contrôleurs REST, 149 routes applicatives après le Lot 5 (130 à l'audit initial, 131 après le Lot 1), codes HTTP, validation, erreurs, pagination |
+| Base de données | schéma `security`, scripts `00_init.sql` à `21_lot5_qr.sql`, contraintes, index, triggers |
 | Catalogue | catégories, types de matériel, entrepôts, articles |
 | Stock | mouvements, opérations, comptages, tableau de bord, rapports |
 | QR Code | génération, image PNG, résolution, scan |
 | Affectations | un contrat canonique (`item_assignment`) et une façade dépréciée (`assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 4 suites / 20 tests après la réduction du 22 octobre 2026 : conformité schéma ↔ application |
-| OpenAPI | 26 fichiers YAML, dont 12 pour l'inventaire |
+| Tests | 6 suites / 38 tests après le Lot 5 : conformité schéma ↔ application et contrat QR |
+| OpenAPI | 27 fichiers YAML, dont 13 pour l'inventaire |
 
 ## 3. Périmètre exclu
 
@@ -61,9 +61,9 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
 | Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations Lots 1, 3 et 4 appliquées ensuite, tests des Lots 2 à 4 avec nettoyage des marqueurs |
-| Rapports de tests | Exécution du 22 octobre 2026 après réduction de la suite : 20 tests, 20 succès, 0 échec, 4 suites. La suite fonctionnelle de 150 tests a été supprimée. |
-| Documentation API | `docs/api/**/*.yaml` — 26 fichiers |
-| Scripts SQL | `docs/database/schema/00_init.sql` à `20_lot4_assignments.sql` — 21 fichiers |
+| Rapports de tests | Exécution du 22 octobre 2026 après le Lot 5 : 38 tests, 38 succès, 0 échec, 6 suites. La suite fonctionnelle de 150 tests a été supprimée au profit de tests de conformité et du contrat QR. |
+| Documentation API | `docs/api/**/*.yaml` — 27 fichiers |
+| Scripts SQL | `docs/database/schema/00_init.sql` à `21_lot5_qr.sql` — 22 fichiers |
 
 Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196`. Le Lot 1 a ensuite été exécuté sur le HEAD `13bb79b` (`docs(audit): reconcile reports with current HEAD`), sans commit de correction à ce stade.
 
@@ -138,7 +138,7 @@ Les priorités utilisées dans le registre sont :
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
 - **Les secrets réels n'ont pas été lus.** Les conclusions portent sur la présence de valeurs par défaut et sur la configuration, pas sur la divulgation d'un secret d'exploitation.
-- **OpenAPI** a été vérifié structurellement et linté avec la version de la CI (`@redocly/cli@2.65.1`) au Lot 4 : **179 avertissements, 0 erreur** sur 26 fichiers (183 à l'audit initial). Les avertissements restants concernent les opérations antérieures et ne sont pas bloquants ; ils restent signalés comme dette de documentation.
+- **OpenAPI** a été vérifié structurellement et linté avec la version de la CI (`@redocly/cli@2.65.1`) au Lot 5 : **178 avertissements, 0 erreur** sur 27 fichiers (183 à l'audit initial). Les avertissements restants concernent les opérations antérieures et ne sont pas bloquants ; ils restent signalés comme dette de documentation.
 - **Les propositions** des fichiers 13 à 15 sont des spécifications. Elles ne constituent ni du code livré, ni un engagement de délai.
 
 ---

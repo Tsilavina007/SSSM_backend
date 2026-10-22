@@ -281,6 +281,69 @@ class DatabaseSchemaConformanceTests {
   }
 
   @Test
+  @DisplayName("Le journal des scans existe avec ses colonnes, son type et ses index")
+  void qrScanJournalMatchesTheContract() throws Exception {
+    try (Connection connection = openDatabase()) {
+      Set<String> columns = columns(connection, "qr_scan");
+      assertTrue(
+          columns.containsAll(
+              List.of(
+                  "id",
+                  "company_id",
+                  "item_id",
+                  "qr_code",
+                  "scanned_by",
+                  "scanned_at",
+                  "device_id",
+                  "result")),
+          () -> "colonnes manquantes sur qr_scan : " + columns);
+
+      assertEquals(
+          "uuid NOT NULL", columnDefinition(connection, "qr_scan", "id"));
+      assertEquals(
+          "text NOT NULL", columnDefinition(connection, "qr_scan", "qr_code"));
+      assertEquals(
+          "timestamp with time zone NOT NULL",
+          columnDefinition(connection, "qr_scan", "scanned_at"));
+      assertEquals("uuid", columnDefinition(connection, "qr_scan", "company_id"));
+
+      assertEquals(
+          Set.of("RESOLVED", "NOT_FOUND"),
+          enumLabels(connection, "qr_scan_result"),
+          "le type qr_scan_result doit exposer exactement les résultats attendus");
+
+      Set<String> targets = foreignKeyTargets(connection, "qr_scan");
+      assertTrue(
+          targets.containsAll(List.of("company", "item", "app_user")),
+          () -> "clés étrangères manquantes sur qr_scan : " + targets);
+
+      Set<String> indexes = indexNames(connection, "qr_scan");
+      assertTrue(
+          indexes.containsAll(
+              List.of(
+                  "idx_qr_scan_company_scanned_at",
+                  "idx_qr_scan_item",
+                  "idx_qr_scan_code")),
+          () -> "index manquants sur qr_scan : " + indexes);
+    }
+  }
+
+  private static Set<String> indexNames(Connection connection, String table) throws SQLException {
+    Set<String> names = new LinkedHashSet<>();
+    String sql =
+        "SELECT indexname FROM pg_indexes WHERE schemaname = 'security' AND tablename = ?";
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+      statement.setString(1, table);
+      try (ResultSet resultSet = statement.executeQuery()) {
+        while (resultSet.next()) {
+          names.add(resultSet.getString(1));
+        }
+      }
+    }
+    return names;
+  }
+
+  @Test
   @DisplayName("La base contient exactement les tables créées par les scripts")
   void databaseTablesMatchTheSchemaScripts() throws Exception {
     Set<String> created = createdTables();

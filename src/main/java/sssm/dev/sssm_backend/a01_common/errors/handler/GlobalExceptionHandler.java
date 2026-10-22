@@ -29,6 +29,7 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.TooManyRequestsException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.UnauthorizedException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
@@ -70,6 +71,12 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ServerException.class)
   public ResponseEntity<Map<String, ItemError>> handleServer(ServerException exception) {
     return build(HttpStatus.INTERNAL_SERVER_ERROR, exception);
+  }
+
+  @ExceptionHandler(TooManyRequestsException.class)
+  public ResponseEntity<Map<String, ItemError>> handleTooManyRequests(
+      TooManyRequestsException exception) {
+    return build(HttpStatus.TOO_MANY_REQUESTS, exception);
   }
 
   @ExceptionHandler(BindException.class)

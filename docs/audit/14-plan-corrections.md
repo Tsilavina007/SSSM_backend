@@ -16,7 +16,7 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | D-02 | Multi-entreprise | Mono-entreprise définitive / multi-entreprise réelle | Détermine l'effort de tenancy |
 | D-03 | Inscription | Fermée / invitation / publique avec validation | Détermine le flux d'identité |
 | D-04 | Suppression | Physique / archivage logique / les deux | Détermine les contraintes et l'UI |
-| D-05 | QR Code | Immuable / versionné / modifiable avec historique | Détermine l'impression et le mobile |
+| D-05 | QR Code | Immuable / versionné / modifiable avec historique | Détermine l'impression et le mobile — **décidé le 22 octobre 2026 : immuable, sans historique ni rotation** |
 | D-06 | Affectation | Un seul module / deux modules spécialisés | Détermine le contrat |
 | D-07 | API | Versionner `/api/v1` / garder `/api` | Détermine la compatibilité |
 | D-08 | Portée admin | Admin plateforme / admin entreprise | Détermine le RBAC |
@@ -34,6 +34,7 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | L2 | Accès aux données et transactions | P0 | L1 | L |
 | L3 | Modèle de stock — **exécuté le 22 octobre 2026** | P0 | L0, L2 | XL |
 | L4 | Affectations et mouvements — **exécuté le 22 octobre 2026** | P0 | L3 | L |
+| L5 | QR, scan et étiquettes — **exécuté le 22 octobre 2026** | P1 | L1, L3, L4, D-05 | L |
 | L5 | QR, scan, étiquettes | P1 | L1, L3, L4 | L |
 | L6 | Compléments de comptage et journalisation des ajustements | P1 | L3 | L |
 | L7 | Contrat HTTP, erreurs, pagination | P1 | L1, L3 | M |
@@ -430,6 +431,38 @@ Aucun `DROP`, `DELETE`, `TRUNCATE` ni `NOT NULL` sur une colonne historique. Les
 - un scan renvoie tout ce qu'il faut pour agir ;
 - chaque scan est traçable ;
 - une planche de 100 étiquettes est générable sans 100 appels manuels.
+
+### 8.5. Exécution du Lot 5 — 22 octobre 2026
+
+**Décisions appliquées :** D-05 (**immuable**, sans historique ni rotation) ; journal des scans **créé** ; étiquettes en **HTML** (aucune dépendance PDF) ; limitation de débit **en mémoire**.
+
+**Migration `21_lot5_qr.sql`.** Additive, appliquée après `20_lot4_assignments.sql` et incluse dans `sssm_schema2_v01.sql` :
+
+- type énuméré `security.qr_scan_result` (`RESOLVED`, `NOT_FOUND`), créé dans un bloc `DO` gardé ;
+- table `security.qr_scan` (8 colonnes) : `id`, `company_id`, `item_id`, `qr_code`, `scanned_by`, `scanned_at`, `device_id`, `result` ;
+- clés étrangères vers `company` (RESTRICT), `item` (SET NULL) et `app_user` (SET NULL) ;
+- index `idx_qr_scan_company_scanned_at`, `idx_qr_scan_item` (partiel) et `idx_qr_scan_code`.
+
+Aucune colonne, table ou ligne existante n'est modifiée ou supprimée ; aucun `NOT NULL` n'est ajouté à une colonne historique. Impact : la table est vide à la migration, le journal ne démarre qu'avec les nouveaux scans. Ordre d'application : après le Lot 4, avant la mise en service. Compatibilité : les données existantes (articles, mouvements, affectations, journal inexistant) sont inchangées. Le script a été appliqué, rejoué et vérifié idempotent.
+
+**Code livré :**
+
+- `QrScanService` : résolution **strictement scoped à l'entreprise** de l'appelant (`company_id` du JWT), **404** sur code inconnu, réponse **enrichie** (type, catégorie, entrepôt, affectation active, employé, poste) et suppression des champs techniques internes ;
+- journal des scans : chaque tentative, résolue ou non, est écrite dans `qr_scan` avec l'acteur, l'horodatage, le terminal et le résultat. La méthode n'est pas transactionnelle, faute de quoi le rollback du 404 annulerait le journal ;
+- `QrScanRateLimiter` : fenêtre glissante par utilisateur et par entreprise, 429 `RATE_LIMITED`, seuil configurable (`app.qr.scan.max-per-minute`, 120 par défaut) ; `TooManyRequestsException` et son handler 429 ajoutés ;
+- code QR immuable : `PATCH qr_code` refusé en 400 `IMMUTABLE_QR_CODE` ; le code n'est plus modifiable après impression ;
+- image PNG : `ETag`, `Cache-Control: public, max-age=300`, 304 sur `If-None-Match` et taille configurable (100 à 1000 px) ;
+- nouveau module `a11_inventory/label` : étiquette HTML d'un article et planche HTML de 100 articles en un appel, QR code intégré en base64 et texte lisible, sans dépendance externe ;
+- correction du binding du code scanné : un code au format UUID n'est plus interprété comme un UUID, ce qui évitait une erreur PostgreSQL `42883`.
+
+**Preuves :**
+
+- `QrScanApiTests` : 13 tests (résolution enrichie, absence de fuite, 404 inconnu, 404 code d'une autre entreprise, journal résolu et journal 404, code immuable, cache et 304, étiquette, planche, 404 étiquette, code vide, code au format UUID) ;
+- `QrScanRateLimiterTests` : 4 tests (limite atteinte, dépassement, cloisonnement par utilisateur, désactivation) ;
+- `DatabaseSchemaConformanceTests` : contrôle ajouté sur la table `qr_scan`, son type énuméré, ses clés étrangères et ses index ;
+- suite complète : **38 tests, 0 échec, 0 erreur, 0 ignoré, 6 suites**, exécutée sur une base neuve initialisée comme le CI.
+
+**Limites résiduelles :** pas de politique de rétention du journal, limiteur non partagé entre instances, absence de PDF généré par le serveur, contrôle `company_id` non généralisé aux autres modules (`P0-01`), `P1-14` inchangé, et `P2-01`/`P2-02` toujours ouverts.
 
 ---
 

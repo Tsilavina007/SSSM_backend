@@ -1,14 +1,11 @@
 openapi: 3.0.3
 info:
-  title: SSSM Inventory — QR Scans API
-  version: 1.0.0
+  title: SSSM Inventory - QR Scans API
+  version: 2.0.0
   description: >-
     API de résolution de QR codes (module a11_inventory/qr_scan), dérivée du
     contrôleur QrScanController. Toutes les routes exigent un JWT
-    (Authorization: Bearer …). Le corps attend l'enregistrement
-    {"qrCode": "…"} ; qrCode est obligatoire et ne peut pas être vide
-    (validation Jakarta, enveloppe ItemError en cas d'échec). Une valeur
-    inconnue renvoie une liste vide (pas d'erreur).
+    (Authorization: Bearer …).
 servers:
   - url: http://localhost:8080
 security:
@@ -19,47 +16,90 @@ tags:
 paths:
   /api/inventory/scans/resolve:
     post:
+      operationId: resolveQrScan
       tags: [ QR Scans ]
-      summary: Résoudre un QR code vers l article
+      summary: Résoudre un QR code vers l'article correspondant
+      description: >-
+        La résolution est **strictement limitée à l'entreprise de l'appelant**
+        (revendiquée dans le JWT). Un code inconnu, archivé ou appartenant à
+        une autre entreprise renvoie 404 : l'existence d'un code dans une autre
+        entreprise n'est jamais révélée.
+
+        La réponse est enrichie : type, catégorie, entrepôt courant et, le cas
+        échéant, l'affectation active avec son détenteur et son poste. Aucun
+        champ technique interne (UUID d'archivage, dates de mise à jour) n'est
+        exposé.
+
+        Chaque tentative, résolue ou non, alimente le journal `qr_scan`.
+        Le nombre de résolutions est limité par utilisateur et par entreprise
+        (`app.qr.scan.max-per-minute`, 120 par défaut) : au-delà, la réponse
+        est 429 `RATE_LIMITED`.
+
+        `deviceId` est facultatif : il identifie le terminal qui scanne et
+        figure dans le journal.
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/QrScanRequest' } }
       responses:
         '200':
-          description: >-
-            Liste des articles correspondants — vide si le QR code est inconnu.
+          description: Article résolu et enrichi
           content:
             application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/QrScanItem' } }
+              schema: { $ref: '#/components/schemas/QrScan' }
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '500':
           $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  parameters: {}
   responses:
     BadRequest:
-      description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+      description: >-
+        Requête invalide (JSON illisible, code vide, champ trop long,
+        validation) - enveloppe ItemError.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré - enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: >-
+        JWT valide mais sans entreprise, ou sans permission d'inventaire -
+        enveloppe ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: >-
+        Code inconnu, archivé ou appartenant à une autre entreprise - enveloppe
+        ItemError.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    TooManyRequests:
+      description: >-
+        Limite de débit de résolution atteinte - enveloppe ItemError.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
-        code).
+      description: Erreur serveur ou SQL - enveloppe ItemError.
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -72,44 +112,75 @@ components:
       type: object
       required: [message, detail, code]
       properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        message: { type: string }
+        detail: { type: string }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
-            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
-            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
-    ItemStatus:
-      type: string
-      enum: [ AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED ]
+            Code applicatif stable (VALIDATION_ERROR, NOT_FOUND, FORBIDDEN,
+            RATE_LIMITED, CLIENT_ERROR, SERVER_ERROR, ...).
     QrScanRequest:
       type: object
-      description: Enregistrement exact attendu par le contrôleur (record QrScanRequest).
       required: [ qrCode ]
       properties:
         qrCode:
           type: string
-          minLength: 1
-          description: Chaîne du QR code scanné (propriété exacte « qrCode »), non vide.
-    QrScanItem:
+          maxLength: 100
+          description: >-
+            Code scanné, comparé exactement (casse comprise) au code porté par
+            l'article. Un code au format UUID est traité comme un texte.
+        deviceId:
+          type: string
+          maxLength: 100
+          description: Identifiant du terminal qui scanne, journalisé.
+    QrScan:
       type: object
       properties:
         id: { type: string, format: uuid }
-        company_id: { type: string, format: uuid }
-        category_id: { type: string, format: uuid, nullable: true }
-        item_type_id: { type: string, format: uuid }
         qr_code: { type: string }
         description: { type: string, nullable: true }
         status: { $ref: '#/components/schemas/ItemStatus' }
-        current_warehouse_id: { type: string, format: uuid, nullable: true }
-        created_at: { type: string, format: date-time }
-        updated_at: { type: string, format: date-time }
-        archived_at: { type: string, format: date-time, nullable: true }
-        archived_by: { type: string, format: uuid, nullable: true }
-        last_inventory_at: { type: string, format: date-time, nullable: true }
+        item_type: { $ref: '#/components/schemas/QrScanItemType' }
+        category: { $ref: '#/components/schemas/QrScanCategory' }
+        warehouse: { $ref: '#/components/schemas/QrScanWarehouse' }
+        active_assignment: { $ref: '#/components/schemas/QrScanAssignment' }
+    ItemStatus:
+      type: string
+      enum: [ AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED ]
+    QrScanItemType:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, nullable: true }
+        name: { type: string, nullable: true }
+    QrScanCategory:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, nullable: true }
+    QrScanWarehouse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, nullable: true }
+    QrScanAssignment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        assigned_at: { type: string, format: date-time, nullable: true }
+        expected_return_at: { type: string, format: date-time, nullable: true }
+        employee: { $ref: '#/components/schemas/QrScanEmployee' }
+        post: { $ref: '#/components/schemas/QrScanPost' }
+    QrScanEmployee:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        employee_number: { type: string, nullable: true }
+        first_name: { type: string, nullable: true }
+        last_name: { type: string, nullable: true }
+    QrScanPost:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string, nullable: true }
+        name: { type: string, nullable: true }

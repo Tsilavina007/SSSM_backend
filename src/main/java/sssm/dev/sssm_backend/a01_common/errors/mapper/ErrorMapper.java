@@ -9,6 +9,7 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.TooManyRequestsException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 
 @Component
@@ -42,8 +43,16 @@ public class ErrorMapper {
           textOr(conflictException.code(), "CONFLICT"));
     }
 
-    if (exception instanceof NotFoundException notFoundException) {
+    if (exception instanceof TooManyRequestsException tooManyRequestsException) {
       return new ItemError(
+          textOr(tooManyRequestsException.getMessage(), "Limite de débit atteinte"),
+          textOr(
+              tooManyRequestsException.detail(),
+              "Trop de requêtes ont été envoyées. Réessayez dans un instant."),
+          textOr(tooManyRequestsException.code(), "RATE_LIMITED"));
+    }
+
+    if (exception instanceof NotFoundException notFoundException) {      return new ItemError(
           textOr(notFoundException.getMessage(), "Ressource introuvable"),
           textOr(
               notFoundException.detail(),

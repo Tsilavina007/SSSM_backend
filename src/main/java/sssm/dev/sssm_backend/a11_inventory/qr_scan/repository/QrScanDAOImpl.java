@@ -7,12 +7,37 @@ import org.springframework.stereotype.Repository;
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
-import sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.QrScanItemResponse;
+import sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.QrScanJournalEntry;
+import sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.QrScanResolveResponse;
 
 /** JDBC DAO for the inventory qr scan module. */
 @Repository
 public class QrScanDAOImpl implements QrScanDAO {
   private static final String item = "security.item";
+
+  /**
+   * Résolution d'un QR code. Les jointures externes conservent l'article même quand le type, la
+   * catégorie ou l'entrepôt sont absents, et l'affectation retenue est celle qui n'est ni retournée
+   * ni voidée.
+   */
+  private static final String RESOLVE_SQL =
+      "SELECT i.id, i.company_id, i.qr_code, i.description, i.status, "
+          + "t.id AS type_id, t.code AS type_code, t.name AS type_name, "
+          + "c.id AS category_id, c.name AS category_name, "
+          + "w.id AS warehouse_id, w.name AS warehouse_name, "
+          + "a.id AS assignment_id, a.assigned_at, a.expected_return_at, "
+          + "e.id AS employee_id, e.employee_number, e.first_name AS employee_first_name, "
+          + "e.last_name AS employee_last_name, "
+          + "p.id AS post_id, p.code AS post_code, p.name AS post_name "
+          + "FROM security.item i "
+          + "LEFT JOIN security.item_type t ON t.id = i.item_type_id "
+          + "LEFT JOIN security.item_category c ON c.id = i.category_id "
+          + "LEFT JOIN security.warehouse w ON w.id = i.current_warehouse_id "
+          + "LEFT JOIN security.item_assignment a ON a.item_id = i.id "
+          + "AND a.returned_at IS NULL AND a.voided_at IS NULL "
+          + "LEFT JOIN security.employee e ON e.id = a.employee_id "
+          + "LEFT JOIN security.security_post p ON p.id = a.post_id "
+          + "WHERE i.qr_code = ? AND i.company_id = ? AND i.archived_at IS NULL";
 
   private Map<String, Object> row(ResultSet r) throws SQLException {
     Map<String, Object> m = new LinkedHashMap<>();
@@ -29,35 +54,75 @@ public class QrScanDAOImpl implements QrScanDAO {
     }
   }
 
-  private QrScanItemResponse mapRowToQrScanItem(ResultSet r) throws SQLException {
-    return new QrScanItemResponse(
-        r.getString("id"),
-        r.getString("company_id"),
-        r.getString("category_id"),
-        r.getString("item_type_id"),
-        r.getString("qr_code"),
-        r.getString("description"),
-        r.getString("status"),
-        r.getString("current_warehouse_id"),
-        r.getTimestamp("created_at"),
-        r.getTimestamp("updated_at"),
-        r.getTimestamp("archived_at"),
-        r.getString("archived_by"),
-        r.getTimestamp("last_inventory_at"));
+  private QrScanResolveResponse mapRowToQrScanItem(ResultSet r) throws SQLException {
+    QrScanResolveResponse response = new QrScanResolveResponse();
+    response.setId(r.getString("id"));
+    response.setCompany_id(r.getString("company_id"));
+    response.setQr_code(r.getString("qr_code"));
+    response.setDescription(r.getString("description"));
+    response.setStatus(r.getString("status"));
+    response.setType_id(r.getString("type_id"));
+    response.setType_code(r.getString("type_code"));
+    response.setType_name(r.getString("type_name"));
+    response.setCategory_id(r.getString("category_id"));
+    response.setCategory_name(r.getString("category_name"));
+    response.setWarehouse_id(r.getString("warehouse_id"));
+    response.setWarehouse_name(r.getString("warehouse_name"));
+    response.setAssignment_id(r.getString("assignment_id"));
+    response.setAssigned_at(r.getTimestamp("assigned_at"));
+    response.setExpected_return_at(r.getTimestamp("expected_return_at"));
+    response.setEmployee_id(r.getString("employee_id"));
+    response.setEmployee_number(r.getString("employee_number"));
+    response.setEmployee_first_name(r.getString("employee_first_name"));
+    response.setEmployee_last_name(r.getString("employee_last_name"));
+    response.setPost_id(r.getString("post_id"));
+    response.setPost_code(r.getString("post_code"));
+    response.setPost_name(r.getString("post_name"));
+    return response;
   }
 
-  public List<QrScanItemResponse> resolveQrCode(String qrCode) {
-    List<QrScanItemResponse> o = new ArrayList<>();
+  @Override
+  public Optional<QrScanResolveResponse> resolveQrCode(String qrCode, String companyId) {
     try (Connection c = DatabaseConnection.getConnection();
-        PreparedStatement p = c.prepareStatement("SELECT * FROM security.item WHERE qr_code=?")) {
-      p.setObject(1, id(qrCode));
+        PreparedStatement p = c.prepareStatement(RESOLVE_SQL)) {
+      // Le code est comparé comme texte : un code au format UUID ne doit pas
+      // provoquer une erreur de type PostgreSQL.
+      p.setString(1, qrCode);
+      p.setObject(2, UUID.fromString(companyId));
       try (ResultSet r = p.executeQuery()) {
-        while (r.next()) o.add(mapRowToQrScanItem(r));
+        if (r.next()) {
+          return Optional.of(mapRowToQrScanItem(r));
+        }
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return o;
+    return Optional.empty();
+  }
+
+  @Override
+  public void recordScan(QrScanJournalEntry entry) {
+    String sql =
+        "INSERT INTO security.qr_scan "
+            + "(company_id, item_id, qr_code, scanned_by, device_id, result, scanned_at) "
+            + "VALUES (?, ?, ?, ?, ?, CAST(? AS security.qr_scan_result), COALESCE(CAST(? AS timestamptz), now()))";
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement p = c.prepareStatement(sql)) {
+      p.setObject(1, entry.getCompany_id() == null ? null : UUID.fromString(entry.getCompany_id()));
+      p.setObject(2, entry.getItem_id() == null ? null : UUID.fromString(entry.getItem_id()));
+      p.setString(3, entry.getQr_code());
+      p.setObject(4, entry.getScanned_by() == null ? null : UUID.fromString(entry.getScanned_by()));
+      p.setString(5, entry.getDevice_id());
+      p.setString(6, entry.getResult());
+      if (entry.getScanned_at() == null) {
+        p.setNull(7, java.sql.Types.TIMESTAMP_WITH_TIMEZONE);
+      } else {
+        p.setTimestamp(7, entry.getScanned_at());
+      }
+      p.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
   }
 
   public List<Map<String, Object>> list(
