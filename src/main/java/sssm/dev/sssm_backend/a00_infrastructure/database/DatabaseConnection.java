@@ -1,27 +1,61 @@
 package sssm.dev.sssm_backend.a00_infrastructure.database;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
+import javax.sql.DataSource;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.stereotype.Component;
 
+/**
+ * Point d'accès JDBC unique de l'application.
+ *
+ * <p>Les DAO existants conservent leur appel à {@link #getConnection()}, mais la connexion provient
+ * désormais du {@link DataSource} Spring (HikariCP) et non plus de {@code DriverManager}. La
+ * connexion renvoyée participe à la transaction Spring courante et sa fermeture passe par {@link
+ * DataSourceUtils#releaseConnection(Connection, DataSource)} : un {@code @Transactional} de service
+ * couvre donc réellement les écritures des DAO.
+ */
+@Component
 public class DatabaseConnection {
 
-  private static final String URL =
-      getRequiredEnv("DB_URL", "jdbc:postgresql://localhost:5432/sssm_db");
-  private static final String USER = getRequiredEnv("DB_USER", "postgres");
-  private static final String PASSWORD = getRequiredEnv("DB_PASSWORD", "postgres");
+  private static volatile DataSource dataSource;
 
-  private static String getRequiredEnv(String name, String defaultValue) {
-    String value = System.getenv().getOrDefault(name, defaultValue);
-
-    if (value == null || value.isBlank()) {
-      throw new IllegalStateException("Missing environment variable: " + name);
-    }
-
-    return value;
+  public DatabaseConnection(DataSource dataSource) {
+    DatabaseConnection.dataSource = dataSource;
   }
 
+  /**
+   * Retourne une connexion transactionnelle. La fermeture de la connexion par un bloc
+   * try-with-resources libère la connexion auprès de Spring sans fermer la connexion physique
+   * lorsqu'une transaction est active.
+   */
   public static Connection getConnection() throws SQLException {
-    return DriverManager.getConnection(URL, USER, PASSWORD);
+    DataSource currentDataSource = dataSource;
+    if (currentDataSource == null) {
+      throw new SQLException("DataSource Spring non initialisé");
+    }
+
+    Connection target = DataSourceUtils.getConnection(currentDataSource);
+    boolean[] released = {false};
+    return (Connection)
+        Proxy.newProxyInstance(
+            Connection.class.getClassLoader(),
+            new Class<?>[] {Connection.class},
+            (proxy, method, args) -> {
+              if ("close".equals(method.getName()) && method.getParameterCount() == 0) {
+                if (!released[0]) {
+                  released[0] = true;
+                  DataSourceUtils.releaseConnection(target, currentDataSource);
+                }
+                return null;
+              }
+              try {
+                return method.invoke(target, args);
+              } catch (InvocationTargetException exception) {
+                throw exception.getCause();
+              }
+            });
   }
 }

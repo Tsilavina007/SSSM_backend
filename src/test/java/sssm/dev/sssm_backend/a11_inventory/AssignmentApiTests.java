@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.a11_inventory;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -210,18 +211,17 @@ class AssignmentApiTests {
   }
 
   @Test
-  void missingRequiredColumnReturns500Envelope() throws Exception {
-    // dette connue : colonnes NOT NULL omises → 500 (et non 400) en famille C
+  void missingRequiredColumnReturns400Envelope() throws Exception {
     mockMvc
         .perform(
             post("/api/inventory/assignments")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"notes\":\"sans ids\"}"))
-        .andExpect(status().isInternalServerError())
+        .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors.message").value("Champ obligatoire manquant"))
-        .andExpect(jsonPath("$.errors.detail").value(containsString("SQLState")))
-        .andExpect(jsonPath("$.errors.code").value("23502"));
+        .andExpect(jsonPath("$.errors.detail").value(not(containsString("SQLState"))))
+        .andExpect(jsonPath("$.errors.code").value("BAD_REQUEST"));
   }
 
   @Test

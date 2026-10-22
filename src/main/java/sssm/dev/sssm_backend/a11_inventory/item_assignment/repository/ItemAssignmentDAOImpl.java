@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -157,33 +156,36 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
     }
 
     String sql =
-        "INSERT INTO security.item_assignment (" + columns + ") VALUES (" + placeholders + ")";
+        "INSERT INTO security.item_assignment ("
+            + columns
+            + ") VALUES ("
+            + placeholders
+            + ") RETURNING id";
 
     try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
       for (int index = 0; index < parameters.size(); index++) {
         stmt.setObject(index + 1, parameters.get(index));
       }
-      stmt.executeUpdate();
 
-      try (ResultSet rs = stmt.getGeneratedKeys()) {
+      try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          generatedId = rs.getString(1);
+          generatedId = rs.getString("id");
         }
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return new ItemAssignmentResponse(
-        generatedId,
-        value.getItem_id(),
-        value.getEmployee_id(),
-        value.getPost_id(),
-        value.getAssigned_at(),
-        value.getReturned_at(),
-        value.getCondition_on_assignment(),
-        value.getCondition_on_return(),
-        value.getNotes());
+
+    if (generatedId == null) {
+      throw new ServerException("La base n'a pas renvoyé l'identifiant de l'affectation créée.");
+    }
+    // Relire la ligne persistée pour renvoyer assigned_at calculée par PostgreSQL.
+    return getItemAssignmentById(generatedId)
+        .orElseThrow(
+            () ->
+                new ServerException(
+                    "L'affectation créée n'a pas pu être relue depuis la base."));
   }
 
   @Override

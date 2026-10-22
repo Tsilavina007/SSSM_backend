@@ -101,7 +101,9 @@ Si le rôle `USER` n'existe pas, l'utilisateur n'a aucun rôle mais reste authen
 
 ### P0-04 — Transactions inopérantes et écritures non atomiques
 
-**Constat :** les services sont annotés `@Transactional`, mais les DAO ouvrent leurs connexions via `DatabaseConnection.getConnection()` et `DriverManager`. Ils ne participent pas à la transaction Spring. Il n'y a pas de pool partagé par les DAO.
+**Statut au 22 octobre 2026 (Lot 2) : CORRIGÉ pour les cas d'usage existants.** `DatabaseConnection` fournit une connexion issue du `DataSource` Spring/HikariCP et transactionnelle. Les services annotés `@Transactional` couvrent désormais réellement les DAO ; un rollback DAO et un rollback du service mouvement sont testés. L'atomicité des opérations multi-lignes reste dépendante de `P1-06`, qui n'implémente pas encore les lignes d'opération.
+
+**Constat initial :** les services sont annotés `@Transactional`, mais les DAO ouvrent leurs connexions via `DatabaseConnection.getConnection()` et `DriverManager`. Ils ne participent pas à la transaction Spring. Il n'y a pas de pool partagé par les DAO.
 
 Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle :
 
@@ -171,7 +173,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-01 — Erreurs client renvoyées en 500 avec détails SQL
 
-**Constat :** doublons, FK, NOT NULL et contraintes produisent `PSQLException`, converties en **500**. Le corps contient le message PostgreSQL, le détail et le `SQLState`.
+**Statut au 22 octobre 2026 (Lot 2) : CORRIGÉ.** Les erreurs SQL sont traduites en 400 (NOT NULL, format), 409 (unicité, conflit de transaction), 422 (FK, contrainte `CHECK`) ou 503 (base indisponible). Le corps ne contient plus ni SQLSTATE, ni message PostgreSQL, ni nom de contrainte.
+
+**Constat initial :** doublons, FK, NOT NULL et contraintes produisent `PSQLException`, converties en **500**. Le corps contient le message PostgreSQL, le détail et le `SQLState`.
 
 **Impact :** le frontend ne peut pas distinguer 400/409/422/500 ; la structure de la base est exposée ; l'utilisateur voit une erreur technique.
 
@@ -183,7 +187,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-02 — Création de type et d'employé fragile
 
-**Constat :** `ItemTypeDAOImpl.createItemType` insère explicitement `unit`, `quantity_total` et `minimum_stock` même s'ils sont nuls. `EmployeeDAOImpl.create` fait de même pour `status`. Les `DEFAULT` SQL ne s'appliquent pas à un `NULL` explicite.
+**Statut au 22 octobre 2026 (Lot 2) : CORRIGÉ.** Les colonnes absentes sont omises de l'`INSERT`; PostgreSQL applique `unit = 'piece'`, les quantités à 0 et `status = 'ACTIVE'` pour l'employé. La ligne persistée est relue avant la réponse. Des tests couvrent les formulaires minimaux.
+
+**Constat initial :** `ItemTypeDAOImpl.createItemType` insère explicitement `unit`, `quantity_total` et `minimum_stock` même s'ils sont nuls. `EmployeeDAOImpl.create` fait de même pour `status`. Les `DEFAULT` SQL ne s'appliquent pas à un `NULL` explicite.
 
 **Impact :** un formulaire minimal échoue en 500 `23502`. Les tests nominaux fournissent les valeurs et masquent le cas.
 
@@ -278,7 +284,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-09 — `DataSource` Spring contourné et pool non utilisé par les DAO
 
-**Constat :** `application-prod.properties` déclare `DB_URL`, `DB_USER`, `DB_PASSWORD` et un `DataSource`, et `DatabaseConnection` lit les mêmes variables. Mais les DAO passent par `DriverManager`, avec des valeurs de repli locales, et n'utilisent pas le `DataSource` Spring.
+**Statut au 22 octobre 2026 (Lot 2) : CORRIGÉ pour le contournement de Spring et l'absence de pool.** `DatabaseConnection` ne lit plus `DriverManager` ni de valeurs de repli. Il reçoit le `DataSource` Spring, ouvre les connexions via `DataSourceUtils` et les libère correctement. HikariCP est configuré dans `application.properties` (taille, timeouts, validation, durée de vie). L'injection directe du `DataSource` dans chaque DAO n'a pas été faite : l'adaptateur statique reste une dette de conception, sans impact sur le pool ni sur les transactions.
+
+**Constat initial :** `application-prod.properties` déclare `DB_URL`, `DB_USER`, `DB_PASSWORD` et un `DataSource`, et `DatabaseConnection` lit les mêmes variables. Mais les DAO passent par `DriverManager`, avec des valeurs de repli locales, et n'utilisent pas le `DataSource` Spring.
 
 **Impact :** pool Spring non utilisé, réglages (timeouts, TLS, validation) ignorés, et valeurs de repli locales codées en dur qui peuvent masquer une configuration incomplète hors profil prod. Ce n'est pas une divergence de nom de variable, mais la couche JDBC n'applique pas la configuration de production.
 
@@ -288,7 +296,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-10 — Réponses de création avec valeurs nulles
 
-**Constat :** le DAO construit la réponse avec les valeurs d'entrée, pas avec les valeurs relues :
+**Statut au 22 octobre 2026 (Lot 2) : CORRIGÉ.** Les DAO de mouvement et d'affectation relisent la ligne après insertion ; `movement_type`, `movement_date` et `assigned_at` reflètent les valeurs PostgreSQL. Les tests de réponse de création ne tolèrent plus `null`.
+
+**Constat initial :** le DAO construit la réponse avec les valeurs d'entrée, pas avec les valeurs relues :
 
 - `assigned_at: null` pour une affectation créée sans date ;
 - `movement_date: null` et `movement_type: null` pour un mouvement créé sans date/type.
@@ -322,9 +332,9 @@ Les tests correspondants vérifient la base **et** acceptent `null` dans la rép
 
 **Constat :** `GET /items/{itemId}/history` charge les 100 premiers mouvements **globaux** et les 100 premières affectations **globales**, puis filtre en mémoire. Il ne vérifie pas l'existence de l'article. Un UUID inconnu renvoie 200 avec des listes vides.
 
-Le test `ItemApiTests.historyUnknownReturnsNotFound` attend 404. Le code actuel ne peut pas produire ce 404.
+L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a été retiré de l'arbre. Le code actuel ne produit toujours pas ce 404 et l'anomalie n'est plus couverte par un test négatif.
 
-**Impact :** historique incomplet, réponse 200 pour un article inexistant, et divergence code/test qui invalide la confiance dans la suite verte.
+**Impact :** historique incomplet, réponse 200 pour un article inexistant, et absence de garde-fou sur ce cas.
 
 **Références :** rapports 02, 07 et 11.
 
@@ -387,7 +397,7 @@ Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 �
 
 ## 5. Matrice de risque
 
-La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Les autres P0 sont ouverts.
+La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. `P0-05`, `P0-06`, les autres P1 et la concurrence (`P1-14`) restent ouverts.
 
 | ID | Risque | Probabilité | Impact | Score | Niveau |
 |---|---|---:|---:|---:|---|
@@ -437,13 +447,13 @@ L'ordre recommandé n'est pas l'ordre alphabétique des modules. Il suit les dé
 
 **Sortie :** un utilisateur A ne peut pas lire ni écrire les données de B ; un rôle retiré ne peut pas être rafraîchi.
 
-### Étape 2 — Rendre les écritures atomiques
+### Étape 2 — Rendre les écritures atomiques — **FAIT au Lot 2**
 
-1. Remplacer `DriverManager` par un `DataSource` partagé et un pool.
-2. Faire participer les DAO à la transaction Spring.
-3. Tester un échec après la première écriture.
+1. Remplacer `DriverManager` par un `DataSource` partagé et un pool. **Fait** (HikariCP).
+2. Faire participer les DAO à la transaction Spring. **Fait** (`DataSourceUtils`).
+3. Tester un échec après la première écriture. **Fait** (rollback DAO et service mouvement).
 
-**Sortie :** aucune écriture partielle en cas d'erreur.
+**Sortie :** aucune écriture partielle en cas d'erreur, pour les cas d'usage existants. Les opérations multi-lignes restent dépendantes de `P1-06`.
 
 ### Étape 3 — Choisir le modèle de stock
 

@@ -1,5 +1,7 @@
 package sssm.dev.sssm_backend.a11_inventory;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -90,6 +92,37 @@ class ItemCategoryApiTests {
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(categoryId));
+  }
+
+  @Test
+  void duplicateNameReturns409WithoutSqlDetails() throws Exception {
+    String marker = "phase5-cat-dup-" + System.nanoTime();
+    String body =
+        "{\"company_id\":\""
+            + companyId
+            + "\",\"name\":\""
+            + marker
+            + "\",\"description\":\"doublon\"}";
+
+    mockMvc
+        .perform(
+            post("/api/inventory/item-categories")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated());
+
+    mockMvc
+        .perform(
+            post("/api/inventory/item-categories")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors.message").value("Valeur déjà existante"))
+        .andExpect(jsonPath("$.errors.detail").value(not(containsString("SQLState"))))
+        .andExpect(jsonPath("$.errors.detail").value(not(containsString("23505"))))
+        .andExpect(jsonPath("$.errors.code").value("CONFLICT"));
   }
 
   @Test

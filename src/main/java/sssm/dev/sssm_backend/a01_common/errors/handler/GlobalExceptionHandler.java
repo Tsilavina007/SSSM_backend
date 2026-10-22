@@ -238,7 +238,10 @@ public class GlobalExceptionHandler {
 
   private static ResponseEntity<Map<String, ItemError>> build(
       HttpStatus status, Throwable exception) {
-    return ResponseEntity.status(status).body(Map.of("errors", ErrorMapper.toItemError(exception)));
+    HttpStatus sqlStatus = ErrorMapper.httpStatus(exception);
+    HttpStatus effectiveStatus = sqlStatus == null ? status : sqlStatus;
+    return ResponseEntity.status(effectiveStatus)
+        .body(Map.of("errors", ErrorMapper.toItemError(exception)));
   }
 
   private static String originalUri(HttpServletRequest request) {

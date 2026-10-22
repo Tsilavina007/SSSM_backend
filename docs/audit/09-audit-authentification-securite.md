@@ -94,7 +94,7 @@ Validation Jakarta inchangée : `username` obligatoire max 100, `email` obligato
 | Aucun contrôle d'email | Aucune vérification d'adresse. |
 | Aucun rate limiting | Création massive de comptes par un administrateur compromis. |
 | Pas de CAPTCHA | Automatisation possible si un administrateur est compromis. |
-| Doublon en course | `23505` non intercepté → 500 (Lot 2/Lot 7). |
+| Doublon en course | `23505` traduit en 409 depuis le Lot 2 ; la course reste possible mais n'expose plus de 500. |
 | Rôle `USER` global absent | Le compte est créé sans rôle ; il peut se connecter mais n'a pas les permissions métier. |
 
 ### 2.4. Rôle absent
@@ -328,7 +328,7 @@ Ces informations sont utiles au développement, mais exposent :
 - la structure de la base ;
 - des détails d'implémentation.
 
-Elles sont renvoyées avec un statut **500**, ce qui est doublement trompeur : l'erreur est souvent une erreur client (doublon, FK, champ manquant), pas une panne serveur. **Non corrigé au Lot 1** : le masquage des détails SQL reste un sujet de production (Lot 2/Lot 7).
+Elles étaient renvoyées avec un statut **500**, ce qui était doublement trompeur : l'erreur est souvent une erreur client (doublon, FK, champ manquant), pas une panne serveur. **Corrigé au Lot 2** : les erreurs SQL sont traduites en 400/409/422/503 et le corps ne contient plus ni SQLSTATE, ni message PostgreSQL, ni nom de contrainte.
 
 ### 8.2. Erreurs JWT
 
@@ -359,7 +359,7 @@ C'est un point positif à préserver.
 |---|---|
 | Secret JWT | `application-prod.properties` exige `JWT_SECRET`. |
 | Identifiants base | `application-prod.properties` exige `DB_URL`, `DB_USER`, `DB_PASSWORD`. |
-| Utilisation réelle | Les DAO utilisent `DatabaseConnection` avec les mêmes variables `DB_URL`/`DB_USER`/`DB_PASSWORD`, mais via `DriverManager` et des valeurs de repli, pas le `DataSource` Spring. |
+| Utilisation réelle | Depuis le Lot 2, les DAO utilisent le `DataSource` Spring/HikariCP configuré par `spring.datasource.*` ; `DatabaseConnection` ne contient plus de valeurs de repli. |
 | JWT | `JWT_EXPIRATION_MS` (1 h par défaut), `JWT_REFRESH_EXPIRATION_MS` (30 jours par défaut), `JWT_ISSUER`, `JWT_AUDIENCE`. |
 | CORS | `CORS_ALLOWED_ORIGINS` obligatoire en production. |
 | Refresh et révocation | Tables `security.refresh_token` et `security.revoked_access_token` ; pas de purge automatique. |
@@ -367,7 +367,7 @@ C'est un point positif à préserver.
 | En-têtes de sécurité | Les en-têtes par défaut de Spring Security sont conservés, mais aucune politique HSTS/CSP explicite n'est définie. |
 | Actuator | Non exposé dans le périmètre examiné. |
 
-Le risque n'est pas une divergence de nom de variable : `application-prod.properties` et `DatabaseConnection` lisent bien `DB_URL`, `DB_USER` et `DB_PASSWORD`. Le problème est que les DAO contournent le `DataSource` Spring : ils ouvrent leurs propres connexions avec `DriverManager`, sans pool pour ces connexions, sans les réglages Spring de timeouts/TLS/validation, et avec des valeurs de repli locales codées en dur (utilisables hors profil prod). Spring Boot peut auto-configurer un `DataSource`, mais les DAO ne l'utilisent pas : le pool éventuel est donc sans effet sur ces appels. La configuration de production n'est pas réellement appliquée à la couche qui parle à PostgreSQL.
+Le risque était que les DAO contournent le `DataSource` Spring avec `DriverManager`, sans pool, sans les réglages Spring de timeouts/TLS/validation et avec des valeurs de repli locales. **Corrigé au Lot 2** : les DAO passent par `DataSourceUtils` sur le `DataSource` Spring/HikariCP et la configuration de production est réellement appliquée. Le couplage statique via `DatabaseConnection` reste une dette de conception, mais il ne contourne plus Spring.
 
 ---
 
@@ -382,7 +382,7 @@ Le risque n'est pas une divergence de nom de variable : `application-prod.proper
 | `ErrorFormatTests` | 11 | enveloppe d'erreur, dont les réponses de sécurité |
 | `ItemApiTests.listWithoutTokenIsRejected` | 1 | accès inventaire sans jeton |
 
-Total des tests ciblés exécutés : **29 tests, 29 succès** (`AppUserApiTests`, `AuthHardeningApiTests`, `RefreshTokenApiTests`, `WhoAmIApiTests`, `ErrorFormatTests`). `ItemApiTests.listWithoutTokenIsRejected` appartient à la suite complète. Suite complète : **120 tests, 119 succès, 1 échec préexistant** (`ItemApiTests.historyUnknownReturnsNotFound`, hors Lot 1).
+Total des tests ciblés exécutés : **29 tests, 29 succès** (`AppUserApiTests`, `AuthHardeningApiTests`, `RefreshTokenApiTests`, `WhoAmIApiTests`, `ErrorFormatTests`). `ItemApiTests.listWithoutTokenIsRejected` appartient à la suite complète. Suite complète après le Lot 2 : **132 tests, 132 succès, 0 échec, 27 suites**.
 
 ### 10.1. Ce qui n'est pas testé
 
@@ -435,8 +435,8 @@ Les priorités restantes sont :
 2. étendre le RBAC aux modules organisation, personnel, clients et sites ;
 3. limiter les tentatives de connexion et de refresh, et verrouiller les comptes ;
 4. aligner les statuts du login (401/403) et stabiliser le contrat d'erreur ;
-5. masquer les détails SQL en production ;
-6. faire passer les DAO par le `DataSource` Spring et un pool ;
+5. **fait au Lot 2** : masquer les détails SQL en production ;
+6. **fait au Lot 2** : faire passer les DAO par le `DataSource` Spring et un pool ;
 7. ajouter la purge des jetons expirés/révoqués et l'audit des actions d'administration.
 
 Les critères d'acceptation sont dans le rapport 15.

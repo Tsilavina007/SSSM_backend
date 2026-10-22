@@ -24,13 +24,16 @@ Spring Security (JwtAuthenticationFilter)
 @Repository      (DAO JDBC, SQL manuel)
    |
    v
-DatabaseConnection.getConnection()
+DatabaseConnection.getConnection()  (DataSourceUtils)
+   |
+   v
+DataSource Spring / HikariCP
    |
    v
 PostgreSQL — base sssm_db, schéma security
 ```
 
-Le point critique de cette chaîne est le dernier maillon : `DatabaseConnection` est une classe utilitaire statique qui appelle `DriverManager.getConnection(...)` à chaque opération. Elle ne passe pas par le `DataSource` configuré par Spring. Les transactions Spring ne peuvent donc pas englober les écritures des DAO.
+Depuis le Lot 2, `DatabaseConnection` est un adaptateur statique qui lit le `DataSource` Spring et obtient une connexion via `DataSourceUtils`. Les DAO participent donc à la transaction Spring et utilisent le pool HikariCP. Le point critique restant est le couplage statique à ce `DataSource` et l'absence d'injection directe dans les DAO.
 
 ---
 
@@ -127,20 +130,20 @@ Certains modules génériques (`assignment`, `inventory_count`, `operation`) ne 
 
 | Fichier | Contenu | Remarque |
 |---|---|---|
-| `src/main/resources/application.properties` | port, secret JWT de développement, expiration, rôle par défaut, `spring.datasource.*` | Les propriétés `spring.datasource` ne sont pas utilisées par les DAO. |
-| `src/main/resources/application-prod.properties` | secret JWT et identifiants base sans valeur par défaut | Le profil prod exige les variables d'environnement, mais `DatabaseConnection` a ses propres valeurs par défaut. |
-| `src/main/java/.../a00_infrastructure/database/DatabaseConnection.java` | `DB_URL`, `DB_USER`, `DB_PASSWORD` via `System.getenv`, avec valeurs de repli | Aucun pool, aucune intégration Spring. |
+| `src/main/resources/application.properties` | port, secret JWT de développement, expiration, rôle par défaut, `spring.datasource.*` et `spring.datasource.hikari.*` | Le `DataSource` et le pool sont utilisés par les DAO depuis le Lot 2. |
+| `src/main/resources/application-prod.properties` | secret JWT et identifiants base sans valeur par défaut | Le profil prod exige les variables d'environnement ; les valeurs de repli ont été supprimées de `DatabaseConnection`. |
+| `src/main/java/.../a00_infrastructure/database/DatabaseConnection.java` | Adaptateur statique vers le `DataSource` Spring via `DataSourceUtils` | Pool HikariCP, connexion transactionnelle, aucune valeur de repli. |
 
 ### 5.2. Conséquence
 
-Le couple `application-prod.properties` + `DatabaseConnection` est incohérent :
+Le couple `application-prod.properties` + `DatabaseConnection` est désormais aligné depuis le Lot 2 :
 
-- Spring configure un `DataSource` avec les variables d'environnement ;
-- les DAO ignorent ce `DataSource` et utilisent `DriverManager` ;
-- si les variables ne sont pas définies, `DatabaseConnection` retombe sur des valeurs locales ;
-- `@Transactional` s'applique au gestionnaire de transactions Spring, pas aux connexions ouvertes par `DriverManager`.
+- Spring configure un `DataSource` HikariCP avec les variables d'environnement ;
+- les DAO obtiennent ce `DataSource` et passent par `DataSourceUtils` ;
+- les valeurs de repli locales ont été supprimées ;
+- `@Transactional` englobe les écritures des DAO, avec rollback testé.
 
-Ce point est une cause racine des états partiels observés dans les modules composés.
+Le couplage statique reste une dette de conception, mais il ne contourne plus Spring.
 
 ---
 
@@ -210,11 +213,11 @@ Le détail est dans le rapport 09.
 
 | Artefact | Nombre | État |
 |---|---|---|
-| Scripts SQL | 18 (`00` à `17`) | Présents, non migrés automatiquement |
+| Scripts SQL | 19 (`00` à `18`) | Présents, non migrés automatiquement |
 | Fichiers OpenAPI | 26 | Présents, structure valide, 183 avertissements Redocly relevés à l'audit initial (non rejoués après `7e3f196`) |
 | Fichiers OpenAPI inventaire | 12 | Présents, cohérents avec les routes principales |
-| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests | Les 105 tests verts sont un rapport complet historique. Après Lot 1, suite exécutée : 119 succès, 1 échec préexistant (`historyUnknownReturnsNotFound`). |
-| Rapport Surefire | `target/surefire-reports` | Contient uniquement `ItemControllerQrCodeImageTest` (7 tests) ; rapport complet historique non présent |
+| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests ; après Lot 2 : 27 suites, 132 tests | Suite courante exécutée : 132 succès, 0 échec, 0 erreur, 0 ignoré. |
+| Rapport Surefire | `target/surefire-reports` | Rapport complet courant : 27 suites, 132 tests. |
 
 Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquibase). Le schéma est créé manuellement ou par un script externe. Il n'existe pas de table de version de schéma applicative.
 
@@ -225,13 +228,13 @@ Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquiba
 | Dette | Preuve | Impact |
 |---|---|---|
 | Absence de couche de tenancy | Aucun filtre `company_id` dans les DAO d'inventaire | Fuite et mélange de données entre entreprises |
-| Absence de transactions effectives | `DatabaseConnection` + `DriverManager` | États partiels, incohérences |
+| Couplage statique au `DataSource` | `DatabaseConnection` statique | Tests et injection moins explicites, mais transactions effectives |
 | Deux modules d'affectation | `item_assignment` et `assignment` | Contrats et règles divergents |
 | DAO génériques à colonnes libres | `AssignmentDAOImpl.save`, `InventoryCountDAOImpl.save`, `OperationDAOImpl.save` | Contournement des DTO et des validations |
 | Stock déclaratif | `item_type.quantity_total` manuel | Stock non fiable |
 | Opérations vides | `inventory_operation` sans lignes ni mouvements | Faux sentiment de traçabilité |
 | N+1 | `ItemRestMapper` | Performance dégradée |
-| Pas de pool | `DriverManager` | Latence et saturation |
+| Absence de contrôle de concurrence | Aucune colonne `version`, aucun `If-Match` | Écrasements silencieux |
 | Pas de version de schéma | scripts SQL manuels | Déploiements non reproductibles |
 | Documentation API partielle | 183 avertissements à l'audit initial | Contrats incomplets pour les frontends |
 

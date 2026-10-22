@@ -1,10 +1,8 @@
 package sssm.dev.sssm_backend.a01_common.errors.mapper;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.SQLException;
 import java.util.NoSuchElementException;
-import org.postgresql.util.PSQLException;
-import org.postgresql.util.ServerErrorMessage;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
@@ -16,14 +14,18 @@ import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 public class ErrorMapper {
 
   public static ItemError toItemError(Throwable exception) {
-    Throwable sqlCause = findCause(exception, PSQLException.class);
-    if (sqlCause instanceof PSQLException sqlException) {
-      return fromSql(sqlException);
+    SQLException sqlCause = findSqlCause(exception);
+    if (sqlCause != null) {
+      return fromSql(sqlCause);
     }
 
     if (exception instanceof ClientException clientException) {
+      String message =
+          clientException.getCause() == null
+              ? textOr(clientException.getMessage(), "Requête invalide")
+              : "Requête invalide";
       return new ItemError(
-          textOr(clientException.getMessage(), "Requête invalide"),
+          message,
           textOr(
               clientException.detail(),
               "La requête n'a pas pu être traitée. Vérifiez les données envoyées."),
@@ -46,7 +48,9 @@ public class ErrorMapper {
               : "Erreur interne du serveur";
       return new ItemError(
           message,
-          textOr(serverException.detail(), describeCause(serverException)),
+          textOr(
+              serverException.detail(),
+              "Une erreur interne est survenue. Contactez l'administrateur si le problème persiste."),
           textOr(serverException.code(), "SERVER_ERROR"));
     }
 
@@ -66,42 +70,98 @@ public class ErrorMapper {
 
     return new ItemError(
         "Erreur interne du serveur",
-        describeCause(exception),
+        "Une erreur interne est survenue. Contactez l'administrateur si le problème persiste.",
         "INTERNAL_ERROR");
   }
 
-  private static ItemError fromSql(PSQLException exception) {
-    ServerErrorMessage serverError = exception.getServerErrorMessage();
-    String state = textOr(exception.getSQLState(), "DATABASE_ERROR");
-    String postgresMessage =
-        serverError != null ? serverError.getMessage() : exception.getMessage();
-    String postgresDetail = serverError != null ? serverError.getDetail() : null;
+  /**
+   * Détermine le statut HTTP à appliquer à une erreur SQL. Un état inconnu reste une erreur serveur
+   * (500) : la base ne doit pas exposer sa structure au client.
+   */
+  public static HttpStatus httpStatus(Throwable exception) {
+    SQLException sqlCause = findSqlCause(exception);
+    if (sqlCause == null) {
+      return null;
+    }
 
-    String detail =
-        joinDetails(
-            textOr(postgresMessage, "La base de données a rejeté la requête."),
-            postgresDetail,
-            "SQLState : " + state);
-
-    return new ItemError(sqlMessage(state), detail, state);
+    return switch (normalizeState(sqlCause.getSQLState())) {
+      case "23505", "40001", "40P01" -> HttpStatus.CONFLICT;
+      case "23503", "23514" -> HttpStatus.UNPROCESSABLE_ENTITY;
+      case "23502", "22P02", "22001", "22007", "22008", "22003", "22012", "22018" ->
+          HttpStatus.BAD_REQUEST;
+      case "08000", "08001", "08003", "08004", "08006", "08007", "08P01" ->
+          HttpStatus.SERVICE_UNAVAILABLE;
+      default -> HttpStatus.INTERNAL_SERVER_ERROR;
+    };
   }
 
-  private static String sqlMessage(String state) {
-    return switch (state) {
-      case "23505" -> "Valeur déjà existante";
-      case "23503" -> "Référence inexistante";
-      case "23502" -> "Champ obligatoire manquant";
-      case "23514" -> "Contrainte de validation non respectée";
-      case "22P02" -> "Format de valeur invalide";
-      case "22001" -> "Valeur trop longue";
-      case "22007", "22008" -> "Date ou heure invalide";
-      case "08000", "08003", "08006" -> "Base de données indisponible";
-      case "40001", "40P01" -> "Conflit de transaction";
-      case "42P01" -> "Table ou vue introuvable";
-      case "42703" -> "Colonne introuvable";
-      case "42501" -> "Droits insuffisants sur la base de données";
-      default -> "Erreur de base de données";
+  private static ItemError fromSql(SQLException exception) {
+    return switch (normalizeState(exception.getSQLState())) {
+      case "23505" ->
+          new ItemError(
+              "Valeur déjà existante",
+              "Une ressource avec ces valeurs existe déjà.",
+              "CONFLICT");
+      case "23503" ->
+          new ItemError(
+              "Référence inexistante",
+              "Une référence fournie n'existe pas.",
+              "UNPROCESSABLE_ENTITY");
+      case "23502" ->
+          new ItemError(
+              "Champ obligatoire manquant",
+              "Un champ obligatoire est manquant.",
+              "BAD_REQUEST");
+      case "23514" ->
+          new ItemError(
+              "Contrainte de validation non respectée",
+              "Les données fournies ne respectent pas une règle de validation.",
+              "UNPROCESSABLE_ENTITY");
+      case "22P02" ->
+          new ItemError(
+              "Format de valeur invalide",
+              "Une valeur fournie n'a pas le format attendu.",
+              "BAD_REQUEST");
+      case "22001" ->
+          new ItemError(
+              "Valeur trop longue",
+              "Une valeur fournie dépasse la longueur autorisée.",
+              "BAD_REQUEST");
+      case "22007", "22008" ->
+          new ItemError(
+              "Date ou heure invalide",
+              "Une date ou une heure fournie est invalide.",
+              "BAD_REQUEST");
+      case "22003", "22012", "22018" ->
+          new ItemError(
+              "Valeur numérique invalide",
+              "Une valeur numérique fournie est invalide.",
+              "BAD_REQUEST");
+      case "40001", "40P01" ->
+          new ItemError(
+              "Conflit de transaction",
+              "La ressource a été modifiée simultanément. Réessayez.",
+              "CONFLICT");
+      case "08000", "08001", "08003", "08004", "08006", "08007", "08P01" ->
+          new ItemError(
+              "Base de données indisponible",
+              "Le service de données est temporairement indisponible.",
+              "DATABASE_UNAVAILABLE");
+      case "42501" ->
+          new ItemError(
+              "Accès à la base refusé",
+              "Le service ne peut pas accéder à cette ressource.",
+              "INTERNAL_ERROR");
+      default ->
+          new ItemError(
+              "Erreur de base de données",
+              "La base de données n'a pas pu traiter la requête.",
+              "DATABASE_ERROR");
     };
+  }
+
+  private static String normalizeState(String state) {
+    return state == null ? "" : state;
   }
 
   private static String noSuchElementDetail(NoSuchElementException exception) {
@@ -121,32 +181,11 @@ public class ErrorMapper {
     return textOr(message, "La valeur fournie est invalide.");
   }
 
-  private static String describeCause(Throwable exception) {
-    Throwable cause = exception.getCause() == null ? exception : exception.getCause();
-    String causeMessage = cause.getMessage();
-    String causeType = cause.getClass().getSimpleName();
-
-    if (causeMessage != null && !causeMessage.isBlank()) {
-      return causeType + " : " + causeMessage;
-    }
-    return "Aucun détail technique supplémentaire n'est disponible (" + causeType + ").";
-  }
-
-  private static String joinDetails(String... values) {
-    List<String> parts = new ArrayList<>();
-    for (String value : values) {
-      if (value != null && !value.isBlank()) {
-        parts.add(value);
-      }
-    }
-    return String.join(" | ", parts);
-  }
-
-  private static Throwable findCause(Throwable exception, Class<? extends Throwable> type) {
+  private static SQLException findSqlCause(Throwable exception) {
     Throwable current = exception;
     while (current != null) {
-      if (type.isInstance(current)) {
-        return current;
+      if (current instanceof SQLException sqlException) {
+        return sqlException;
       }
       current = current.getCause();
     }

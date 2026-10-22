@@ -4,6 +4,8 @@
 
 **État de référence :** HEAD `7e3f196`, qui corrige la livraison des erreurs JSON sur l'image QR. Les constats de l'audit initial antérieurs à ce commit sont signalés comme tels.
 
+**Mise à jour du 22 octobre 2026 (Lot 2) :** un doublon de QR/code renvoie désormais 409 (`23505`) et les violations de FK/`CHECK` renvoient 422, sans SQLSTATE. Les mentions de « 500 » dans les sections 3 et 4 décrivent l'état initial, sauf les 500 fonctionnels `QR_CODE_MISSING` et `QR_CODE_GENERATION_FAILED` qui restent volontaires.
+
 ---
 
 ## 1. Ce qui existe

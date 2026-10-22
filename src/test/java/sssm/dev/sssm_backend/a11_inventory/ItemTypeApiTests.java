@@ -1,5 +1,7 @@
 package sssm.dev.sssm_backend.a11_inventory;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -166,6 +168,76 @@ class ItemTypeApiTests {
     mockMvc
         .perform(get("/api/inventory/item-types/" + id).header("Authorization", "Bearer " + token))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void unknownCategoryReturns422WithoutSqlDetails() throws Exception {
+    String marker = "phase5-type-fk-" + System.nanoTime();
+    String body =
+        "{\"company_id\":\""
+            + companyId
+            + "\",\"category_id\":\""
+            + UUID.randomUUID()
+            + "\",\"code\":\""
+            + marker
+            + "\",\"name\":\"type fk inconnue\"}";
+
+    mockMvc
+        .perform(
+            post("/api/inventory/item-types")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors.message").value("Référence inexistante"))
+        .andExpect(jsonPath("$.errors.detail").value(not(containsString("SQLState"))))
+        .andExpect(jsonPath("$.errors.detail").value(not(containsString("23503"))))
+        .andExpect(jsonPath("$.errors.code").value("UNPROCESSABLE_ENTITY"));
+  }
+
+  @Test
+  void createWithoutOptionalValuesAppliesDatabaseDefaults() throws Exception {
+    String marker = "phase5-type-min-" + System.nanoTime();
+    String body =
+        "{\"company_id\":\""
+            + companyId
+            + "\",\"code\":\""
+            + marker
+            + "\",\"name\":\"type minimal\"}";
+
+    MvcResult created =
+        mockMvc
+            .perform(
+                post("/api/inventory/item-types")
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(notNullValue()))
+            .andExpect(jsonPath("$.unit").value("piece"))
+            .andExpect(jsonPath("$.quantity_total").value(0))
+            .andExpect(jsonPath("$.minimum_stock").value(0))
+            .andExpect(jsonPath("$.status").value("AVAILABLE"))
+            .andExpect(jsonPath("$.created_at").value(notNullValue()))
+            .andReturn();
+
+    String id = JsonPath.read(created.getResponse().getContentAsString(), "$.id");
+    assertNotNull(id);
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt =
+            conn.prepareStatement(
+                "SELECT unit, quantity_total, minimum_stock, status FROM security.item_type"
+                    + " WHERE id = ?")) {
+      stmt.setObject(1, UUID.fromString(id));
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next(), "le type minimal doit être créé");
+        assertEquals("piece", rs.getString("unit"));
+        assertEquals(0, rs.getBigDecimal("quantity_total").intValue());
+        assertEquals(0, rs.getBigDecimal("minimum_stock").intValue());
+        assertEquals("AVAILABLE", rs.getString("status"));
+      }
+    }
   }
 
   @Test

@@ -3,8 +3,8 @@ package sssm.dev.sssm_backend.a01_common.errors;
  * Erreur applicative unique renvoyée par toutes les routes.
  *
  * @param message message lisible en français
- * @param detail précision contextuelle (identifiant, champ, contrainte SQL, cause)
- * @param code code applicatif stable ou SQLState PostgreSQL
+ * @param detail précision contextuelle non technique (identifiant, champ, règle métier)
+ * @param code code applicatif stable (jamais un SQLState PostgreSQL)
  */
 public record ItemError(String message, String detail, String code) {
   public ItemError {

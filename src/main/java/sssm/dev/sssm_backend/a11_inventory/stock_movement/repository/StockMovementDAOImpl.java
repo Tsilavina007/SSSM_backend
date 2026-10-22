@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -156,32 +155,37 @@ public class StockMovementDAOImpl implements StockMovementDAO {
     }
 
     String sql =
-        "INSERT INTO security.stock_movement (" + columns + ") VALUES (" + placeholders + ")";
+        "INSERT INTO security.stock_movement ("
+            + columns
+            + ") VALUES ("
+            + placeholders
+            + ") RETURNING id";
 
     try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
       for (int index = 0; index < parameters.size(); index++) {
         stmt.setObject(index + 1, parameters.get(index));
       }
-      stmt.executeUpdate();
 
-      try (ResultSet rs = stmt.getGeneratedKeys()) {
+      try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          generatedId = rs.getString(1);
+          generatedId = rs.getString("id");
         }
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return new StockMovementResponse(
-        generatedId,
-        value.getWarehouse_id(),
-        value.getItem_id(),
-        value.getEmployee_id(),
-        value.getMovement_type(),
-        value.getReference(),
-        value.getMovement_date(),
-        value.getNotes());
+
+    if (generatedId == null) {
+      throw new ServerException("La base n'a pas renvoyé l'identifiant du mouvement créé.");
+    }
+    // Relire la ligne persistée pour renvoyer les valeurs calculées par PostgreSQL
+    // (movement_date par défaut, type par défaut).
+    return getStockMovementById(generatedId)
+        .orElseThrow(
+            () ->
+                new ServerException(
+                    "Le mouvement créé n'a pas pu être relu depuis la base."));
   }
 
   @Override

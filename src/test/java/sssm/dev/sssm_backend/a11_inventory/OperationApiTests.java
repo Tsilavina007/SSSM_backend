@@ -153,16 +153,18 @@ class OperationApiTests {
   }
 
   @Test
-  void missingOperationTypeReturns500Envelope() throws Exception {
-    // dette connue : la route n'injecte pas l'operation_type (NOT NULL sans défaut) → 500
+  void missingOperationTypeReturns400Envelope() throws Exception {
+    // La route n'injecte pas l'operation_type (NOT NULL sans défaut) : l'erreur SQL est
+    // désormais traduite en erreur client stable, sans SQLSTATE.
     mockMvc
         .perform(
             post("/api/inventory/operations/receipt")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"company_id\":\"" + companyId + "\"}"))
-        .andExpect(status().isInternalServerError())
-        .andExpect(jsonPath("$.errors.code").value("23502"));
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors.message").value("Champ obligatoire manquant"))
+        .andExpect(jsonPath("$.errors.code").value("BAD_REQUEST"));
   }
 
   private static void purge() throws Exception {

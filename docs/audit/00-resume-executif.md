@@ -1,22 +1,24 @@
 # 00 — Résumé exécutif
 
-**Date :** 21 octobre 2026  
+**Date :** 21 octobre 2026, mise à jour du 22 octobre 2026 (Lot 2)  
 **Verdict global :** **NON PRÊT POUR LA PRODUCTION**  
 **Nuance :** **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, sans promesse de stock fiable ni de traçabilité complète.
 
 **Mise à jour du 21 octobre 2026 (Lot 1) :** inscription publique fermée, comptes créés par un administrateur ; entreprise et permissions dans le JWT ; refresh distinct, rotatif et révocable ; logout ; RBAC sur l'inventaire et l'administration ; scope entreprise sur les utilisateurs et rôles ; CORS explicite. **P0-03 est corrigé**, **P0-02 est partiel** (RBAC non étendu aux modules hors inventaire) et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Les autres P0 restent ouverts.
 
+**Mise à jour du 22 octobre 2026 (Lot 2) :** accès JDBC via le `DataSource` Spring/HikariCP, transactions de service effectives, erreurs SQL traduites en 400/409/422/503 sans SQLSTATE, créations avec défauts PostgreSQL relus. **P1-09, P0-04, P1-01, P1-02 et P1-10 sont corrigés** dans leur périmètre. Suite complète : **132 tests, 0 échec, 0 erreur, 0 ignoré, 27 suites**. `P0-01` (filtres `company_id` d'inventaire) et la concurrence (`P1-14`) restent ouverts. Aucune migration SQL n'a été exécutée.
+
 ---
 
 ## 1. Décision
 
-Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 1, la suite complète compte **120 tests, 119 succès et 1 échec préexistant** (`ItemApiTests.historyUnknownReturnsNotFound`, hors périmètre). Les 29 tests ciblés d'authentification et de RBAC passent.
+Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 2, la suite complète compte **132 tests, 132 succès, 0 échec, 0 erreur, 0 ignoré**. Les 29 tests ciblés d'authentification et de RBAC passent, ainsi que les tests de pool, de transaction et de mapping SQL ajoutés au Lot 2.
 
 En revanche, quatre garanties fondamentales restent incomplètes :
 
 1. **Isolation mono-entreprise seulement.** Les colonnes `company_id` ont été ajoutées et backfillées, mais les requêtes d'inventaire ne filtrent pas encore par entreprise ; l'entreprise est fournie dans le corps de la requête ou déduite d'un objet chargé globalement. Aucune seconde entreprise ne doit être exposée tant que ce filtrage n'est pas fait.
 2. **RBAC partiel.** L'inscription publique est fermée et l'inventaire, les utilisateurs, les rôles et le catalogue des permissions sont protégés. Les modules organisation, personnel, clients et sites restent seulement `authenticated`, sans permission métier.
-3. **Aucune transaction réelle.** Les DAO ouvrent chacun leur propre connexion via `DatabaseConnection` ; les annotations `@Transactional` ne couvrent pas les écritures. Les opérations composées peuvent laisser des états partiels.
+3. **Transactions rétablies, concurrence non traitée.** Les DAO utilisent une connexion transactionnelle issue du pool Spring/HikariCP ; les annotations `@Transactional` couvrent les écritures des services existants. Il reste à traiter la concurrence (version/`If-Match`, idempotence) et les opérations multi-lignes non encore implémentées.
 4. **Aucun stock fiable.** La quantité `item_type.quantity_total` est saisie manuellement et n'est jamais dérivée des mouvements. La quantité d'un mouvement vaut toujours `1`, faute de champ exposé. Les opérations et comptages ne produisent ni lignes détaillées ni écritures de stock.
 
 Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, avec des données contrôlées et un utilisateur de confiance. Il ne peut pas être exposé à plusieurs entreprises, à des utilisateurs non administrés ou à des décisions de stock sans corrections préalables.
@@ -30,16 +32,16 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Authentification | **PARTIEL / DURCI** | Moyen | JWT avec `jti`/`iss`/`aud`/entreprise/permissions, refresh rotatif, logout et révocation. Restent rate limiting, verrouillage et statuts 401/403 du login. |
 | Autorisations / RBAC | **PARTIEL** | Élevé | RBAC sur inventaire, utilisateurs, rôles et permissions ; modules organisation/personnel/clients/sites encore seulement authentifiés. |
 | Isolation multi-entreprise | **PARTIEL — MONO-ENTREPRISE** | Critique | Colonnes et index ajoutés, scope entreprise sur utilisateurs/rôles ; DAO d'inventaire non filtrés. |
-| Catalogue matériel | **PARTIEL** | Élevé | CRUD présent, mais intégrité inter-entreprises non contrôlée et création de type fragile. |
+| Catalogue matériel | **PARTIEL** | Élevé | CRUD présent et création de type corrigée (défauts PostgreSQL) ; intégrité inter-entreprises non contrôlée. |
 | Stock / quantités | **ABSENT** | Critique | Pas de solde de stock, pas de journal de quantités, `quantity_total` manuel. |
 | Mouvements | **PARTIEL** | Critique | Les statuts changent, mais les quantités, sources, destinations et acteurs ne sont pas enregistrés. |
 | Opérations | **PARTIEL** | Critique | En-tête seul ; aucune ligne d'article, aucun mouvement, `operation_type` non déduit de la route. |
 | Affectations | **PARTIEL** | Critique | Deux modules divergents ; retour partiel possible ; suppression laissant l'article `ASSIGNED`. |
 | QR Code | **PARTIEL** | Élevé | Génération PNG et scan fonctionnent, mais résolution globale, code modifiable, pas de contrat mobile enrichi. |
 | Comptages d'inventaire | **PARTIEL** | Élevé | Saisie d'écarts sans calcul, clôture sans réconciliation, `last_inventory_at` jamais mis à jour. |
-| Contrat API | **PARTIEL** | Élevé | Routes cohérentes dans l'ensemble, mais erreurs douces en 200, conflits en 500, pagination non bornée. |
-| Performance | **PARTIEL** | Élevé | Chaîne N+1 sur chaque article, aucun pool de connexions utilisé par les DAO, pas de plafond de pagination. |
-| Tests | **PARTIEL** | Élevé | Suite complète exécutée : 120 tests, 119 succès, 1 échec préexistant. Couverture RBAC, scope entreprise et révocation ajoutée ; pas de scénario à deux entreprises, de concurrence, de quantités ou de réconciliation. |
+| Contrat API | **PARTIEL** | Élevé | Erreurs SQL corrigées (400/409/422/503) ; restent des erreurs douces en 200 et une pagination non bornée. |
+| Performance | **PARTIEL** | Élevé | Pool HikariCP désormais utilisé par les DAO ; chaîne N+1 sur chaque article et pagination non bornée restent ouvertes. |
+| Tests | **PARTIEL** | Élevé | Suite complète exécutée : 132 tests, 0 échec, 27 suites. Couverture RBAC, pool, rollback transactionnel et mapping SQL ; pas de scénario à deux entreprises, de concurrence, de quantités ou de réconciliation. |
 | Documentation OpenAPI | **PARTIEL** | Moyen | 26 fichiers cohérents avec les routes, mais 183 avertissements non bloquants relevés à l'audit initial (non rejoués après `7e3f196`) et plusieurs dettes documentées. |
 
 ---
@@ -49,7 +51,7 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 ### 3.1. Peut-on démarrer le frontend web maintenant ?
 
 **Non, pas pour un frontend de production.**  
-Un frontend de démonstration peut consommer le catalogue, les articles, les QR Codes et les listes en lecture. Il ne doit pas exposer des écrans de stock, d'affectation ou d'administration multi-entreprise tant que les garanties de tenancy, de transaction et de stock ne sont pas posées.
+Un frontend de démonstration peut consommer le catalogue, les articles, les QR Codes et les listes en lecture. Il ne doit pas exposer des écrans de stock, d'affectation ou d'administration multi-entreprise tant que les garanties de tenancy, de concurrence et de stock ne sont pas posées.
 
 ### 3.2. Peut-on démarrer l'application mobile maintenant ?
 
@@ -89,26 +91,26 @@ Limites : le code est modifiable par `PATCH`, aucune étiquette PDF n'est produi
 
 ### 3.6. Quelles sont les anomalies les plus critiques ?
 
-| Rang | Anomalie | Référence | Statut Lot 1 |
+| Rang | Anomalie | Référence | Statut après Lots 1 et 2 |
 |---|---|---|---|
-| 1 | Isolation multi-entreprise incomplète | 09, 12 | Partiel — mono-entreprise assumée |
+| 1 | Isolation multi-entreprise incomplète | 09, 12 | Partiel — mono-entreprise assumée ; filtres DAO ouverts (`P0-01`) |
 | 2 | Inscription publique + RBAC inopérant | 09, 12 | Inscription corrigée ; RBAC partiel |
-| 3 | Transactions inopérantes et écritures non atomiques | 01, 03, 12 | Ouvert |
+| 3 | Transactions inopérantes et écritures non atomiques | 01, 03, 12 | Corrigé pour les cas d'usage existants (`P0-04`) ; opérations multi-lignes dépendantes de `P1-06` |
 | 4 | Stock non dérivé des mouvements, quantités fixes | 05, 07, 12 | Ouvert |
 | 5 | Machines à états des affectations et retours incohérentes | 08, 12 | Ouvert |
 | 6 | Opérations d'inventaire creuses | 05, 07, 12 | Ouvert |
 | 7 | QR Code global et modifiable | 06, 12 | Ouvert |
-| 8 | Fuite de SQLSTATE et de messages PostgreSQL | 02, 09, 12 | Ouvert |
+| 8 | Fuite de SQLSTATE et de messages PostgreSQL | 02, 09, 12 | Corrigé (`P1-01`) |
 
 ### 3.7. Quelles sont les cinq actions à mener avant toute nouvelle phase ?
 
-**État Lot 1 :** l'action 1 est partiellement réalisée (mono-entreprise, inscription fermée, RBAC inventaire/administration, jetons durcis). Les actions 2 à 5 restent à mener ; le Lot 2 ne doit pas démarrer sans autorisation.
+**État après Lot 2 :** l'action 2 est réalisée pour l'accès aux données et les transactions des cas d'usage existants. L'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés), et les actions 3 à 5 restent à mener. Le Lot 3 ne doit pas démarrer sans autorisation.
 
 1. **Trancher le modèle de tenancy et le contrôle d'accès.**  
    Décider si l'entreprise est un tenant strict, comment elle est portée par le jeton, et quelles permissions sont réellement appliquées. Fermer ou encadrer l'inscription publique. Tant que ce point n'est pas décidé, tout développement frontend reposera sur un contrat faux.
 
-2. **Rétablir des transactions et des connexions maîtrisées.**  
-   Remplacer l'accès `DriverManager` par une source de données gérée par Spring, ou assumer explicitement l'absence de transactions. Les opérations composées (article + affectation, mouvement + état, comptage + clôture) doivent être atomiques.
+2. **Rétablir des transactions et des connexions maîtrisées — fait au Lot 2.**  
+   L'accès `DriverManager` a été remplacé par le `DataSource` Spring/HikariCP et les DAO participent aux transactions. Les opérations composées existantes (mouvement + état, affectation + état) sont atomiques et testées ; les opérations multi-lignes non implémentées restent à concevoir avec `P1-06`.
 
 3. **Construire un vrai journal de stock.**  
    Exposer `quantity`, `source_warehouse_id`, `destination_warehouse_id`, `operation_id` et `performed_by`, puis calculer les soldes à partir des mouvements. Interdire la modification manuelle de `quantity_total` ou la remplacer par une vue calculée.
@@ -134,9 +136,9 @@ Limites : le code est modifiable par `PATCH`, aucune étiquette PDF n'est produi
 - Authentification JWT, BCrypt, `whoami`, refresh rotatif, logout et révocation.
 - Inscription fermée aux administrateurs, scope entreprise sur les utilisateurs et rôles, RBAC sur l'inventaire et l'administration.
 - Enveloppe d'erreur homogène `{"errors": {...}}` pour les exceptions.
-- 120 tests exécutés après le Lot 1 : 119 succès, 1 échec préexistant sur l'historique d'article.
+- 132 tests exécutés après le Lot 2 : 132 succès, 0 échec, 0 erreur, 0 ignoré, 27 suites.
 
-Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquantes.
+Ces acquis sont réels, mais ils ne compensent pas les garanties encore incomplètes : tenancy d'inventaire, stock fiable, machines à états et concurrence.
 
 ---
 
@@ -163,8 +165,9 @@ Ces acquis sont réels, mais ils ne compensent pas les quatre garanties manquant
 | Fichiers OpenAPI | 26 |
 | Fichiers OpenAPI inventaire | 12 |
 | Scripts SQL | 19 (dont `18_lot1_security.sql`) |
-| Tests | 120 après le Lot 1 (23 classes) |
-| Échecs de tests | 1 préexistant (`ItemApiTests.historyUnknownReturnsNotFound`) |
+| Tests | 132 après le Lot 2 (27 suites) |
+| Échecs de tests | 0 |
+| Pool de connexions | HikariCP via le `DataSource` Spring |
 | Entreprises en base de démonstration | 1 |
 | Articles en base de démonstration | 10 |
 | Mouvements en base de démonstration | 8 |
@@ -205,4 +208,4 @@ Trois orientations ont été tranchées pour le Lot 1 :
 2. **Accès :** RBAC par permission, inscription fermée, admin entreprise séparé de l'admin plateforme.
 3. **Stock :** décision toujours ouverte. Le journal de mouvements avec solde calculé n'est pas encore implémenté.
 
-Les corrections du Lot 2 (DataSource, transactions, filtres `company_id` dans les DAO d'inventaire) ne doivent pas démarrer sans validation explicite. Le plan du fichier 14 est structuré pour cette décision.
+Le Lot 2 est exécuté pour le `DataSource`, les transactions, le mapping SQL, les défauts de création et les réponses de création. Les filtres `company_id` des DAO d'inventaire relèvent de `P0-01` et n'ont pas été inclus. Le Lot 3 et les décisions de concurrence (`version`/`If-Match`, `Idempotency-Key`) ne doivent pas démarrer sans validation explicite.

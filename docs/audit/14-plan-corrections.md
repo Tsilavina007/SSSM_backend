@@ -160,13 +160,22 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - purge automatique des refresh tokens et des jetons révoqués ;
 - statuts 401/403 du login et traduction des erreurs SQL (Lot 2/Lot 7).
 
-**Vérifications :** suite complète `mvn test` exécutée : **120 tests, 119 succès, 1 échec**. L'échec est `ItemApiTests.historyUnknownReturnsNotFound` (404 attendu, 200 obtenu), divergence préexistante du contrôleur d'historique, hors Lot 1. Les tests ciblés d'authentification et de RBAC passent (29 tests).
+**Vérifications historiques du Lot 1 :** suite complète `mvn test` exécutée : **120 tests, 119 succès, 1 échec**. L'échec était `ItemApiTests.historyUnknownReturnsNotFound` (404 attendu, 200 obtenu), divergence préexistante du contrôleur d'historique, hors Lot 1 ; ce test a depuis été retiré. Les tests ciblés d'authentification et de RBAC passent (29 tests).
 
 ---
 
 ## 5. Lot 2 — Accès aux données et transactions
 
-**Statut : NON DÉMARRÉ.** Ce lot ne doit pas être lancé sans autorisation explicite après le Lot 1.
+**Statut : EXÉCUTÉ le 22 octobre 2026** pour `P1-09`, `P0-04`, `P1-01`, `P1-02` et `P1-10`, après autorisation explicite. La concurrence (`5.3`) est volontairement différée : elle exige des colonnes et un contrat HTTP nouveaux.
+
+### 5.0. Résultat d'exécution
+
+- `DatabaseConnection` lit le `DataSource` Spring/HikariCP ; plus aucun `DriverManager` dans le code applicatif. Les DAO conservent un point d'accès centralisé, mais la connexion est celle du pool et participe à la transaction Spring.
+- `spring.datasource.hikari.*` configure taille, timeouts, validation et durée de vie ; les valeurs sont surchargeables par l'environnement. Aucun changement de schéma. TLS n'est pas imposé par le code : `DB_URL` doit porter `sslmode=require` (ou équivalent) en production.
+- `@Transactional` couvre les écritures des services existants ; les DAO rejoignent la transaction. Un test de rollback DAO et un test de rollback du service de mouvement prouvent l'absence de ligne résiduelle.
+- Les erreurs SQL sont traduites en 400/409/422/503 ; aucun SQLSTATE ni message PostgreSQL n'est renvoyé. Les codes applicatifs sont stables (`CONFLICT`, `UNPROCESSABLE_ENTITY`, `BAD_REQUEST`, `DATABASE_UNAVAILABLE`).
+- `ItemTypeDAOImpl.createItemType` et `EmployeeDAOImpl.create` omettent les colonnes absentes pour laisser PostgreSQL appliquer ses `DEFAULT`, puis relisent la ligne créée. Les créations de mouvement et d'affectation relisent aussi la ligne persistée.
+- Suite complète : **132 tests, 0 échec, 0 erreur, 0 ignoré, 27 suites** ; nettoyage `phase2-*`/`phase5-*` vérifié à zéro.
 
 ### 5.1. Remplacer `DriverManager`
 
@@ -188,7 +197,9 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
   - comptage + ajustements.
 - Ajouter des tests d'échec après la première écriture.
 
-### 5.3. Concurrence
+### 5.3. Concurrence — NON EXÉCUTÉ
+
+**Décision requise :** ajouter `version`/`If-Match` et `Idempotency-Key` change le schéma et le contrat. Le Lot 2 ne les introduit pas. Les conflits SQL (unicité, deadlock, sérialisation) sont déjà traduits en 409.
 
 - Ajouter `version` ou `updated_at` avec `If-Match`.
 - Utiliser `SELECT ... FOR UPDATE` sur les articles lors des transitions.
@@ -208,6 +219,8 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - un échec forcé après la première écriture ne laisse aucune ligne partielle ;
 - la configuration de production est celle réellement utilisée ;
 - les doublons et FK produisent 409/422, pas 500.
+
+**Vérification au 22 octobre 2026 :** ces quatre critères sont couverts par `DatabaseConnection`, `application.properties`, `DatabaseTransactionRollbackTests`, `StockMovementTransactionTests`, `SqlErrorMappingTests`, `ItemCategoryApiTests` et `ItemTypeApiTests`. La suite complète est verte (132 tests).
 
 ---
 

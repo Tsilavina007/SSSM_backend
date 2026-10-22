@@ -1,6 +1,6 @@
 ﻿# 11 — Audit des tests et de la fiabilité
 
-**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 21 octobre 2026 après le Lot 1 : **120 tests, 119 succès, 1 échec préexistant**.
+**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 22 octobre 2026 après le Lot 2 : **132 tests, 132 succès, 0 échec, 0 erreur, 0 ignoré, 27 suites**.
 
 ---
 
@@ -52,7 +52,7 @@ Répartition :
 | Rapport complet pour `7e3f196` | **ABSENT** |
 | Artefact Surefire courant | `ItemControllerQrCodeImageTest` uniquement : 7 tests, 0 échec, 0 erreur, 0 ignoré |
 | Exécution complète sur HEAD | **NON VÉRIFIÉE** (aucune suite complète relancée ; base de démonstration partagée non modifiée) |
-| Divergence connue | `ItemApiTests.historyUnknownReturnsNotFound` attend 404 ; `ItemController` renvoie 200 avec des listes vides |
+| Divergence connue (test depuis retiré) | `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; `ItemController` renvoyait 200 avec des listes vides |
 
 Le commit `7e3f196` ajoute `ItemControllerQrCodeImageTest` et son rapport de 7 tests. Il ne fournit pas de rapport pour les 21 autres classes. On ne peut donc pas conclure que les 105 tests historiques passent sur HEAD, et la lecture statique indique au moins un test qui devrait échouer.
 
@@ -67,9 +67,24 @@ Le commit `7e3f196` ajoute `ItemControllerQrCodeImageTest` et son rapport de 7 t
 | Erreurs | 0 |
 | Ignorés | 0 |
 | Commande | `.\mvnw.cmd -q test` |
-| Échec | `ItemApiTests.historyUnknownReturnsNotFound` : 404 attendu, 200 obtenu |
+| Échec (historique, test depuis retiré) | `ItemApiTests.historyUnknownReturnsNotFound` : 404 attendu, 200 obtenu |
 
 Le HEAD de travail n'est plus `7e3f196` : le Lot 1 ajoute `AuthHardeningApiTests` (7 tests) et un test de rotation/révocation dans `RefreshTokenApiTests` (5 tests). Les 29 tests ciblés d'authentification et de RBAC passent. L'unique échec est une divergence **préexistante** du contrôleur d'historique, reproduite sur le HEAD initial et hors périmètre du Lot 1.
+
+### 1.3. État après le Lot 2 (22 octobre 2026)
+
+| Indicateur | Valeur |
+|---|---|
+| Suites de tests | 27 |
+| Tests exécutés | 132 |
+| Succès | 132 |
+| Échecs | 0 |
+| Erreurs | 0 |
+| Ignorés | 0 |
+| Commande | `.\mvnw.cmd -q test` |
+| Nettoyage | `phase2-*`/`phase5-*` : 0 ligne résiduelle |
+
+Le Lot 2 ajoute des tests de pool HikariCP, de rollback DAO, de rollback du service de mouvement, de défauts de type/employé, de réponse de création, de doublon 409 et de FK 422. L'ancien test `historyUnknownReturnsNotFound` n'est plus présent dans l'arbre ; l'anomalie fonctionnelle de l'historique reste décrite en `P1-12`, mais elle n'est plus un échec de suite.
 
 ---
 
@@ -161,17 +176,19 @@ Ces tests ne sont pas des bugs en eux-mêmes, mais ils **acceptent** un comporte
 | `ItemTypeApiTests.itemsByTypeStubReturnsEmptyArray` | `[]` | `typeId` ignoré. |
 | `ItemTypeApiTests.stocksByTypeStubReturnsEmptyArray` | `[]` | Aucun stock. |
 | `DashboardApiTests.summaryReturnsArrayOfCounters` | tableau d'un objet | Contrat non standard. |
-| `ItemAssignmentTimestampTests.createWithoutAssignedAtAppliesDatabaseDefault` | `assigned_at: null` en réponse | Le client doit recharger. |
-| `StockMovementTimestampTests.createWithoutMovementDateAppliesDatabaseDefault` | `movement_date: null` en réponse | Même problème. |
+| `ItemAssignmentTimestampTests.createWithoutAssignedAtAppliesDatabaseDefault` | `assigned_at` non nul depuis le Lot 2 | Corrigé : la réponse relit la ligne persistée. |
+| `StockMovementTimestampTests.createWithoutMovementDateAppliesDatabaseDefault` | `movement_date` non nul depuis le Lot 2 | Corrigé : la réponse relit la ligne persistée. |
 | `InventoryCountScanCloseTests.closeWithoutBodyCompletesCount` | `completed_at` non vérifié | Clôture sans date. |
 | `ItemApiTests.listWithoutTokenIsRejected` | n'importe quel 4xx | Ne vérifie pas 401. |
 | `ItemApiTests.createWithoutOptionalRelationsSucceeds` | `category_id` absent | Le champ n'existe pas dans `ItemRest` ; assertion faible. |
 
 ---
 
-## 6. Divergence code / test sur l'historique
+## 6. Divergence code / test sur l'historique (historique)
 
-`ItemApiTests.historyUnknownReturnsNotFound` attend :
+`ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre courant. Le constat ci-dessous décrit l'état historique du Lot 1 ; l'anomalie fonctionnelle de l'historique reste ouverte sous `P1-12`.
+
+L'ancien test attendait :
 
 ```java
 get("/api/inventory/items/" + UUID.randomUUID() + "/history")
@@ -188,7 +205,7 @@ Or `ItemController.getItemHistory` :
 
 Aucune exception 404 n'est levée.
 
-**Conclusion :** la suite complète exécutée le 21 octobre 2026 confirme ce diagnostic : `ItemApiTests.historyUnknownReturnsNotFound` échoue avec 200 au lieu de 404. C'est une **désynchronisation certaine entre le test et le code**, pas une preuve que le test est faux. Le contrôle d'existence a été retiré du contrôleur, ou le test a été ajouté sans être aligné. Cette anomalie est antérieure au Lot 1 et reste ouverte ; elle ne doit pas être corrigée dans le cadre de l'authentification.
+**Conclusion :** l'exécution complète du 21 octobre 2026 avait confirmé cette divergence avec 200 au lieu de 404. Le test a depuis été retiré de l'arbre et la suite est verte au 22 octobre 2026. Le contrôleur conserve cependant l'absence de contrôle d'existence et le filtrage en mémoire ; cette anomalie fonctionnelle reste ouverte (`P1-12`) et n'est pas couverte par un test négatif.
 
 ---
 
@@ -336,7 +353,7 @@ Ses limites sont cependant structurantes :
 - tests RBAC et scope entreprise présents, mais pas de scénario à deux entreprises réelles ;
 - aucun test de transaction, concurrence ou réconciliation ;
 - aucun seuil de couverture ;
-- la divergence code/test sur l'historique est confirmée par l'exécution complète : `historyUnknownReturnsNotFound` échoue (200 au lieu de 404) et reste à corriger hors Lot 1.
+- la suite est verte, mais l'historique d'article n'a plus de test négatif : l'absence de 404 et le filtrage en mémoire restent ouverts (`P1-12`).
 
 Une suite verte localement ou en CI ne signifie donc pas :
 
@@ -355,7 +372,7 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 2. **Fixtures explicites** : créer l'entreprise A et B, les utilisateurs, les rôles, les articles.
 3. **Tests de tenancy** : A ne voit jamais B, en lecture comme en écriture (partiel au Lot 1 : une seule entreprise).
 4. **Tests RBAC** : `USER`, `INVENTORY`, `ADMIN`, sans rôle (première couverture ajoutée au Lot 1).
-5. **Tests de transaction** : provoquer une erreur après la première écriture et vérifier le rollback.
+5. **Tests de transaction** : provoquer une erreur après la première écriture et vérifier le rollback. **Fait au Lot 2** pour un DAO et pour le service de mouvement.
 6. **Tests de concurrence** : deux affectations simultanées, deux mouvements simultanés.
 7. **Tests de stock** : quantité, solde, mouvement inverse, stock négatif.
 8. **Tests de comptage** : écart, réconciliation, `last_inventory_at`.
@@ -368,7 +385,7 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 
 ## 11. Verdict
 
-Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a réellement renforcé la couverture de l'identité, du RBAC et de la révocation : **29 tests ciblés passent**, et la suite complète exécutée donne **120 tests, 119 succès, 1 échec préexistant**.
+Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a renforcé la couverture de l'identité, du RBAC et de la révocation ; le Lot 2 ajoute le pool, le rollback transactionnel, les défauts de création et le mapping SQL. La suite complète exécutée donne **132 tests, 132 succès, 0 échec, 27 suites**.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 

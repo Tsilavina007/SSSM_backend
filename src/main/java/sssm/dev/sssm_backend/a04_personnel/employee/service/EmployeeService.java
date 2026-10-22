@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a04_personnel.employee.dto.EmployeeCreateRequest;
@@ -36,10 +37,12 @@ public class EmployeeService {
                     "NOT_FOUND"));
   }
 
+  @Transactional
   public EmployeeResponse create(EmployeeCreateRequest request) {
     return toResponse(dao.create(toEntity(request)));
   }
 
+  @Transactional
   public EmployeeResponse update(String id, EmployeeUpdateRequest request) {
     if (dao.findById(id).isEmpty())
       throw new NotFoundException(
@@ -51,6 +54,7 @@ public class EmployeeService {
     return toResponse(dao.update(employee));
   }
 
+  @Transactional
   public void delete(String id) {
     dao.delete(id);
   }

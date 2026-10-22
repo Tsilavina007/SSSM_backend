@@ -1,7 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory;
 
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -125,7 +124,7 @@ class ItemAssignmentTimestampTests {
                 .content(body))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
-        .andExpect(jsonPath("$.assigned_at").value(nullValue()));
+        .andExpect(jsonPath("$.assigned_at").value(notNullValue()));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt =

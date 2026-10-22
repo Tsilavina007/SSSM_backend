@@ -1,7 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory;
 
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -100,6 +99,40 @@ class StockMovementTimestampTests {
   }
 
   @Test
+  void createWithoutMovementTypeAppliesInDefaultInResponse() throws Exception {
+    String marker = "phase2-ts-type-" + System.nanoTime();
+    String body =
+        "{\"warehouse_id\":\""
+            + warehouseId
+            + "\",\"item_id\":\""
+            + itemId
+            + "\",\"notes\":\""
+            + marker
+            + "\"}";
+
+    mockMvc
+        .perform(
+            post("/api/inventory/movements")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.movement_type").value("IN"))
+        .andExpect(jsonPath("$.movement_date").value(notNullValue()));
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt =
+            conn.prepareStatement(
+                "SELECT movement_type FROM security.stock_movement WHERE notes = ?")) {
+      stmt.setString(1, marker);
+      try (ResultSet rs = stmt.executeQuery()) {
+        assertTrue(rs.next(), "le mouvement doit être créé");
+        assertEquals("IN", rs.getString("movement_type"));
+      }
+    }
+  }
+
+  @Test
   void createWithoutMovementDateAppliesDatabaseDefault() throws Exception {
     String marker = "phase2-ts-absent-" + System.nanoTime();
     String body =
@@ -119,7 +152,7 @@ class StockMovementTimestampTests {
                 .content(body))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id").value(notNullValue()))
-        .andExpect(jsonPath("$.movement_date").value(nullValue()));
+        .andExpect(jsonPath("$.movement_date").value(notNullValue()));
 
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt =

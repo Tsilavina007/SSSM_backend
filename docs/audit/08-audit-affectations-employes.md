@@ -2,6 +2,8 @@
 
 **Objectif :** vérifier la cohérence des affectations de matériel aux employés, la restitution, les acteurs et la suppression, ainsi que les liens avec les employés et les postes. Le stock et les mouvements sont traités dans les rapports 05 et 07.
 
+**Mise à jour du 22 octobre 2026 (Lot 2) :** la création d'employé sans `status` applique désormais `DEFAULT 'ACTIVE'`, les FK/`CHECK` renvoient 422 et les doublons 409, sans SQLSTATE. Les mentions de « 500 » dans ce rapport décrivent l'état initial ; les incohérences métier d'affectation et de retour restent ouvertes.
+
 ---
 
 ## 1. Deux modules pour une même table

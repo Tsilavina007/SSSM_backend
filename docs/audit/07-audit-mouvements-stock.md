@@ -248,7 +248,7 @@ Conséquences :
 - aucune pagination ;
 - aucun contrôle d'existence de l'article : un UUID inconnu renvoie **200** avec des listes vides.
 
-**Divergence de test :** `ItemApiTests.historyUnknownReturnsNotFound` attend un **404**. Le contrôleur actuel ne contient aucun appel à `getItemById` avant de construire l'historique : sur le HEAD `7e3f196`, ce test devrait donc échouer s'il est exécuté. C'est une désynchronisation certaine entre le code et ce test, même si aucun rapport complet courant n'est disponible.
+**Divergence de test (historique) :** `ItemApiTests.historyUnknownReturnsNotFound` attendait un **404**, alors que le contrôleur ne contient aucun appel à `getItemById` avant de construire l'historique. Ce test a depuis été retiré de l'arbre ; l'absence de 404 reste une anomalie fonctionnelle (`P1-12`) non couverte par un test négatif.
 
 ---
 

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.ItemTypeCreateRequest;
@@ -52,10 +53,12 @@ public class ItemTypeService {
         .toList();
   }
 
+  @Transactional
   public ItemTypeRest createItemType(ItemTypeCreateRequest itemType) {
     return itemTypeRestMapper.toRest(itemTypeDAO.createItemType(itemType));
   }
 
+  @Transactional
   public ItemTypeRest updateItemType(String itemTypeId, ItemTypeUpdateRequest updatedItemType) {
     if (itemTypeDAO.getItemTypeById(itemTypeId).isEmpty()) {
       throw new NotFoundException(
@@ -66,6 +69,7 @@ public class ItemTypeService {
     return itemTypeRestMapper.toRest(itemTypeDAO.updateItemType(itemTypeId, updatedItemType));
   }
 
+  @Transactional
   public void deleteItemType(String itemTypeId) {
     itemTypeDAO.deleteItemType(itemTypeId);
   }

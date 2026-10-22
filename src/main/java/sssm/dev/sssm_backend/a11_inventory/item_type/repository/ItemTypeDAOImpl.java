@@ -4,7 +4,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -132,34 +131,74 @@ public class ItemTypeDAOImpl implements ItemTypeDAO {
 
   @Override
   public ItemTypeResponse createItemType(ItemTypeCreateRequest value) {
+    // Les colonnes nullable ou dotées d'un DEFAULT PostgreSQL ne sont écrites que si une valeur
+    // est fournie. Un NULL explicite empêcherait l'application de DEFAULT (unit, quantités,
+    // statut).
+    StringBuilder columns = new StringBuilder("company_id, code, name");
+    StringBuilder placeholders = new StringBuilder("?, ?, ?");
+    List<Object> parameters = new ArrayList<>();
+
+    parameters.add(value.getCompany_id() == null ? null : UUID.fromString(value.getCompany_id()));
+    parameters.add(value.getCode());
+    parameters.add(value.getName());
+
+    if (value.getCategory_id() != null) {
+      columns.append(", category_id");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(value.getCategory_id()));
+    }
+    if (value.getDescription() != null) {
+      columns.append(", description");
+      placeholders.append(", ?");
+      parameters.add(value.getDescription());
+    }
+    if (value.getUnit() != null) {
+      columns.append(", unit");
+      placeholders.append(", ?");
+      parameters.add(value.getUnit());
+    }
+    if (value.getQuantity_total() != null) {
+      columns.append(", quantity_total");
+      placeholders.append(", ?");
+      parameters.add(value.getQuantity_total());
+    }
+    if (value.getMinimum_stock() != null) {
+      columns.append(", minimum_stock");
+      placeholders.append(", ?");
+      parameters.add(value.getMinimum_stock());
+    }
+    if (value.getStatus() != null) {
+      columns.append(", status");
+      placeholders.append(", CAST(? AS security.item_status)");
+      parameters.add(value.getStatus().name());
+    }
+
     String sql =
-        "INSERT INTO security.item_type (company_id, category_id, code, name, description, unit, quantity_total, minimum_stock, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.item_status))";
+        "INSERT INTO security.item_type ("
+            + columns
+            + ") VALUES ("
+            + placeholders
+            + ") RETURNING id";
 
     try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(
-          1, value.getCompany_id() == null ? null : UUID.fromString(value.getCompany_id()));
-      stmt.setObject(
-          2, value.getCategory_id() == null ? null : UUID.fromString(value.getCategory_id()));
-      stmt.setString(3, value.getCode());
-      stmt.setString(4, value.getName());
-      stmt.setString(5, value.getDescription());
-      stmt.setString(6, value.getUnit());
-      stmt.setBigDecimal(7, value.getQuantity_total());
-      stmt.setBigDecimal(8, value.getMinimum_stock());
-      stmt.setString(
-          9, value.getStatus() == null ? ItemStatus.AVAILABLE.name() : value.getStatus().name());
-      stmt.executeUpdate();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
 
-      try (ResultSet rs = stmt.getGeneratedKeys()) {
+      try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          return mapRowToItemTypeResponse(rs);
+          return getItemTypeById(rs.getString("id"))
+              .orElseThrow(
+                  () ->
+                      new ServerException(
+                          "Le type d'article créé n'a pas pu être relu depuis la base."));
         }
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return null;
+    throw new ServerException("La base n'a pas renvoyé l'identifiant du type d'article créé.");
   }
 
   @Override

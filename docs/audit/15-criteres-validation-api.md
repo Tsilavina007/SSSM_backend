@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** la suite complète a été exécutée après le Lot 1 : 120 tests, 119 succès, 1 échec préexistant. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés.
+**Important :** la suite complète a été exécutée après le Lot 2 : **132 tests, 132 succès, 0 échec, 27 suites**. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés. Les statuts ci-dessous intègrent les corrections du Lot 2 vérifiées par les tests ; le détail historique reste disponible dans les rapports 11 et 16.
 
 ### 1.2. Règle de décision
 
@@ -46,13 +46,13 @@ Une capture d'écran ne remplace pas un test de contrat.
 | **G0-1** | Un utilisateur de l'entreprise A ne peut lire aucune donnée de B | **FAIL** | Requêtes globales ; aucun filtre `company_id` |
 | **G0-2** | Un utilisateur de A ne peut écrire aucune donnée de B | **FAIL** | `company_id` contrôlé par le client ; pas de FK composite |
 | **G0-3** | Un compte sans entreprise ou sans rôle ne peut pas accéder à l'inventaire | **PARTIEL** | Un compte sans rôle est bloqué ; un admin plateforme sans entreprise reste autorisé par conception. |
-| **G0-4** | Les écritures multi-lignes sont atomiques | **FAIL** | `DriverManager` ; `@Transactional` inopérant |
+| **G0-4** | Les écritures multi-lignes sont atomiques | **PARTIEL** | Transactions Spring effectives et rollback service testé pour mouvement + article. Les opérations multi-lignes ne sont pas encore implémentées (`P1-06`). |
 | **G0-5** | Le stock a une source de vérité unique et testée | **FAIL** | `quantity_total` manuel ; quantité de mouvement fixe |
 | **G0-6** | `ASSIGNED` implique exactement une affectation active | **FAIL** | `OUT`, `RETURN`, `DELETE`, retour no-op |
-| **G0-7** | Aucune erreur de saisie ne produit 500 avec SQLSTATE | **FAIL** | Doublons, FK, NOT NULL en 500 |
+| **G0-7** | Aucune erreur de saisie ne produit 500 avec SQLSTATE | **PASS** | Doublons 409, FK/CHECK 422, NOT NULL/format 400 ; aucun SQLSTATE exposé. |
 | **G0-8** | Un rôle révoqué ne peut pas être rafraîchi | **PASS** | `/refresh` recharge les rôles et permissions en base ; rotation testée. |
 
-**Verdict :** 1 porte sur 8 en `PASS` (`G0-8`), 1 `PARTIEL` (`G0-3`), 6 `FAIL`. La production reste bloquée.
+**Verdict :** 2 portes sur 8 en `PASS` (`G0-7`, `G0-8`), 2 `PARTIEL` (`G0-3`, `G0-4`), 4 `FAIL`. La production reste bloquée.
 
 ---
 
@@ -114,7 +114,7 @@ Et POST /api/v1/items avec company_id=B crée l'article dans A ou renvoie 422
 | A-18 | Le login et le refresh sont limités en débit | **FAIL** | Absent. |
 | A-19 | Le mot de passe est hashé et jamais renvoyé | **PASS** | BCrypt ; DTO sans hash. |
 | A-20 | Le CORS n'accepte que les origines nécessaires | **PASS** | `CORS_ALLOWED_ORIGINS` explicite ; en-têtes/méthodes encore larges. |
-| A-21 | Les erreurs SQL ne sont pas exposées en production | **FAIL** | SQLSTATE + message PostgreSQL. |
+| A-21 | Les erreurs SQL ne sont pas exposées en production | **PASS** | Mapping stable 400/409/422/503 ; aucun SQLSTATE ni message PostgreSQL. |
 | A-22 | Un compte supprimé ne peut plus rafraîchir | **PASS** | 401 sur refresh d'un compte supprimé/inconnu. |
 
 ### Scénario d'acceptation A-A
@@ -134,16 +134,16 @@ Et l'accès à /api/v1/users renvoie 403
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
 | CAT-01 | CRUD nominal article, type, catégorie, entrepôt | **PARTIEL** | Code + dernier rapport, non rejoué |
-| CAT-02 | Créer un type sans `unit`, `quantity_total`, `minimum_stock` applique les défauts | **FAIL** | `NULL` explicite → 500 |
-| CAT-03 | Créer un employé sans `status` applique `ACTIVE` | **FAIL** | `NULL` explicite → 500 |
-| CAT-04 | Un doublon de QR/code/nom renvoie 409 | **FAIL** | 500 |
+| CAT-02 | Créer un type sans `unit`, `quantity_total`, `minimum_stock` applique les défauts | **PASS** | Test `ItemTypeApiTests.createWithoutOptionalValuesAppliesDatabaseDefaults`. |
+| CAT-03 | Créer un employé sans `status` applique `ACTIVE` | **PASS** | Test `EmployeeDefaultsTests.createWithoutStatusAppliesDatabaseDefault`. |
+| CAT-04 | Un doublon de QR/code/nom renvoie 409 | **PASS** | Mapping `23505` → 409 ; test doublon de catégorie. |
 | CAT-05 | Un article ne peut pas référencer une relation d'une autre entreprise | **FAIL** | Aucun contrôle |
 | CAT-06 | `GET /items` retourne `total`, `page`, `pageSize`, `totalPages` | **FAIL** | Tableau brut |
 | CAT-07 | `page=0` renvoie 400, pas 500 | **FAIL** | `OFFSET` négatif possible |
 | CAT-08 | `pageSize` est plafonné | **FAIL** | Aucun plafond typé |
 | CAT-09 | Les transitions de statut d'article sont contrôlées | **FAIL** | `PATCH` libre |
 | CAT-10 | On peut retirer une relation nullable par `PATCH` | **FAIL** | Convention « non nul seulement » |
-| CAT-11 | Une suppression référencée renvoie 409, pas 500 | **FAIL** | `23503` → 500 |
+| CAT-11 | Une suppression référencée renvoie 409, pas 500 | **PARTIEL** | `23503` → 422 (plus de 500), mais le critère attend 409. |
 | CAT-12 | Une suppression inconnue renvoie 404, pas 204 | **FAIL** | 204 |
 | CAT-13 | Les éléments archivés ne figurent pas dans les listes | **FAIL** | Aucun filtre `archived_at` |
 | CAT-14 | `GET /items/{id}/history` renvoie 404 pour un article inconnu | **FAIL** | 200 + listes vides |
@@ -200,7 +200,7 @@ Et un second OUT de 4 renvoie 409 sans modifier le stock
 | ASG-03 | Affecter à un employé inactif renvoie 422 | **FAIL** | Aucun contrôle |
 | ASG-04 | Affecter à un employé d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle |
 | ASG-05 | Affecter à un poste d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle |
-| ASG-06 | L'affectation et le passage à `ASSIGNED` sont atomiques | **FAIL** | Transactions inopérantes |
+| ASG-06 | L'affectation et le passage à `ASSIGNED` sont atomiques | **PASS** | Service `@Transactional` + DAO sur connexion Spring ; infrastructure de rollback testée. |
 | ASG-07 | Un retour exige une date de retour | **FAIL** | `returned_at` facultatif |
 | ASG-08 | Un retour restaure l'entrepôt | **FAIL** | Non restauré |
 | ASG-09 | Un retour renseigne `returned_by` | **FAIL** | Aucun acteur |
@@ -210,7 +210,7 @@ Et un second OUT de 4 renvoie 409 sans modifier le stock
 | ASG-13 | Une annulation est auditée et remet l'article disponible | **FAIL** | Pas de `void` |
 | ASG-14 | `ASSIGNED` implique exactement une affectation active | **FAIL** | Plusieurs chemins incohérents |
 | ASG-15 | `AVAILABLE` implique aucune affectation active | **FAIL** | `RETURN`/`IN` peuvent le faire |
-| ASG-16 | Deux affectations concurrentes produisent un 409 | **FAIL** | Index → 500 |
+| ASG-16 | Deux affectations concurrentes produisent un 409 | **PARTIEL** | Index unique + `23505` → 409 ; pas de test de course dédié |
 | ASG-17 | Les affectations en retard sont identifiables | **FAIL** | `expected_return_at` non exploité |
 | ASG-18 | L'historique des acteurs est conservé | **FAIL** | `assigned_by`/`returned_by` non alimentés |
 
@@ -234,7 +234,7 @@ Et il n'existe plus aucune affectation active pour cet article
 |---|---|---|---|
 | QR-01 | Le code est stable après impression | **FAIL** | `PATCH qr_code` libre |
 | QR-02 | L'unicité est garantie par entreprise | **PASS** | `UNIQUE(company_id, qr_code)` |
-| QR-03 | Un doublon de code renvoie 409 | **FAIL** | 500 |
+| QR-03 | Un doublon de code renvoie 409 | **PASS** | Mapping `23505` → 409. |
 | QR-04 | Un scan est strictement tenant-scoped | **FAIL** | Requête globale |
 | QR-05 | Un scan inconnu renvoie 404 | **FAIL** | 200 `[]` |
 | QR-06 | Un scan renvoie type, catégorie, entrepôt, affectation et détenteur | **FAIL** | Ligne brute |
@@ -268,7 +268,7 @@ Et le scan est journalisé avec l'utilisateur et l'appareil
 | CNT-01 | Un comptage fige la quantité attendue à l'ouverture | **FAIL** | Colonne absente |
 | CNT-02 | Un scan de comptage calcule l'écart côté serveur | **FAIL** | Écart fourni par le client |
 | CNT-03 | Un article hors périmètre est refusé | **FAIL** | Aucun contrôle |
-| CNT-04 | Un doublon de scan est traité explicitement | **PARTIEL** | Contrainte, mais 500 |
+| CNT-04 | Un doublon de scan est traité explicitement | **PARTIEL** | Contrainte + mapping 409 ; pas de traitement métier dédié |
 | CNT-05 | Un comptage vide ne peut pas être clôturé comme complet | **FAIL** | Clôture sans corps acceptée |
 | CNT-06 | La clôture renseigne `completed_at` | **FAIL** | Non renseigné |
 | CNT-07 | La clôture réconcilie le stock | **FAIL** | Aucun ajustement |
@@ -281,7 +281,7 @@ Et le scan est journalisé avec l'utilisateur et l'appareil
 | OPS-02 | `POST /operations/issue` impose `ISSUE` | **FAIL** | Type non déduit |
 | OPS-03 | Une opération contient des lignes d'articles | **FAIL** | En-tête seul |
 | OPS-04 | Une opération crée des mouvements atomiques | **FAIL** | Aucun mouvement |
-| OPS-05 | Un type manquant renvoie 400/422 | **FAIL** | 500 `23502` |
+| OPS-05 | Un type manquant renvoie 400/422 | **PASS** | `23502` → 400 ; test `OperationApiTests.missingOperationTypeReturns400Envelope`. |
 | OPS-06 | Une opération inconnue renvoie 404 | **FAIL** | Soft 200 |
 | OPS-07 | Une opération est idempotente | **FAIL** | Absent |
 
@@ -306,15 +306,15 @@ Et un comptage déjà clôturé renvoie 409
 | API-01 | Les routes métier sont versionnées `/api/v1` | **FAIL** | `/api` |
 | API-02 | Les listes renvoient un `PageResponse` avec total | **FAIL** | Tableaux bruts |
 | API-03 | Aucun endpoint ne renvoie 200 avec `errors` | **FAIL** | Plusieurs modules |
-| API-04 | Une erreur de saisie ne renvoie pas 500 | **FAIL** | Doublons/FK/defaults |
-| API-05 | Aucun SQLSTATE ni message PostgreSQL en production | **FAIL** | `ErrorMapper` |
+| API-04 | Une erreur de saisie ne renvoie pas 500 | **PASS** | Doublons 409, FK/CHECK 422, NOT NULL/format 400, base indisponible 503. |
+| API-05 | Aucun SQLSTATE ni message PostgreSQL en production | **PASS** | `ErrorMapper` et `SqlErrorMappingTests`. |
 | API-06 | Une création renvoie 201 et `Location` | **PARTIEL** | 201 sans `Location` ; génériques en 200 |
 | API-07 | Une suppression réussie renvoie 204 | **PARTIEL** | Souvent 204, parfois 200 |
-| API-08 | Une réponse de création ne contient pas de date nulle due au défaut | **FAIL** | `assigned_at`, `movement_date` |
+| API-08 | Une réponse de création ne contient pas de date nulle due au défaut | **PASS** | Relecture persistée ; tests timestamp mouvement/affectation. |
 | API-09 | Les dates sont ISO-8601 UTC | **NON VÉRIFIÉ** | Format non contractuel |
 | API-10 | Les créations sensibles acceptent `Idempotency-Key` | **FAIL** | Absent |
 | API-11 | Les `PATCH` sensibles utilisent `If-Match`/ETag | **FAIL** | Absent |
-| API-12 | Les erreurs ont un `code` stable et documenté | **FAIL** | Codes génériques + SQLSTATE |
+| API-12 | Les erreurs ont un `code` stable et documenté | **PASS** | Codes applicatifs (`CONFLICT`, `BAD_REQUEST`, `UNPROCESSABLE_ENTITY`, etc.) documentés dans `ItemError`. |
 | API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 26 fichiers, 183 avertissements à l'audit initial (non rejoués après `7e3f196`) |
 | API-14 | Le CORS est restreint par environnement | **FAIL** | `*` |
 | API-15 | Les filtres couvrent les besoins des écrans | **FAIL** | Voir rapports 02 et 10 |
@@ -328,18 +328,18 @@ Et un comptage déjà clôturé renvoie 409
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| NFR-01 | Les DAO utilisent un `DataSource` et un pool | **FAIL** | `DriverManager` |
-| NFR-02 | Les DAO utilisent le `DataSource` et la configuration de production (pool, timeouts) | **FAIL** | `DatabaseConnection`/`DriverManager` |
+| NFR-01 | Les DAO utilisent un `DataSource` et un pool | **PASS** | `DatabaseConnection` + HikariCP ; test de pool. |
+| NFR-02 | Les DAO utilisent le `DataSource` et la configuration de production (pool, timeouts) | **PASS** | `spring.datasource.hikari.*` surchargé par l'environnement. |
 | NFR-03 | Une liste de 1 000 articles reste sous un seuil défini | **NON VÉRIFIÉ** | Aucun test de charge |
 | NFR-04 | Le N+1 est éliminé ou borné | **FAIL** | Mapper relationnel |
 | NFR-05 | Les listes sont plafonnées | **FAIL** | `pageSize` libre |
 | NFR-06 | Les images QR sont mises en cache | **FAIL** | Aucun cache |
-| NFR-07 | Aucun secret n'apparaît dans une réponse ou un log | **PARTIEL** | Hash absent ; SQL exposé |
+| NFR-07 | Aucun secret n'apparaît dans une réponse ou un log | **PARTIEL** | Hash absent ; SQLSTATE retiré des réponses, mais logs et secrets non audités |
 | NFR-08 | HTTPS est obligatoire en production | **FAIL** | Aucune règle |
 | NFR-09 | Les migrations sont sauvegardées et réversibles | **NON VÉRIFIÉ** | Hors audit |
 | NFR-10 | Les erreurs 500 sont corrélées par `traceId` | **FAIL** | Absent |
 | NFR-11 | Les routes sensibles sont limitées en débit | **FAIL** | Absent |
-| NFR-12 | Les conflits concurrents renvoient 409 | **FAIL** | 500 ou écrasement |
+| NFR-12 | Les conflits concurrents renvoient 409 | **FAIL** | Conflits SQL traduits en 409, mais aucune détection d'écrasement par version |
 | NFR-13 | Les journaux d'audit couvrent les actions sensibles | **FAIL** | Absent |
 
 ---
@@ -353,14 +353,14 @@ Et un comptage déjà clôturé renvoie 409
 | TST-03 | Le login et l'inscription sont testés | **PASS** | `AuthHardeningApiTests` et `RefreshTokenApiTests` couvrent inscription, login, refresh et logout. |
 | TST-04 | Le RBAC est testé pour `USER`, `INVENTORY`, `ADMIN`, sans rôle | **PARTIEL** | Tests sans permission, admin d'entreprise et inventaire ; matrice complète des rôles non couverte. |
 | TST-05 | La tenancy A/B est testée en lecture et en écriture | **FAIL** | Aucun test à deux entreprises. |
-| TST-06 | Le rollback transactionnel est testé | **FAIL** | Aucun test |
+| TST-06 | Le rollback transactionnel est testé | **PASS** | `DatabaseTransactionRollbackTests`, `StockMovementTransactionTests`. |
 | TST-07 | La concurrence est testée | **FAIL** | Aucun test |
 | TST-08 | Le stock et la réconciliation sont testés | **FAIL** | Aucun test de solde |
-| TST-09 | Les contrats d'erreur et de pagination sont testés | **FAIL** | Aucun test de contrat |
-| TST-10 | Le code et les tests sont synchronisés | **FAIL** | Divergence historique 404 |
-| TST-11 | Un pipeline CI bloque les régressions | **PARTIEL** | Workflow GitHub Actions présent ; pas de tests tenancy/RBAC/transaction |
+| TST-09 | Les contrats d'erreur et de pagination sont testés | **FAIL** | Tests d'erreur ajoutés ; pagination non testée |
+| TST-10 | Le code et les tests sont synchronisés | **PARTIEL** | Ancien test 404 retiré ; l'historique reste sans test négatif (`P1-12`). |
+| TST-11 | Un pipeline CI bloque les régressions | **PARTIEL** | Workflow GitHub Actions présent ; tests RBAC et transaction locaux, pas de tenancy A/B ni de concurrence |
 | TST-12 | Les performances critiques sont mesurées | **FAIL** | Aucun test |
-| TST-13 | La suite actuelle est verte sur l'état courant | **FAIL** | 120 tests exécutés ; 1 échec préexistant (`historyUnknownReturnsNotFound`). |
+| TST-13 | La suite actuelle est verte sur l'état courant | **PASS** | 132 tests exécutés ; 0 échec, 0 erreur, 0 ignoré, 27 suites. |
 | TST-14 | Les tests n'écrivent pas dans la base de démonstration partagée | **FAIL** | Nettoyage SQL sur base réelle |
 
 ---
@@ -371,8 +371,8 @@ Et un comptage déjà clôturé renvoie 409
 |---|---|---|---|
 | FE-01 | Le catalogue peut être listé, filtré et paginé sans total manquant | **PARTIEL** | Liste et filtres partiels |
 | FE-02 | Le détail d'un article peut afficher type, catégorie, entrepôt et statut | **PARTIEL** | Réponses imbriquées, relations nulles |
-| FE-03 | La création d'un type ne casse pas si les champs facultatifs sont omis | **FAIL** | 500 |
-| FE-04 | Les erreurs peuvent être mappées sur des messages utilisateur | **FAIL** | 500/SQLSTATE/soft 200 |
+| FE-03 | La création d'un type ne casse pas si les champs facultatifs sont omis | **PASS** | Défauts PostgreSQL appliqués et relus. |
+| FE-04 | Les erreurs peuvent être mappées sur des messages utilisateur | **PARTIEL** | Statuts et codes stables ; certaines routes renvoient encore des erreurs douces en 200. |
 | FE-05 | L'historique d'un article est complet et paginé | **FAIL** | 100 globales |
 | FE-06 | Un mouvement peut être créé avec quantité et acteur | **FAIL** | Champs absents |
 | FE-07 | Une affectation peut être créée, retournée et auditée | **FAIL** | Cycle incohérent |
@@ -381,7 +381,7 @@ Et un comptage déjà clôturé renvoie 409
 | FE-10 | Le dashboard affiche un stock réel | **FAIL** | Champ manuel |
 | FE-11 | Le dashboard est tenant-scoped | **FAIL** | Global |
 | FE-12 | Les écrans peuvent gérer le multi-entreprise | **FAIL** | Pas de tenant |
-| FE-13 | Les dates sont affichables sans rechargement après création | **FAIL** | `null` |
+| FE-13 | Les dates sont affichables sans rechargement après création | **PASS** | Réponses de création relues depuis la base. |
 | FE-14 | Les actions sensibles sont idempotentes | **FAIL** | Absent |
 
 ---
@@ -390,23 +390,23 @@ Et un comptage déjà clôturé renvoie 409
 
 | Domaine | PASS | PARTIEL | FAIL | NON VÉRIFIÉ |
 |---|---:|---:|---:|---:|
-| Portes Go/No-Go | 1 | 1 | 6 | 0 |
+| Portes Go/No-Go | 2 | 2 | 4 | 0 |
 | Tenancy | 2 | 1 | 12 | 0 |
-| Authentification | 14 | 3 | 5 | 0 |
-| Catalogue | 1 | 1 | 16 | 0 |
+| Authentification | 15 | 3 | 4 | 0 |
+| Catalogue | 4 | 2 | 12 | 0 |
 | Stock | 1 | 0 | 17 | 0 |
-| Affectations | 0 | 1 | 17 | 0 |
-| QR | 2 | 0 | 13 | 0 |
-| Comptages / opérations | 0 | 1 | 18 | 0 |
-| Contrat HTTP | 0 | 4 | 13 | 1 |
-| Performance / sécurité | 0 | 1 | 10 | 2 |
-| Tests / CI | 1 | 3 | 10 | 0 |
-| Frontend | 0 | 2 | 12 | 0 |
-| **Total** | **22** | **18** | **149** | **3** |
+| Affectations | 1 | 2 | 15 | 0 |
+| QR | 3 | 0 | 12 | 0 |
+| Comptages / opérations | 1 | 1 | 17 | 0 |
+| Contrat HTTP | 4 | 4 | 9 | 1 |
+| Performance / sécurité | 2 | 1 | 8 | 2 |
+| Tests / CI | 3 | 4 | 7 | 0 |
+| Frontend | 2 | 3 | 9 | 0 |
+| **Total** | **40** | **23** | **126** | **3** |
 
-**Total : 192 critères** (22 `PASS`, 18 `PARTIEL`, 149 `FAIL`, 3 `NON VÉRIFIÉ`) après le Lot 1. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
+**Total : 192 critères** (40 `PASS`, 23 `PARTIEL`, 126 `FAIL`, 3 `NON VÉRIFIÉ`) après le Lot 2. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
-**Lecture :** les `PASS` supplémentaires portent sur l'identité, le RBAC inventaire/administration, le scope entreprise des utilisateurs/rôles, le refresh rotatif, le logout et la révocation. Les portes de tenancy complète, transactions, stock, affectations et concurrence restent bloquantes.
+**Lecture :** les `PASS` supplémentaires portent sur l'identité, le RBAC inventaire/administration, le scope entreprise des utilisateurs/rôles, le refresh rotatif, le logout, la révocation, le pool, les transactions des cas d'usage existants, les erreurs SQL et les défauts de création. Les portes de tenancy complète, stock, affectations, concurrence et opérations multi-lignes restent bloquantes.
 
 ---
 

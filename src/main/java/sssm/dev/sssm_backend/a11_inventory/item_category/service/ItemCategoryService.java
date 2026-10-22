@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.ItemCategoryCreateRequest;
@@ -46,10 +47,12 @@ public class ItemCategoryService {
                     "NOT_FOUND"));
   }
 
+  @Transactional
   public ItemCategoryRest createItemCategory(ItemCategoryCreateRequest request) {
     return itemCategoryRestMapper.toRest(itemCategoryDAO.createItemCategory(request));
   }
 
+  @Transactional
   public ItemCategoryRest updateItemCategory(
       String itemCategoryId, ItemCategoryUpdateRequest request) {
     if (itemCategoryDAO.getItemCategoryById(itemCategoryId).isEmpty()) {
@@ -62,6 +65,7 @@ public class ItemCategoryService {
         itemCategoryDAO.updateItemCategory(itemCategoryId, request));
   }
 
+  @Transactional
   public void deleteItemCategory(String itemCategoryId) {
     itemCategoryDAO.deleteItemCategory(itemCategoryId);
   }

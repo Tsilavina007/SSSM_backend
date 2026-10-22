@@ -2,6 +2,8 @@
 
 **Objectif :** vérifier la structure réelle des données, les contraintes, les index et les triggers, puis confronter ce modèle au code Java et aux scripts SQL. Les anomalies métier qui en découlent sont analysées dans les rapports 04 à 09.
 
+**Mise à jour du 22 octobre 2026 (Lot 2) :** aucun changement de schéma n'a été appliqué. Les constats ci-dessous sur les défauts SQL et les erreurs `23502` décrivent l'état initial ; depuis le Lot 2, les colonnes absentes sont omises pour laisser PostgreSQL appliquer ses `DEFAULT`, et les erreurs `23502` sont traduites en 400.
+
 ---
 
 ## 1. Organisation du schéma

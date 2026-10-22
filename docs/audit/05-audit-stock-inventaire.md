@@ -281,17 +281,14 @@ Mais ces champs sont presque toujours nuls ou égaux à 1 dans les données cré
 
 ## 9. Transactions et cohérence
 
-Les opérations de stock sont annotées `@Transactional`, mais les DAO utilisent `DatabaseConnection.getConnection()` et `DriverManager`.
+Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, les DAO utilisent la connexion transactionnelle issue du `DataSource` Spring/HikariCP. Un échec après l'insertion du mouvement annule désormais le mouvement et la mise à jour de l'article ; ce rollback est couvert par `StockMovementTransactionTests`.
 
-Conséquences :
+Les limites restantes sont métier, pas transactionnelles :
 
-- l'insertion du mouvement et la mise à jour de l'article sont deux transactions distinctes ;
-- si la mise à jour de l'article échoue, le mouvement reste en base ;
-- si l'insertion du mouvement réussit et que l'application s'arrête avant la mise à jour, l'article garde son ancien état ;
-- un comptage peut être scanné puis la clôture échouer, sans rollback ;
-- une opération peut être créée sans aucune ligne.
-
-Ce n'est pas un problème théorique : c'est la cause racine de nombreux états incohérents possibles.
+- le stock n'est toujours pas dérivé des mouvements (`quantity_total` manuel) ;
+- les opérations multi-lignes ne sont pas implémentées ;
+- un comptage peut encore être clôturé sans réconciliation complète ;
+- la concurrence entre deux écritures n'est pas contrôlée par version.
 
 ---
 

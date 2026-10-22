@@ -297,11 +297,11 @@ Le backend ne dicte pas le stockage. Pour un frontend web, un jeton dans `localS
 
 ### 8.1. N+1
 
-`ItemRestMapper.toRest` charge plusieurs relations par article. Une liste de 10 articles peut générer plusieurs dizaines de requêtes. Chaque requête ouvre une connexion via `DriverManager`.
+`ItemRestMapper.toRest` charge plusieurs relations par article. Une liste de 10 articles peut générer plusieurs dizaines de requêtes. Depuis le Lot 2, ces requêtes utilisent le pool Spring/HikariCP, mais le N+1 reste une source de latence.
 
-### 8.2. Pool non utilisé par les DAO
+### 8.2. Pool de connexions
 
-Chaque appel DAO ouvre et ferme une connexion TCP via `DriverManager`. Même si Spring Boot auto-configure un `DataSource`, les DAO ne l'utilisent pas : il n'y a pas de pool partagé pour ces appels. Sous charge, cela peut saturer PostgreSQL.
+Le pool HikariCP est désormais utilisé par les DAO via `DataSourceUtils`. La saturation par absence de pool est corrigée ; la charge reste à mesurer et la pagination non bornée peut encore concentrer les requêtes.
 
 ### 8.3. Listes non bornées
 

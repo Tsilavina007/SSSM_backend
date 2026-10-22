@@ -89,48 +89,126 @@ public class EmployeeDAOImpl implements EmployeeDAO {
 
   @Override
   public Employee create(Employee employee) {
+    // Les colonnes facultatives ne sont écrites que si elles sont fournies. En particulier,
+    // l'absence de status doit laisser PostgreSQL appliquer DEFAULT 'ACTIVE'.
+    StringBuilder columns =
+        new StringBuilder("company_id, employee_number, first_name, last_name");
+    StringBuilder placeholders = new StringBuilder("?, ?, ?, ?");
+    List<Object> parameters = new ArrayList<>();
+
+    parameters.add(UUID.fromString(employee.getCompany_id()));
+    parameters.add(employee.getEmployee_number());
+    parameters.add(employee.getFirst_name());
+    parameters.add(employee.getLast_name());
+
+    if (employee.getAgency_id() != null) {
+      columns.append(", agency_id");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(employee.getAgency_id()));
+    }
+    if (employee.getUser_id() != null) {
+      columns.append(", user_id");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(employee.getUser_id()));
+    }
+    if (employee.getGender() != null) {
+      columns.append(", gender");
+      placeholders.append(", ?");
+      parameters.add(employee.getGender());
+    }
+    if (employee.getDate_of_birth() != null) {
+      columns.append(", date_of_birth");
+      placeholders.append(", ?");
+      parameters.add(employee.getDate_of_birth());
+    }
+    if (employee.getPhone() != null) {
+      columns.append(", phone");
+      placeholders.append(", ?");
+      parameters.add(employee.getPhone());
+    }
+    if (employee.getEmail() != null) {
+      columns.append(", email");
+      placeholders.append(", ?");
+      parameters.add(employee.getEmail());
+    }
+    if (employee.getAddress() != null) {
+      columns.append(", address");
+      placeholders.append(", ?");
+      parameters.add(employee.getAddress());
+    }
+    if (employee.getNational_id() != null) {
+      columns.append(", national_id");
+      placeholders.append(", ?");
+      parameters.add(employee.getNational_id());
+    }
+    if (employee.getHire_date() != null) {
+      columns.append(", hire_date");
+      placeholders.append(", ?");
+      parameters.add(employee.getHire_date());
+    }
+    if (employee.getEnd_date() != null) {
+      columns.append(", end_date");
+      placeholders.append(", ?");
+      parameters.add(employee.getEnd_date());
+    }
+    if (employee.getPosition() != null) {
+      columns.append(", position");
+      placeholders.append(", ?");
+      parameters.add(employee.getPosition());
+    }
+    if (employee.getStatus() != null) {
+      columns.append(", status");
+      placeholders.append(", CAST(? AS security.employee_status)");
+      parameters.add(employee.getStatus().name());
+    }
+    if (employee.getPhoto_url() != null) {
+      columns.append(", photo_url");
+      placeholders.append(", ?");
+      parameters.add(employee.getPhoto_url());
+    }
+    if (employee.getEmergency_contact_name() != null) {
+      columns.append(", emergency_contact_name");
+      placeholders.append(", ?");
+      parameters.add(employee.getEmergency_contact_name());
+    }
+    if (employee.getEmergency_contact_phone() != null) {
+      columns.append(", emergency_contact_phone");
+      placeholders.append(", ?");
+      parameters.add(employee.getEmergency_contact_phone());
+    }
+    if (employee.getNotes() != null) {
+      columns.append(", notes");
+      placeholders.append(", ?");
+      parameters.add(employee.getNotes());
+    }
+
     String sql =
-        "INSERT INTO security.employee (company_id, agency_id, user_id, employee_number, "
-            + "first_name, last_name, gender, date_of_birth, phone, email, address, national_id, "
-            + "hire_date, end_date, position, status, photo_url, emergency_contact_name, "
-            + "emergency_contact_phone, notes) "
-            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS security.employee_status), ?, ?, ?, ?)";
+        "INSERT INTO security.employee ("
+            + columns
+            + ") VALUES ("
+            + placeholders
+            + ") RETURNING id";
+
     try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-      stmt.setObject(1, UUID.fromString(employee.getCompany_id()));
-      stmt.setObject(
-          2, employee.getAgency_id() == null ? null : UUID.fromString(employee.getAgency_id()));
-      stmt.setObject(
-          3, employee.getUser_id() == null ? null : UUID.fromString(employee.getUser_id()));
-      stmt.setString(4, employee.getEmployee_number());
-      stmt.setString(5, employee.getFirst_name());
-      stmt.setString(6, employee.getLast_name());
-      stmt.setString(7, employee.getGender());
-      stmt.setDate(8, employee.getDate_of_birth());
-      stmt.setString(9, employee.getPhone());
-      stmt.setString(10, employee.getEmail());
-      stmt.setString(11, employee.getAddress());
-      stmt.setString(12, employee.getNational_id());
-      stmt.setDate(13, employee.getHire_date());
-      stmt.setDate(14, employee.getEnd_date());
-      stmt.setString(15, employee.getPosition());
-      stmt.setString(16, employee.getStatus() == null ? null : employee.getStatus().name());
-      stmt.setString(17, employee.getPhoto_url());
-      stmt.setString(18, employee.getEmergency_contact_name());
-      stmt.setString(19, employee.getEmergency_contact_phone());
-      stmt.setString(20, employee.getNotes());
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
 
-      stmt.executeUpdate();
-
-      try (ResultSet rs = stmt.getGeneratedKeys()) {
+      try (ResultSet rs = stmt.executeQuery()) {
         if (rs.next()) {
-          employee.setId(rs.getString(1));
+          String generatedId = rs.getString("id");
+          return findById(generatedId)
+              .orElseThrow(
+                  () ->
+                      new ServerException(
+                          "L'employé créé n'a pas pu être relu depuis la base."));
         }
       }
     } catch (SQLException e) {
       throw new ServerException(e);
     }
-    return employee;
+    throw new ServerException("La base n'a pas renvoyé l'identifiant de l'employé créé.");
   }
 
   @Override
