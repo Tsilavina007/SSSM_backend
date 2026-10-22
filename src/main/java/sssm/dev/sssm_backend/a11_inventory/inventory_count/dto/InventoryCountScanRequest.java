@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.a11_inventory.inventory_count.dto;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,8 +15,15 @@ public class InventoryCountScanRequest {
   private Timestamp scanned_at;
   private String expected_warehouse_id;
   private String actual_warehouse_id;
+  private BigDecimal counted_quantity;
   private String discrepancy_type;
   private String notes;
+  private final Map<String, Object> additional = new LinkedHashMap<>();
+
+  @JsonAnySetter
+  public void putAdditional(String key, Object value) {
+    additional.put(key, value);
+  }
 
   public Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
@@ -25,15 +33,11 @@ public class InventoryCountScanRequest {
     put(values, "scanned_at", scanned_at);
     put(values, "expected_warehouse_id", expected_warehouse_id);
     put(values, "actual_warehouse_id", actual_warehouse_id);
+    put(values, "counted_quantity", counted_quantity);
     put(values, "discrepancy_type", discrepancy_type);
     put(values, "notes", notes);
+    values.putAll(additional);
     return values;
-  }
-
-  @JsonAnySetter
-  public void rejectUnknownField(String name, Object value) {
-    throw new IllegalArgumentException(
-        "Le champ '" + name + "' n'est pas autorisé pour un scan de comptage.");
   }
 
   private static void put(Map<String, Object> values, String key, Object value) {

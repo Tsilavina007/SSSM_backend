@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class DashboardLowStockResponse {
   private String id;
   private String company_id;
+  private String warehouse_id;
   private String category_id;
   private String code;
   private String name;
@@ -23,5 +24,5 @@ public class DashboardLowStockResponse {
   private Timestamp created_at;
   private Timestamp updated_at;
   private Timestamp archived_at;
-  private Long stock_quantity;
+  private BigDecimal stock_quantity;
 }

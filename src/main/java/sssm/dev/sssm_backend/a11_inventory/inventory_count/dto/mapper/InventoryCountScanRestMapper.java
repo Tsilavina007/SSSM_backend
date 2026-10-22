@@ -19,6 +19,9 @@ public class InventoryCountScanRestMapper {
         rs.getScanned_at(),
         rs.getExpected_warehouse_id(),
         rs.getActual_warehouse_id(),
+        rs.getExpected_quantity(),
+        rs.getCounted_quantity(),
+        rs.getDifference(),
         rs.getDiscrepancy_type(),
         rs.getNotes(),
         rs.getQr_code()));

@@ -26,6 +26,7 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.UnauthorizedException;
@@ -47,6 +48,11 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(NotFoundException.class)
   public ResponseEntity<Map<String, ItemError>> handleNotFound(NotFoundException exception) {
     return build(HttpStatus.NOT_FOUND, exception);
+  }
+
+  @ExceptionHandler(ConflictException.class)
+  public ResponseEntity<Map<String, ItemError>> handleConflict(ConflictException exception) {
+    return build(HttpStatus.CONFLICT, exception);
   }
 
   @ExceptionHandler(UnauthorizedException.class)

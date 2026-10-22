@@ -1,6 +1,7 @@
 package sssm.dev.sssm_backend.a11_inventory.operation.dto.rest;
 
 import java.sql.Timestamp;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,4 +24,5 @@ public class OperationRest {
   private String notes;
   private Timestamp created_at;
   private Timestamp completed_at;
+  private List<OperationLineRest> lines;
 }

@@ -53,7 +53,15 @@ public class DashboardDAOImpl implements DashboardDAO {
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p =
             c.prepareStatement(
-                "SELECT t.*, t.quantity_total AS stock_quantity FROM security.item_type t WHERE t.quantity_total < t.minimum_stock AND t.archived_at IS NULL")) {
+                "SELECT t.*, b.warehouse_id, b.quantity AS stock_quantity, "
+                    + "COALESCE(c.minimum_stock, t.minimum_stock) AS effective_minimum_stock "
+                    + "FROM security.stock_balance b "
+                    + "JOIN security.item_type t ON t.id = b.item_type_id "
+                    + "LEFT JOIN security.warehouse_stock_config c "
+                    + "ON c.warehouse_id = b.warehouse_id AND c.item_type_id = b.item_type_id "
+                    + "WHERE t.archived_at IS NULL "
+                    + "AND b.quantity < COALESCE(c.minimum_stock, t.minimum_stock) "
+                    + "ORDER BY t.code, b.warehouse_id")) {
       try (ResultSet r = p.executeQuery()) {
         while (r.next()) o.add(mapRowToDashboardLowStock(r));
       }
@@ -67,18 +75,19 @@ public class DashboardDAOImpl implements DashboardDAO {
     return new DashboardLowStockResponse(
         r.getString("id"),
         r.getString("company_id"),
+        r.getString("warehouse_id"),
         r.getString("category_id"),
         r.getString("code"),
         r.getString("name"),
         r.getString("description"),
         r.getString("unit"),
         r.getBigDecimal("quantity_total"),
-        r.getBigDecimal("minimum_stock"),
+        r.getBigDecimal("effective_minimum_stock"),
         r.getString("status"),
         r.getTimestamp("created_at"),
         r.getTimestamp("updated_at"),
         r.getTimestamp("archived_at"),
-        r.getLong("stock_quantity"));
+        r.getBigDecimal("stock_quantity"));
   }
 
   public List<Map<String, Object>> list(

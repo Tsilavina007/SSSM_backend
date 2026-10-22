@@ -56,14 +56,15 @@ class ReportApiTests {
 
     try (Connection conn = DatabaseConnection.getConnection()) {
       companyId = firstValue(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
-      itemTypeId = firstValue(conn, "SELECT id FROM security.item_type ORDER BY id LIMIT 1");
       warehouseId = firstValue(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 1");
-      itemId = firstValue(conn, "SELECT id FROM security.item ORDER BY id LIMIT 1");
     }
     Assumptions.assumeTrue(
-        warehouseId != null && itemId != null && companyId != null && itemTypeId != null,
+        warehouseId != null && companyId != null,
         "base initialisée avec des données de démonstration requise");
     purge();
+    try (Connection conn = DatabaseConnection.getConnection()) {
+      itemTypeId = insertItemType(conn, companyId);
+    }
   }
 
   @AfterEach
@@ -82,22 +83,7 @@ class ReportApiTests {
   @Test
   void reportContainsMovementCreatedByApi() throws Exception {
     String marker = "phase5-mv-" + System.nanoTime();
-
-    mockMvc
-        .perform(
-            post("/api/inventory/movements")
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"warehouse_id\":\""
-                        + warehouseId
-                        + "\",\"item_id\":\""
-                        + itemId
-                        + "\",\"notes\":\""
-                        + marker
-                        + "\"}"))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.id").value(notNullValue()));
+    createItemWithMovement(marker);
 
     MvcResult result =
         mockMvc
@@ -223,6 +209,21 @@ class ReportApiTests {
     return id;
   }
 
+  private static String insertItemType(Connection conn, String companyId) throws Exception {
+    String code = "phase5-rpt-type";
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item_type (company_id, code, name) VALUES (?, ?, ?) RETURNING id")) {
+      stmt.setObject(1, java.util.UUID.fromString(companyId));
+      stmt.setString(2, code);
+      stmt.setString(3, code);
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
   private static void purge() throws Exception {
     execute(
         "DELETE FROM security.stock_movement WHERE notes LIKE 'phase5-mv-%'"
@@ -230,7 +231,11 @@ class ReportApiTests {
     execute(
         "DELETE FROM security.item_assignment WHERE item_id IN "
             + "(SELECT id FROM security.item WHERE qr_code LIKE 'phase5-mv-%')");
+    execute(
+        "DELETE FROM security.stock_balance WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = 'phase5-rpt-type')");
     execute("DELETE FROM security.item WHERE qr_code LIKE 'phase5-mv-%'");
+    execute("DELETE FROM security.item_type WHERE code = 'phase5-rpt-type'");
   }
 
   private static String firstValue(Connection conn, String sql) throws Exception {

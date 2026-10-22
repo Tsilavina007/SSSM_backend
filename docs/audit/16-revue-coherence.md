@@ -10,7 +10,9 @@
 
 **Mise à jour du 22 octobre 2026 (Lot 2) :** l'accès JDBC passe désormais par le `DataSource` Spring/HikariCP et les transactions de service couvrent réellement les DAO. Les erreurs SQL sont traduites en 400/409/422/503 sans exposer SQLSTATE ni message PostgreSQL ; les créations de type, d'employé, de mouvement et d'affectation relisent la ligne persistée. **P1-09, P0-04, P1-01, P1-02 et P1-10 sont corrigés** dans le périmètre documenté. Suite complète : **132 tests, 0 échec, 0 erreur, 0 ignoré, 27 suites**. `P0-01` (filtres `company_id` des DAO d'inventaire) et la concurrence (`P1-14`) restent hors de ce lot ; aucune migration SQL n'a été exécutée.
 
-**Verdict :** inchangé — **NON PRÊT POUR LA PRODUCTION**. Le backend reste **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, avec un utilisateur de confiance et sans promesse de stock fiable ni de traçabilité complète.
+**Mise à jour du 22 octobre 2026 (Lot 3) :** le stock disponible est désormais calculé dans `security.stock_balance` et exposé par `GET /api/inventory/stock-balances`. Le journal est append-only : `PATCH` et `DELETE` renvoient `409 IMMUTABLE_RESOURCE`, et les mouvements portent quantité, entrepôts source/destination, opération et acteur. Les routes d'opération créent l'en-tête, les lignes et les mouvements dans une seule transaction, avec le type imposé par la route. Les scans de comptage figent `expected_quantity`, `counted_quantity` et `difference` calculés serveur ; la clôture réconcilie l'article et le solde, écrit `last_inventory_at` et `completed_at` dans la même transaction. **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre du Lot 3.** Suite complète : **140 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. La migration additive `19_lot3_stock.sql` a été appliquée et rejouée sans écraser les soldes existants. `P0-01`, `P0-06` et `P1-14` restent ouverts : les affectations peuvent encore modifier l'état d'un article sans mettre à jour le solde, et la clôture d'un comptage n'écrit pas de mouvement de compensation dans le journal.
+
+**Verdict :** inchangé — **NON PRÊT POUR LA PRODUCTION**. Le backend reste **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, avec un utilisateur de confiance. Le stock est fiable pour les flux mouvement/opération/comptage du Lot 3, mais pas encore pour les flux d'affectation, la tenancy ou la concurrence.
 
 ---
 
@@ -28,6 +30,8 @@ Les conclusions structurantes de l'audit initial sont confirmées :
 - tests insuffisants pour la tenancy, le RBAC, les transactions, la concurrence et la réconciliation.
 
 **Après le Lot 1 :** l'inscription publique est fermée, le JWT porte l'entreprise et les permissions, le refresh est distinct/rotatif/révocable, le logout est implémenté, le RBAC couvre l'inventaire et l'administration, et les utilisateurs/rôles sont filtrés par entreprise. Les points encore ouverts sont l'isolation complète des DAO d'inventaire, le RBAC des modules hors inventaire, les transactions, le stock, les affectations et la concurrence.
+
+**Après le Lot 3 :** les mouvements, opérations et clôtures de comptage alimentent un solde calculé et testé ; le journal est append-only et les opérations multi-lignes sont atomiques. La tenancy (`P0-01`), les machines à états d'affectation (`P0-06`) et la concurrence (`P1-14`) restent les limites structurantes.
 
 La revue a toutefois trouvé **onze incohérences ou imprécisions documentaires**, dont plusieurs erreurs factuelles. Elles sont corrigées dans les fichiers concernés et listées au § 4. Aucune anomalie de code nouvelle n'a été ajoutée au registre du rapport 12.
 
@@ -66,7 +70,7 @@ La matrice ci-dessous est la photographie de l'**audit initial**. Les lignes rel
 | Erreurs QR de l'image corrigées | `ItemController.getQrCodeImage` mappe UUID invalide → 400 `BAD_REQUEST`, article inconnu → 404 `NOT_FOUND`, contenu absent → 500 `QR_CODE_MISSING`, échec d'encodage/flux → 500 `QR_CODE_GENERATION_FAILED`, et sérialise les erreurs en JSON même avec `Accept: image/png` strict. | Code + test, vérifié |
 | Suite de tests non probante sur HEAD | 22 classes et 112 tests dans l'arbre ; le seul rapport Surefire courant couvre 7 tests QR, tous verts. Aucun rapport complet pour `7e3f196`. L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 alors que le contrôleur renvoyait 200 ; il a depuis été retiré. | Fichiers + lecture statique |
 | CI présente mais incomplète | `.github/workflows/ci.yml` initialise PostgreSQL 16, applique le schéma et les données de démonstration, exécute `./mvnw -B -q test`, un lint Java/OpenAPI et un packaging. Aucun test de tenancy, RBAC, transaction, concurrence ou réconciliation. | CI, vérifié |
-| Schéma et triggers | 18 scripts `00_init.sql` à `17_seed_permissions.sql` lors de la revue ; 19 après ajout de `18_lot1_security.sql`. Les triggers `updated_at` couvrent notamment `company`, `branch`, `agency`, `app_user`, `employee`, `client`, `site`, `contract`, `incident`, `invoice` ; `item_category`, `warehouse` et `item_assignment` n'en ont pas. | SQL, vérifié |
+| Schéma et triggers | 18 scripts `00_init.sql` à `17_seed_permissions.sql` lors de la revue ; 19 après ajout de `18_lot1_security.sql`, 20 après `19_lot3_stock.sql`. Les triggers `updated_at` couvrent notamment `company`, `branch`, `agency`, `app_user`, `employee`, `client`, `site`, `contract`, `incident`, `invoice` ; `item_category`, `warehouse` et `item_assignment` n'en ont pas. | SQL, vérifié |
 | Base de démonstration mono-entreprise | 1 entreprise, 10 articles, 8 mouvements, 5 affectations actives, 0 mouvement avec quantité différente de 1, 0 source/destination/acteur renseigné, 0 affectation avec `assigned_by`/`returned_by`, 0 article avec `last_inventory_at`. | Lecture seule |
 
 ### 2.1. État après le Lot 1
@@ -130,7 +134,7 @@ Le rapport 13 reste donc **une spécification cible**, pas un inventaire de l'ex
 | C-05 | Le rapport 02 indiquait seulement `200 PNG / 404` pour l'image QR, sans les 400/500 du correctif. | Corrigé dans 02. |
 | C-06 | Le rapport 07 disait qu'un historique inconnu renvoie « probablement 200 » ; 02, 11 et 12 affirmaient 200. Le code courant renvoie toujours 200. | Corrigé : 200 affirmé sans ambiguïté, divergence de test explicitée. |
 | C-07 | Le rapport 12 listait 14 P1 dans le registre mais seulement 13 dans la matrice : `P1-02` manquait. | Corrigé : ligne `P1-02` ajoutée (probabilité 4, impact 3, score 12, risque moyen). |
-| C-08 | Le rapport 15 comptait 18 critères « Comptages / opérations » alors que `CNT-01..CNT-12` + `OPS-01..OPS-07` = 19 ; le total affiché était 191 au lieu de 192. | Corrigé : ligne à 19 et total explicite de 192 (7 `PASS`, 16 `PARTIEL`, 165 `FAIL`, 4 `NON VÉRIFIÉ`). |
+| C-08 | Le rapport 15 comptait 18 critères « Comptages / opérations » alors que `CNT-01..CNT-12` + `OPS-01..OPS-07` = 19 ; le total affiché était 191 au lieu de 192. | Corrigé : ligne à 19 et total explicite de 192. Les statuts ont évolué avec les Lots 1 à 3 ; le bilan courant est dans la section 14 du rapport 15 (62 `PASS`, 30 `PARTIEL`, 97 `FAIL`, 3 `NON VÉRIFIÉ`). |
 | C-09 | Les rapports 00, 01, 11 et README présentaient 21 classes / 105 tests comme l'état courant. L'arbre HEAD contient 22 classes / 112 tests, et le seul rapport Surefire restant couvre 7 tests QR. | Corrigé : 105/21 étiqueté « rapport complet historique », état HEAD et absence de suite complète précisés. |
 | C-10 | Le rapport 06 affirmait qu'aucun test ne couvrait l'image d'un QR vide ; `ItemControllerQrCodeImageTest` couvre désormais ce cas, ainsi que le 400, les 500 et `Accept: image/png`. | Corrigé dans 06. |
 | C-11 | Les 183 avertissements Redocly sont cités comme un état courant alors que le décompte n'a pas été rejoué après `7e3f196`. | Signalé comme mesure de l'audit initial, non rejouée. |
@@ -145,7 +149,7 @@ Les colonnes « Dépendances » indiquent les anomalies ou décisions qui doiven
 
 ### 5.1. P0 — bloquants
 
-**Statut après Lot 2 :** `P0-03` corrigé ; `P0-04` corrigé pour les cas d'usage existants (pool Spring, connexion transactionnelle, tests de rollback service et DAO) ; `P0-02` partiel (inscription fermée et RBAC inventaire/administration, mais modules hors inventaire non couverts) ; `P0-01` partiel (colonnes/backfill/index et scope utilisateurs/rôles, mais DAO d'inventaire non filtrés) ; `P0-05` et `P0-06` ouverts. L'atomicité des opérations multi-lignes reste dépendante de `P1-06`, qui n'implémente pas encore ces lignes.
+**Statut après Lot 3 :** `P0-03` corrigé ; `P0-04` corrigé pour les cas d'usage existants (pool Spring, connexion transactionnelle, tests de rollback service et DAO) ; `P0-02` partiel (inscription fermée et RBAC inventaire/administration, mais modules hors inventaire non couverts) ; `P0-01` partiel (colonnes/backfill/index et scope utilisateurs/rôles, mais DAO d'inventaire non filtrés) ; `P0-05` corrigé dans le périmètre du Lot 3 (solde calculé, mouvements complets, comptage réconcilié), avec dette historique sur les lignes antérieures et les ajustements de clôture non journalisés ; `P0-06` ouvert. Les opérations multi-lignes sont désormais implémentées et atomiques (`P1-06`), avec un test de rollback.
 
 | ID | Preuve | Impact | Dépendances | Critère de résolution |
 |---|---|---|---|---|
@@ -172,10 +176,10 @@ Les colonnes « Dépendances » indiquent les anomalies ou décisions qui doiven
 | **P1-10** | Les réponses de création de mouvement et d'affectation sont construites à partir de l'entrée : `movement_type`, `movement_date` et `assigned_at` peuvent être `null` alors que la base a appliqué un défaut. | Le frontend doit recharger la ligne ; affichage faux après création. | — | Relecture après insertion ou remplissage avec les valeurs réellement stockées ; tests de réponse de création. |
 | **P1-11** | `archived_at`/`archived_by` existent mais ne sont jamais renseignés ; `DELETE` est physique ; les FK `RESTRICT` produisent 500 ; `SET NULL` vide des relations ; DELETE inconnu renvoie 204. | Perte d'historique et d'intégrité ; actions destructrices irréversibles. | D-04 | Politique de suppression/archivage décidée ; 409 sur référence, 404 sur inconnu, restauration si archivage ; tests de suppression et de conservation. |
 | **P1-12** | `ItemController.getItemHistory` charge 100 mouvements et 100 affectations globaux, filtre en mémoire, ne vérifie pas l'existence et renvoie 200 ; le test attend 404. | Historique incomplet, contrat faux, test en divergence. | P0-01, P1-08, P1-13 | Filtre SQL par article et entreprise, pagination et tri, 404 sur article inconnu ; test aligné et exécuté. |
-| **P1-13** | Tests sur base partagée, `Assumptions` sur données de démonstration, jeton synthétique `ADMIN` pour les tests métier, pas de scénario à deux entreprises ni de concurrence. Après le Lot 2, la suite complète compte 132 tests et 0 échec, avec des tests de rollback DAO et service. | La suite ne prouve pas encore la tenancy complète, l'intégrité de tous les cas d'usage ou la concurrence. | P1-09 | Base isolée/Testcontainers, rollback ou fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction ; rapport complet vert sur HEAD. |
+| **P1-13** | Tests sur base partagée, `Assumptions` sur données de démonstration, jeton synthétique `ADMIN` pour les tests métier, pas de scénario à deux entreprises ni de concurrence. Après le Lot 3, la suite complète compte 140 tests et 0 échec, dont des tests de solde, d'immuabilité, de rollback d'opération et de clôture de comptage. | La suite ne prouve pas encore la tenancy complète, l'intégrité de tous les cas d'usage ou la concurrence. | P1-09 | Base isolée/Testcontainers, rollback ou fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction ; rapport complet vert sur HEAD. |
 | **P1-14** | Aucune colonne de version, aucun `ETag`/`If-Match`, aucune `Idempotency-Key` ; la course sur `uq_item_assignment_active` devient un 500. | Écrasements de mise à jour et doublons en cas de double clic ou de retry. | P0-04 | Verrouillage optimiste, idempotence des créations sensibles, 409 explicite sur conflit ; tests concurrents. |
 
-**Statut après Lot 2 :** `P1-01`, `P1-02`, `P1-09` et `P1-10` sont corrigés et vérifiés par la suite complète. `P1-09` conserve un adaptateur statique centralisé au lieu d'une injection dans chaque DAO ; le contournement de Spring et l'absence de pool sont toutefois corrigés. `P1-14` reste ouvert : aucune colonne `version`, aucun `If-Match` ni `Idempotency-Key` n'a été ajouté, car ce choix modifie le schéma et le contrat. Les autres P1 restent ouverts.
+**Statut après Lot 3 :** `P1-01`, `P1-02`, `P1-09` et `P1-10` sont corrigés et vérifiés par la suite complète. `P1-09` conserve un adaptateur statique centralisé au lieu d'une injection dans chaque DAO ; le contournement de Spring et l'absence de pool sont toutefois corrigés. `P1-03`, `P1-06` et `P1-07` sont corrigés dans le périmètre du Lot 3 et couverts par huit tests dédiés. `P1-14` reste ouvert : la colonne `version` existe sur `stock_balance`, mais aucun `ETag`/`If-Match` ni `Idempotency-Key` n'est appliqué aux écritures sensibles. Les autres P1 restent ouverts.
 
 ### 5.3. P2 — dette structurante
 
@@ -251,28 +255,41 @@ L'audit initial s'appuie sur un rapport complet de **21 classes et 105 tests**, 
 | Tests ajoutés au Lot 2 | rollback DAO, rollback service mouvement, pool Hikari, défauts type/employé, mapping SQL |
 | Nettoyage | requêtes `phase2-*`/`phase5-*` : 0 ligne résiduelle |
 
-### 7.4. Divergence historique retirée
+### 7.4. État après le Lot 3 (22 octobre 2026)
+
+| Élément | Constat |
+|---|---|
+| Suites de test dans `src/test` | 28 |
+| Tests exécutés | 140 |
+| Résultat | **140 succès, 0 échec, 0 erreur, 0 ignoré** |
+| Commande | `.\mvnw.cmd -q test` |
+| Tests dédiés | `Lot3StockModelTests` : 8 tests (solde/API, acteur JWT, stock négatif, immuabilité, rollback multi-lignes, comptage/clôture, rollback de clôture, 404) |
+| Migration | `19_lot3_stock.sql` appliquée puis rejouée : `INSERT 0 0`, soldes inchangés |
+| Nettoyage | `phase2-*`, `phase3-*`, `phase3-lot3-*`, `phase5-*` : 0 ligne résiduelle |
+| Cohérence des soldes | `mismatches = 0` après réconciliation ponctuelle des données de démonstration |
+
+### 7.5. Divergence historique retirée
 
 `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre courant. Le contrôleur d'historique conserve toutefois ses limites fonctionnelles (absence de contrôle d'existence, chargement global et filtrage en mémoire) ; elles relèvent de `P1-12` et ne sont pas corrigées par le Lot 2. L'ancien échec ne doit donc plus être présenté comme un échec courant.
 
-### 7.5. Conséquence pour les statuts `PASS`
+### 7.6. Conséquence pour les statuts `PASS`
 
-Les `PASS` du rapport 15 restent des constats statiques ou historiques, sauf pour les tests d'authentification/RBAC exécutés au Lot 1 et les tests du Lot 2. Les critères qui dépendent d'un scénario à deux entreprises ou d'un test de concurrence restent `NON VÉRIFIÉ` ou `PARTIEL`.
+Les `PASS` du rapport 15 restent des constats statiques ou historiques, sauf pour les tests d'authentification/RBAC exécutés au Lot 1, les tests de transaction du Lot 2 et les tests de stock/opération/comptage du Lot 3. Les critères qui dépendent d'un scénario à deux entreprises ou d'un test de concurrence restent `NON VÉRIFIÉ` ou `PARTIEL`.
 
 ---
 
 ## 8. Ordre de correction recommandé
 
-L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Le **Lot 1 a été exécuté partiellement** le 21 octobre 2026. Le **Lot 2 a été exécuté** le 22 octobre 2026 dans son périmètre P1-09, P0-04, P1-01, P1-02 et P1-10 ; le Lot 3 ne doit pas démarrer sans validation explicite.
+L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Le **Lot 1 a été exécuté partiellement** le 21 octobre 2026. Le **Lot 2 a été exécuté** le 22 octobre 2026 dans son périmètre P1-09, P0-04, P1-01, P1-02 et P1-10. Le **Lot 3 a été exécuté** le 22 octobre 2026 dans son périmètre P0-05, P1-03, P1-06 et P1-07 ; le Lot 4 ne doit pas démarrer sans validation explicite.
 
 | Étape | Lot | Contenu | Dépend de | Critère de sortie |
 |---:|---|---|---|---|
 | 0 | L0 | Décisions D-01 à D-08, gel du périmètre, base de test isolée, rapport complet de référence sur HEAD. | — | Décisions D-02, D-03 et D-08 prises ; suite complète exécutée sur la base de démonstration ; échec connu documenté. |
 | 1 | L1 | Identité, tenancy, RBAC : P0-02, P0-03, P0-01. | L0 | **Exécuté partiellement** : inscription fermée, entreprise dans le jeton, rôles rechargés, RBAC inventaire/administration, révocation testée. Restent les tests A/B, les filtres DAO d'inventaire et le RBAC hors inventaire. |
 | 2 | L2 | DataSource, pool, transactions : P1-09, P0-04, P1-01, P1-02, P1-10. | L1 | **Exécuté le 22 octobre 2026** : DAO sur `DataSource`/HikariCP, transactions effectives, erreurs client 400/409/422/503 sans SQLSTATE, créations avec défauts PostgreSQL relus. Suite : 132 tests verts. Restent `P0-01`, la concurrence (`P1-14`) et le RBAC hors inventaire. |
-| 3 | L3 | Modèle de stock : P0-05, P1-03, P1-06, P1-07. | L0, L2 | Source de vérité, quantités et acteurs, journal immuable, opérations et comptages réconciliés. |
+| 3 | L3 | Modèle de stock : P0-05, P1-03, P1-06, P1-07. | L0, L2 | **Exécuté le 22 octobre 2026** : `stock_balance`, migration `19_lot3_stock.sql`, journal append-only, opérations multi-lignes atomiques, comptages avec écart serveur et clôture réconciliée. Suite : 140 tests verts. Restent les affectations (`P0-06`), la tenancy (`P0-01`) et la concurrence (`P1-14`). |
 | 4 | L4 | Affectations et suppressions : P0-06, P1-05, P1-11. | L2, L3, D-04, D-06 | Un seul contrat, invariant `ASSIGNED`, retours et suppressions cohérents. |
-| 5 | L6 | Comptages et réconciliation : P1-07. | L3 | Écarts calculés serveur, clôture atomique, timestamps et ajustements. |
+| 5 | L6 | Compléments de comptage : annulation, pagination, journalisation des ajustements. | L3 | Le cœur de `P1-07` est exécuté au Lot 3 ; restent les compléments hors périmètre. |
 | 6 | L5 | QR, scan et étiquettes : P1-04, P2-05. | L1, L3, L4, D-05 | Scan tenant-scoped et enrichi, journal, étiquettes. |
 | 7 | L7 | Contrat HTTP : P1-12, P2-02, P2-03, P1-08, P1-14. | L1, L3 | `/api/v1` ou stratégie de dépréciation, historique filtré/paginé, pagination, erreurs stables, idempotence et concurrence. |
 | 8 | L8 | Tests, CI, performance : P1-13, P2-06. | L1 à L7 | Suite isolée verte, tests RBAC/tenancy/transaction/concurrence, couverture et lint OpenAPI. |
@@ -288,7 +305,7 @@ L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Le **
 
 ### 8.2. Portes Go/No-Go
 
-- **Prototype interne mono-entreprise :** possible avec un utilisateur de confiance, sans écran de stock fiable, sans multi-entreprise et sans promesse d'audit.
+- **Prototype interne mono-entreprise :** possible avec un utilisateur de confiance et un stock fiable pour les mouvements/opérations/comptages, mais sans multi-entreprise, sans affectations synchronisées et sans promesse d'audit complet.
 - **Pilote élargi :** exige les P0 et les P1 de sécurité, tenancy, transaction, stock et affectations.
 - **Production :** exige la fermeture des six P0, des P1 applicables au périmètre, les critères du rapport 15 et un rapport de tests complet vert sur une base isolée.
 - **Frontend de production :** ne doit pas démarrer avant la stabilisation du contrat, de la tenancy, du RBAC, du stock et des affectations.
@@ -297,7 +314,7 @@ L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Le **
 
 ## 9. Limites de la revue
 
-- **Suite complète exécutée après le Lot 2** : 132 tests, 0 échec, 0 erreur, 0 ignoré, 27 suites. La base de démonstration a été utilisée ; aucun reset ni migration destructive n'a été effectué. Les données de test marquées `phase2-*`/`phase5-*` ont été supprimées.
+- **Suite complète exécutée après le Lot 3** : 140 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites. La base de démonstration a été utilisée ; aucun reset ni migration destructive n'a été effectué. La migration additive `19_lot3_stock.sql` a été appliquée puis rejouée pour vérifier son idempotence. Les données de test marquées `phase2-*`, `phase3-*`, `phase3-lot3-*` et `phase5-*` ont été supprimées.
 - **Pas de test multi-entreprise réel.** La base de démonstration ne contient qu'une entreprise. Le scope entreprise des utilisateurs/rôles est testé, mais l'isolation des DAO d'inventaire n'est pas garantie.
 - **Pas de test de concurrence.** Les conclusions sur les transactions et les verrous reposent sur le mode de connexion et l'absence de version.
 - **OpenAPI non rejoué.** Les 183 avertissements sont un constat de l'audit initial ; le décompte courant n'a pas été reproduit.
@@ -308,10 +325,10 @@ L'ordre reprend les lots du rapport 14, avec les dépendances vérifiées. Le **
 
 ## 10. Conclusion
 
-La revue confirme le verdict et les priorités. Les rapports 13 à 15 restent des **propositions**, pas des fonctionnalités livrées. Les corrections documentaires lèvent les contradictions de comptage, de routes, d'OpenAPI et de tests, sans masquer les anomalies de code. Le Lot 1 a corrigé l'identité et une partie du RBAC/tenancy ; le Lot 2 a rétabli un pool Spring et des transactions réelles, sans changer le verdict de production.
+La revue confirme le verdict et les priorités. Les rapports 13 à 15 restent des **propositions**, pas des fonctionnalités livrées. Les corrections documentaires lèvent les contradictions de comptage, de routes, d'OpenAPI et de tests, sans masquer les anomalies de code. Le Lot 1 a corrigé l'identité et une partie du RBAC/tenancy ; le Lot 2 a rétabli un pool Spring et des transactions réelles ; le Lot 3 a posé un stock calculé, un journal immuable et des comptages réconciliés, sans changer le verdict de production.
 
-Le point le plus dangereux n'est pas une erreur de documentation : c'est la combinaison **tenancy d'inventaire incomplète + RBAC partiel + stock déclaratif + concurrence non maîtrisée**. Elle interdit un frontend de production et un usage multi-entreprise.
+Le point le plus dangereux n'est pas une erreur de documentation : c'est la combinaison **tenancy d'inventaire incomplète + RBAC partiel + affectations non synchronisées avec le solde + concurrence non maîtrisée**. Elle interdit un frontend de production et un usage multi-entreprise. Les ajustements de clôture de comptage modifient le solde sans écrire de mouvement compensatoire : la reconstitution du solde depuis le seul journal n'est donc pas encore complète.
 
-**Décision :** le Lot 2 est terminé dans son périmètre documenté. Le Lot 3 et toute modification supplémentaire de code, SQL, test, configuration, dépendance ou OpenAPI doivent attendre une validation explicite. `P0-01` et `P1-14` restent ouverts et ne doivent pas être considérés comme couverts par le Lot 2.
+**Décision :** le Lot 3 est terminé dans son périmètre documenté. Le Lot 4 et toute modification supplémentaire de code, SQL, test, configuration, dépendance ou OpenAPI doivent attendre une validation explicite. `P0-01`, `P0-06` et `P1-14` restent ouverts et ne doivent pas être considérés comme couverts par le Lot 3.
 
 Les preuves détaillées restent dans les rapports 00 à 15 ; le registre consolidé est dans [`12-anomalies-risques-priorites.md`](12-anomalies-risques-priorites.md), le plan dans [`14-plan-corrections.md`](14-plan-corrections.md) et les critères dans [`15-criteres-validation-api.md`](15-criteres-validation-api.md).

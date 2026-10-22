@@ -21,4 +21,8 @@
 \i docs/database/schema/17_seed_permissions.sql
 \i docs/database/schema/18_lot1_security.sql
 
+-- Le schéma de base est validé avant la migration de stock, qui gère
+-- sa propre transaction et son backfill.
 COMMIT;
+
+\i docs/database/schema/19_lot3_stock.sql

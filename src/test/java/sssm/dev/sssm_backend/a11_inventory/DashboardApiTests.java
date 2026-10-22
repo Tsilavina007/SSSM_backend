@@ -126,37 +126,57 @@ class DashboardApiTests {
     String id;
     try (Connection conn = DatabaseConnection.getConnection()) {
       String companyId;
+      String warehouseId;
       try (PreparedStatement stmt =
-          conn.prepareStatement("SELECT id FROM security.company ORDER BY id LIMIT 1");
+          conn.prepareStatement(
+              "SELECT (SELECT id FROM security.company ORDER BY id LIMIT 1) AS company_id, "
+                  + "(SELECT id FROM security.warehouse ORDER BY id LIMIT 1) AS warehouse_id");
           ResultSet rs = stmt.executeQuery()) {
-        assertTrue(rs.next(), "une entreprise de démonstration est requise");
-        companyId = rs.getString(1);
+        assertTrue(rs.next(), "des données de démonstration sont requises");
+        companyId = rs.getString("company_id");
+        warehouseId = rs.getString("warehouse_id");
       }
       try (PreparedStatement stmt =
           conn.prepareStatement(
               "INSERT INTO security.item_type "
                   + "(company_id, code, name, quantity_total, minimum_stock) "
-                  + "VALUES (?, ?, ?, ?, ?) RETURNING id")) {
+                  + "VALUES (?, ?, ?, 0, ?) RETURNING id")) {
         stmt.setObject(1, java.util.UUID.fromString(companyId));
         stmt.setString(2, code);
         stmt.setString(3, code);
-        stmt.setBigDecimal(4, quantity);
-        stmt.setBigDecimal(5, minimum);
+        stmt.setBigDecimal(4, minimum);
         try (ResultSet rs = stmt.executeQuery()) {
           assertTrue(rs.next());
           id = rs.getString(1);
         }
+      }
+      try (PreparedStatement stmt =
+          conn.prepareStatement(
+              "INSERT INTO security.stock_balance "
+                  + "(company_id, warehouse_id, item_type_id, quantity) VALUES (?, ?, ?, ?)")) {
+        stmt.setObject(1, java.util.UUID.fromString(companyId));
+        stmt.setObject(2, java.util.UUID.fromString(warehouseId));
+        stmt.setObject(3, java.util.UUID.fromString(id));
+        stmt.setBigDecimal(4, quantity);
+        stmt.executeUpdate();
       }
     }
     return id;
   }
 
   private static void purge() throws Exception {
-    try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt =
-            conn.prepareStatement(
-                "DELETE FROM security.item_type WHERE code LIKE 'phase5-lowstock-%'")) {
-      stmt.executeUpdate();
+    try (Connection conn = DatabaseConnection.getConnection()) {
+      try (PreparedStatement stmt =
+          conn.prepareStatement(
+              "DELETE FROM security.stock_balance WHERE item_type_id IN "
+                  + "(SELECT id FROM security.item_type WHERE code LIKE 'phase5-lowstock-%')")) {
+        stmt.executeUpdate();
+      }
+      try (PreparedStatement stmt =
+          conn.prepareStatement(
+              "DELETE FROM security.item_type WHERE code LIKE 'phase5-lowstock-%'")) {
+        stmt.executeUpdate();
+      }
     }
   }
 }

@@ -30,5 +30,7 @@ public interface ItemDAO {
 
   void updateItemLocation(String id, String warehouseId);
 
+  void updateLastInventoryAt(String id, java.sql.Timestamp value);
+
   void deleteItem(String id);
 }

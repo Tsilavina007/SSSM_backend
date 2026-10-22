@@ -1,6 +1,6 @@
 ﻿# 11 — Audit des tests et de la fiabilité
 
-**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 22 octobre 2026 après le Lot 2 : **132 tests, 132 succès, 0 échec, 0 erreur, 0 ignoré, 27 suites**.
+**Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction. La suite complète a été exécutée le 22 octobre 2026 après le Lot 3 : **140 tests, 140 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites**.
 
 ---
 
@@ -85,6 +85,22 @@ Le HEAD de travail n'est plus `7e3f196` : le Lot 1 ajoute `AuthHardeningApiTests
 | Nettoyage | `phase2-*`/`phase5-*` : 0 ligne résiduelle |
 
 Le Lot 2 ajoute des tests de pool HikariCP, de rollback DAO, de rollback du service de mouvement, de défauts de type/employé, de réponse de création, de doublon 409 et de FK 422. L'ancien test `historyUnknownReturnsNotFound` n'est plus présent dans l'arbre ; l'anomalie fonctionnelle de l'historique reste décrite en `P1-12`, mais elle n'est plus un échec de suite.
+
+### 1.4. État après le Lot 3 (22 octobre 2026)
+
+| Indicateur | Valeur |
+|---|---|
+| Suites de tests | 28 |
+| Tests exécutés | 140 |
+| Succès | 140 |
+| Échecs | 0 |
+| Erreurs | 0 |
+| Ignorés | 0 |
+| Commande | `.\mvnw.cmd -q test` |
+| Tests dédiés | `Lot3StockModelTests` : 8 tests |
+| Nettoyage | `phase2-*`, `phase3-*`, `phase3-lot3-*`, `phase5-*` : 0 ligne résiduelle |
+
+Le Lot 3 ajoute les tests de solde calculé, d'immuabilité du journal, de stock négatif, d'acteur JWT, de rollback des opérations multi-lignes, de comptage avec écart serveur, de clôture réconciliée et de rollback de clôture. La suite reste exécutée sur la base de démonstration partagée : elle ne prouve ni la tenancy A/B, ni la concurrence, ni la synchronisation des affectations.
 
 ---
 
@@ -385,7 +401,7 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 
 ## 11. Verdict
 
-Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a renforcé la couverture de l'identité, du RBAC et de la révocation ; le Lot 2 ajoute le pool, le rollback transactionnel, les défauts de création et le mapping SQL. La suite complète exécutée donne **132 tests, 132 succès, 0 échec, 27 suites**.
+Les tests sont **nombreux pour un prototype** et **utiles pour les parcours nominaux**. Le Lot 1 a renforcé la couverture de l'identité, du RBAC et de la révocation ; le Lot 2 ajoute le pool, le rollback transactionnel, les défauts de création et le mapping SQL ; le Lot 3 ajoute les soldes calculés, l'immuabilité du journal, le rollback des opérations multi-lignes et la réconciliation des comptages. La suite complète exécutée donne **140 tests, 140 succès, 0 échec, 28 suites**.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 

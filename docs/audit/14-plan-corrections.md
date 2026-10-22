@@ -1,6 +1,6 @@
 ﻿# 14 — Plan de correction
 
-**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Le Lot 1 a été exécuté le 21 octobre 2026 ; les autres lots restent à planifier. Le détail de l'exécution du Lot 1 est consigné dans la section 4.6.
+**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Le Lot 1 a été exécuté le 21 octobre 2026, le Lot 2 le 22 octobre 2026 et le Lot 3 le 22 octobre 2026 ; les autres lots restent à planifier. Le détail du Lot 1 est consigné dans la section 4.6 et celui du Lot 3 dans la section 6.5.
 
 **Principe directeur :** ne pas ajouter d'écran sur un contrat faux. La stabilité de la tenancy, des transactions et du stock précède le frontend.
 
@@ -32,10 +32,10 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | L0 | Décisions et cadrage | P0 | — | S |
 | L1 | Identité, tenancy, RBAC | P0 | L0 | XL |
 | L2 | Accès aux données et transactions | P0 | L1 | L |
-| L3 | Modèle de stock | P0 | L0, L2 | XL |
+| L3 | Modèle de stock — **exécuté le 22 octobre 2026** | P0 | L0, L2 | XL |
 | L4 | Affectations et mouvements | P0 | L3 | L |
 | L5 | QR, scan, étiquettes | P1 | L1, L3, L4 | L |
-| L6 | Comptages et réconciliation | P1 | L3 | L |
+| L6 | Compléments de comptage et journalisation des ajustements | P1 | L3 | L |
 | L7 | Contrat HTTP, erreurs, pagination | P1 | L1, L3 | M |
 | L8 | Tests, CI, performance | P1 | L1-L7 | M |
 | L9 | Préparation frontend | P2 | L7, L8 | M |
@@ -220,7 +220,7 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - la configuration de production est celle réellement utilisée ;
 - les doublons et FK produisent 409/422, pas 500.
 
-**Vérification au 22 octobre 2026 :** ces quatre critères sont couverts par `DatabaseConnection`, `application.properties`, `DatabaseTransactionRollbackTests`, `StockMovementTransactionTests`, `SqlErrorMappingTests`, `ItemCategoryApiTests` et `ItemTypeApiTests`. La suite complète est verte (132 tests).
+**Vérification au 22 octobre 2026 :** ces quatre critères sont couverts par `DatabaseConnection`, `application.properties`, `DatabaseTransactionRollbackTests`, `StockMovementTransactionTests`, `SqlErrorMappingTests`, `ItemCategoryApiTests` et `ItemTypeApiTests`. Après le Lot 3, la suite complète est verte (140 tests, 28 suites).
 
 ---
 
@@ -275,6 +275,38 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - un mouvement ne peut plus être modifié ou supprimé ;
 - un comptage clôturé met à jour `last_inventory_at` et les soldes ;
 - le dashboard et les alertes utilisent la source de vérité.
+
+### 6.5. Exécution du Lot 3 — 22 octobre 2026
+
+**Décision appliquée :** D-01, stock calculé avec journal et table de soldes. Le stock déclaratif (`item_type.quantity_total`) n'est plus la source du dashboard low-stock.
+
+**Migration `19_lot3_stock.sql`.** Additive, appliquée après `18_lot1_security.sql` et incluse dans `sssm_schema2_v01.sql` :
+
+- création de `security.stock_balance` avec clé unique `(company_id, warehouse_id, item_type_id)`, `quantity NUMERIC(12,2) CHECK (quantity >= 0)` et `version` ;
+- ajout de `expected_quantity`, `counted_quantity` et `difference` à `inventory_count_scan`, avec contraintes `CHECK` nullables pour préserver les scans historiques ;
+- backfill des soldes depuis les articles `AVAILABLE`, non archivés et rattachés à un entrepôt. Le backfill utilise `ON CONFLICT DO NOTHING` : le rejouer n'écrase pas les soldes issus de mouvements ou de comptages postérieurs à la bascule ;
+- index de lecture `idx_stock_balance_warehouse_type`, `idx_stock_balance_company_type` et `idx_warehouse_stock_config_lookup`.
+
+La migration ne contient ni `DROP`, ni `DELETE`, ni `TRUNCATE`, ni ajout de `NOT NULL` sur une colonne historique. Elle a été appliquée sur la base de démonstration, puis rejouée pour vérifier qu'elle ne réinitialise pas les soldes.
+
+**Code livré :**
+
+- `stock_balance` : DAO, service, contrôleur, DTO et mapper ; `GET /api/inventory/stock-balances` avec filtres `warehouseId`/`itemTypeId` et pagination plafonnée ;
+- `StockMovementService` : quantités, source/destination, opération, acteur, soldes dans la transaction du mouvement, refus du stock négatif (`409 INSUFFICIENT_STOCK`), `PATCH`/`DELETE` interdits (`409 IMMUTABLE_RESOURCE`) ;
+- `OperationService` : type imposé par la route, au moins une ligne, en-tête + lignes + mouvements atomiques, statut `COMPLETED` ;
+- `InventoryCountService`/`InventoryCountDAOImpl` : quantité attendue figée au scan, quantité comptée, écart et type d'écart calculés serveur, contrôle d'entreprise, `404` sur comptage inconnu, clôture atomique avec `last_inventory_at`, `completed_at` et réconciliation du solde ;
+- `ItemService` et `DashboardDAOImpl` : synchronisation des créations/modifications/suppressions directes d'articles et lecture du solde réel pour le low-stock, avec `warehouse_stock_config.minimum_stock` comme seuil effectif.
+
+**Colonnes cibles non ajoutées :** `idempotency_key`, `reversed_by`, `reversed_at` et `occurred_at` restent hors périmètre. L'idempotence et la concurrence relèvent de `P1-14` ; `created_at` est utilisé comme horodatage d'occurrence ; la correction se fait par création d'un mouvement inverse manuel. `inventory_operation_item` réutilise ses colonnes `quantity` et `movement_id` ; les entrepôts source/destination restent portés par le mouvement.
+
+**Preuves :**
+
+- `Lot3StockModelTests` : 8 tests (solde et API, acteur JWT, stock négatif, journal immuable, rollback multi-lignes, comptage/écart/clôture, rollback de clôture, 404) ;
+- suite complète : **140 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** ;
+- rejeu de `19_lot3_stock.sql` sur la base de démonstration : `INSERT 0 0`, `COMMIT`, soldes inchangés ;
+- contrôle SQL : aucun marqueur `phase3-lot3-*`, `phase3-*`, `phase2-*` ou `phase5-*` résiduel ; réconciliation ponctuelle des données de démonstration (`UPDATE 1`, RADIO principal 4 → 2), puis `mismatches = 0` entre `stock_balance` et les articles `AVAILABLE`.
+
+**Limites résiduelles :** `P0-01` (tenancy), `P0-06` (affectations non synchronisées avec le solde) et `P1-14` (concurrence/idempotence) restent ouverts. La clôture de comptage ajuste directement le solde sans écrire de mouvement compensatoire ; la reconstitution du solde depuis le seul journal n'est donc pas complète. Un comptage vide peut encore être clôturé (hors périmètre du Lot 3).
 
 ---
 

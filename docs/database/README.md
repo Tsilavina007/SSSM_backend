@@ -44,7 +44,8 @@ database/
     ├── 15_indexes.sql
     ├── 16_triggers.sql
     ├── 17_seed_permissions.sql
-    └── 18_lot1_security.sql
+    ├── 18_lot1_security.sql
+    └── 19_lot3_stock.sql
 ```
 
 ## Données initiales (seed)
@@ -98,6 +99,36 @@ Après application, les comptes non-plateforme existants sont rattachés à
 l'entreprise de démonstration. Un administrateur plateforme conserve
 `company_id = NULL`.
 
+## Migration Lot 3
+
+`19_lot3_stock.sql` est une migration **additive** appliquée après
+`18_lot1_security.sql` :
+
+- création de `security.stock_balance`, avec clé unique
+  `(company_id, warehouse_id, item_type_id)` et colonne `version` ;
+- ajout de `expected_quantity`, `counted_quantity` et `difference` à
+  `inventory_count_scan` ;
+- backfill initial des soldes depuis les articles `AVAILABLE`, non
+  archivés et rattachés à un entrepôt ;
+- index de lecture pour le dashboard et les alertes.
+
+Les colonnes de comptage restent nullables : les scans historiques ne
+sont ni supprimés ni réécrits. Le backfill utilise `ON CONFLICT DO
+NOTHING` et n'écrase donc pas un solde déjà alimenté par des mouvements
+ou des comptages postérieurs à la bascule. Le script ne contient ni
+`DROP`, ni `DELETE`, ni `TRUNCATE`, ni ajout de `NOT NULL` sur une
+colonne historique.
+
+Le fichier principal `sssm_schema2_v01.sql` valide le schéma de base,
+puis exécute cette migration dans sa propre transaction. Sur une base
+existante, l'application se fait après l'arrêt de l'application ou
+pendant une fenêtre de maintenance :
+
+```bash
+cd sssm_backend
+psql -d sssm_db -f docs/database/schema/19_lot3_stock.sql -U your_user
+```
+
 ## Exécution complète
 
 Les scripts SQL sont exécutés depuis la racine du projet `sssm_backend` :
@@ -109,7 +140,9 @@ psql -d sssm_db -f docs/database/sssm_schema2_v01.sql -U your_user
 
 Les fichiers sont exécutés dans l'ordre numérique afin de respecter les
 dépendances entre les types enum, les tables, les index, les triggers et
-les données initiales.
+les données initiales. Le fichier principal inclut les migrations
+`18_lot1_security.sql` et `19_lot3_stock.sql` ; une installation neuve
+dispose donc directement de `stock_balance`.
 
 ## Exécution d'une section
 

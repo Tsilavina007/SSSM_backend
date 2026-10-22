@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.operation.repository;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.*;
 import org.springframework.stereotype.Repository;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import sssm.dev.sssm_backend.a00_infrastructure.database.DatabaseConnection;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
+import sssm.dev.sssm_backend.a11_inventory.operation.dto.OperationLineResponse;
 import sssm.dev.sssm_backend.a11_inventory.operation.dto.OperationResponse;
 
 /** JDBC DAO for the inventory operation module. */
@@ -21,7 +23,8 @@ public class OperationDAOImpl implements OperationDAO {
     return m;
   }
 
-  private OperationResponse mapRowToOperation(ResultSet r) throws SQLException {
+  private OperationResponse mapRowToOperation(
+      ResultSet r, List<OperationLineResponse> lines) throws SQLException {
     return new OperationResponse(
         r.getString("id"),
         r.getString("company_id"),
@@ -36,7 +39,35 @@ public class OperationDAOImpl implements OperationDAO {
         r.getString("performed_by"),
         r.getString("notes"),
         r.getTimestamp("created_at"),
-        r.getTimestamp("completed_at"));
+        r.getTimestamp("completed_at"),
+        lines);
+  }
+
+  private List<OperationLineResponse> loadLines(Connection c, UUID operationId)
+      throws SQLException {
+    List<OperationLineResponse> lines = new ArrayList<>();
+    String sql =
+        "SELECT * FROM security.inventory_operation_item "
+            + "WHERE operation_id = ? ORDER BY scanned_at, id";
+    try (PreparedStatement p = c.prepareStatement(sql)) {
+      p.setObject(1, operationId);
+      try (ResultSet r = p.executeQuery()) {
+        while (r.next()) {
+          lines.add(
+              new OperationLineResponse(
+                  r.getString("id"),
+                  r.getString("operation_id"),
+                  r.getString("item_id"),
+                  r.getString("movement_id"),
+                  r.getBigDecimal("quantity"),
+                  r.getString("condition_before"),
+                  r.getString("condition_after"),
+                  r.getTimestamp("scanned_at"),
+                  r.getString("notes")));
+        }
+      }
+    }
+    return lines;
   }
 
   private Object id(Object x) {
@@ -78,13 +109,42 @@ public class OperationDAOImpl implements OperationDAO {
   }
 
   public Optional<OperationResponse> one(String v) {
+    UUID operationId = UUID.fromString(v);
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p =
             c.prepareStatement("SELECT * FROM " + inventory_operation + " WHERE id=?")) {
-      p.setObject(1, id(v));
+      p.setObject(1, operationId);
       try (ResultSet r = p.executeQuery()) {
-        return r.next() ? Optional.of(mapRowToOperation(r)) : Optional.empty();
+        if (!r.next()) return Optional.empty();
+        return Optional.of(mapRowToOperation(r, loadLines(c, operationId)));
       }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public String addLine(
+      String operationId,
+      String itemId,
+      String movementId,
+      BigDecimal quantity,
+      String notes) {
+    String sql =
+        "INSERT INTO security.inventory_operation_item "
+            + "(operation_id, item_id, movement_id, quantity, notes) "
+            + "VALUES (?, ?, ?, ?, ?) RETURNING id";
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement p = c.prepareStatement(sql)) {
+      p.setObject(1, UUID.fromString(operationId));
+      p.setObject(2, UUID.fromString(itemId));
+      p.setObject(3, movementId == null ? null : UUID.fromString(movementId));
+      p.setBigDecimal(4, quantity == null ? BigDecimal.ONE : quantity);
+      p.setString(5, notes);
+      try (ResultSet r = p.executeQuery()) {
+        if (r.next()) return r.getString("id");
+      }
+      throw new ServerException("La ligne d'opération n'a pas pu être enregistrée.");
     } catch (SQLException e) {
       throw new ServerException(e);
     }

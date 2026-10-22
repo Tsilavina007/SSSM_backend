@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.operation.repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,6 +15,13 @@ public interface OperationDAO {
   Optional<OperationResponse> one(String id);
 
   Object save(String id, Map<String, Object> body, boolean update);
+
+  String addLine(
+      String operationId,
+      String itemId,
+      String movementId,
+      BigDecimal quantity,
+      String notes);
 
   Map<String, Object> delete(String id);
 

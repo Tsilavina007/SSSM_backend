@@ -29,14 +29,14 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Domaine | Éléments examinés |
 |---|---|
 | Cartographie | packages, contrôleurs, services, DAO, DTO, mappers, configuration, dépendances |
-| API | 26 contrôleurs REST, 131 routes applicatives après le Lot 1 (130 à l'audit initial), codes HTTP, validation, erreurs, pagination |
-| Base de données | schéma `security`, scripts `00_init.sql` à `18_lot1_security.sql`, contraintes, index, triggers |
+| API | 27 contrôleurs REST, 133 routes applicatives après le Lot 3 (130 à l'audit initial, 131 après le Lot 1), codes HTTP, validation, erreurs, pagination |
+| Base de données | schéma `security`, scripts `00_init.sql` à `19_lot3_stock.sql`, contraintes, index, triggers |
 | Catalogue | catégories, types de matériel, entrepôts, articles |
 | Stock | mouvements, opérations, comptages, tableau de bord, rapports |
 | QR Code | génération, image PNG, résolution, scan |
 | Affectations | deux modules distincts (`item_assignment` et `assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 27 suites / 132 tests après le Lot 2 ; suite complète exécutée : 132 succès, 0 échec |
+| Tests | 28 suites / 140 tests après le Lot 3 ; suite complète exécutée : 140 succès, 0 échec |
 | OpenAPI | 26 fichiers YAML, dont 12 pour l'inventaire |
 
 ## 3. Périmètre exclu
@@ -60,10 +60,10 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Sécurité | Spring Security, JJWT `0.12.6`, BCrypt |
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
-| Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migration Lot 1 appliquée ensuite, tests Lot 2 avec nettoyage des marqueurs |
-| Rapports de tests | Exécution complète du 22 octobre 2026 après le Lot 2 : 132 tests, 132 succès, 0 échec, 27 suites. Tests ciblés authentification/RBAC : 29 succès. |
+| Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations Lots 1 et 3 appliquées ensuite, tests Lots 2 et 3 avec nettoyage des marqueurs |
+| Rapports de tests | Exécution complète du 22 octobre 2026 après le Lot 3 : 140 tests, 140 succès, 0 échec, 28 suites. Tests ciblés authentification/RBAC : 29 succès. |
 | Documentation API | `docs/api/**/*.yaml` — 26 fichiers |
-| Scripts SQL | `docs/database/schema/00_init.sql` à `18_lot1_security.sql` — 19 fichiers |
+| Scripts SQL | `docs/database/schema/00_init.sql` à `19_lot3_stock.sql` — 20 fichiers |
 
 Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196`. Le Lot 1 a ensuite été exécuté sur le HEAD `13bb79b` (`docs(audit): reconcile reports with current HEAD`), sans commit de correction à ce stade.
 
@@ -131,7 +131,7 @@ Les priorités utilisées dans le registre sont :
 
 ## 8. Limites de l'audit
 
-- **La suite complète a été exécutée après le Lot 2** : 132 tests, 132 succès, 0 échec, 0 erreur, 0 ignoré, 27 suites. L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre ; l'anomalie fonctionnelle de l'historique reste ouverte (`P1-12`) et n'est plus couverte par un test négatif. Les résultats historiques (105 tests, puis 120 tests après le Lot 1) proviennent d'exécutions antérieures et ne décrivent plus l'état courant.
+- **La suite complète a été exécutée après le Lot 3** : 140 tests, 140 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites. L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre ; l'anomalie fonctionnelle de l'historique reste ouverte (`P1-12`) et n'est plus couverte par un test négatif. Les résultats historiques (105 tests, puis 120 tests après le Lot 1, 132 après le Lot 2) proviennent d'exécutions antérieures et ne décrivent plus l'état courant.
 - **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise. Le Lot 1 applique l'hypothèse mono-entreprise et ajoute le scope entreprise sur les utilisateurs et rôles, mais les DAO d'inventaire ne filtrent pas encore par `company_id`.
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
@@ -187,4 +187,14 @@ Le **Lot 2**, exécuté le 22 octobre 2026, a modifié :
 
 Aucune dépendance n'a été ajoutée, aucune migration SQL n'a été appliquée et aucun fichier OpenAPI n'a été modifié. La concurrence (`version`/`If-Match`, `Idempotency-Key`) et `P0-01` n'ont pas été traités.
 
-Le Lot 3 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.
+Le **Lot 3**, exécuté le 22 octobre 2026, a modifié :
+
+- la migration additive `19_lot3_stock.sql` et l'orchestrateur `sssm_schema2_v01.sql` ;
+- le module `stock_balance` et l'API `GET /api/inventory/stock-balances` ;
+- les services de mouvement, d'opération, de comptage, d'article et le dashboard low-stock ;
+- les DTO, DAO, mappers et contrôleurs associés ;
+- `Lot3StockModelTests` et les tests existants adaptés.
+
+La suite complète est verte : **140 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites**. La migration a été appliquée puis rejouée sans écraser les soldes existants. Aucune dépendance n'a été ajoutée et aucun fichier OpenAPI n'a été modifié. `P0-01`, `P0-06` et `P1-14` restent ouverts : la tenancy, les affectations et la concurrence ne sont pas couvertes par le Lot 3.
+
+Le Lot 4 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.

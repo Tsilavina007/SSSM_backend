@@ -13,6 +13,8 @@ public interface InventoryCountDAO {
 
   InventoryCountScanResponse createScan(String inventoryCountId, Map<String, Object> body);
 
+  void complete(String id, java.sql.Timestamp completedAt, String completedBy, String notes);
+
   List<InventoryCountResponse> list(
       Integer page, Integer size, String search, String where, Object... args);
 

@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.rest;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -16,6 +17,9 @@ public class InventoryCountScanRest {
   private Timestamp scanned_at;
   private String expected_warehouse_id;
   private String actual_warehouse_id;
+  private BigDecimal expected_quantity;
+  private BigDecimal counted_quantity;
+  private BigDecimal difference;
   private String discrepancy_type;
   private String notes;
   private String qr_code;

@@ -9,12 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jakarta.servlet.Filter;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,15 +34,18 @@ import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 @SpringBootTest
 class StockMovementTimestampTests {
 
+  private static final String TYPE_CODE = "phase2-ts-type";
+  private static final String ITEM_QR = "phase2-ts-item";
+
   @Autowired private WebApplicationContext context;
   @Autowired private JwtService jwtService;
 
   private MockMvc mockMvc;
   private String token;
+  private String companyId;
+  private String itemTypeId;
   private String warehouseId;
   private String itemId;
-  private String originalStatus;
-  private String originalWarehouseId;
 
   @BeforeEach
   void setUp() throws Exception {
@@ -51,51 +56,24 @@ class StockMovementTimestampTests {
     token = jwtService.createToken("test-user", "timestamp-tester", List.of("ADMIN"));
 
     try (Connection conn = DatabaseConnection.getConnection()) {
+      companyId = firstId(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
       warehouseId = firstId(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 1");
-      // Le test OUT exige un article disponible ; l'ordre des UUID ne garantit pas ce statut.
-      itemId =
-          firstId(
-              conn,
-              "SELECT id FROM security.item WHERE status = 'AVAILABLE' ORDER BY id LIMIT 1");
-      if (itemId != null) {
-        try (PreparedStatement stmt =
-            conn.prepareStatement(
-                "SELECT status, current_warehouse_id FROM security.item WHERE id = ?")) {
-          stmt.setObject(1, java.util.UUID.fromString(itemId));
-          try (ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-              originalStatus = rs.getString("status");
-              originalWarehouseId = rs.getString("current_warehouse_id");
-            }
-          }
-        }
-      }
     }
     Assumptions.assumeTrue(
-        warehouseId != null && itemId != null,
+        companyId != null && warehouseId != null,
         "base initialisée avec des données de démonstration requise");
+
+    purge();
+    try (Connection conn = DatabaseConnection.getConnection()) {
+      itemTypeId = insertItemType(conn, companyId);
+      itemId = insertItem(conn, companyId, itemTypeId, warehouseId);
+      insertBalance(conn, companyId, warehouseId, itemTypeId);
+    }
   }
 
   @AfterEach
   void cleanUp() throws Exception {
-    execute("DELETE FROM security.stock_movement WHERE notes LIKE 'phase2-ts-%'");
-    // Les mouvements OUT modifient l'article partagé : restaurer l'état initial.
-    if (itemId != null && originalStatus != null) {
-      try (Connection conn = DatabaseConnection.getConnection();
-          PreparedStatement stmt =
-              conn.prepareStatement(
-                  "UPDATE security.item SET status = CAST(? AS security.item_status),"
-                      + " current_warehouse_id = ? WHERE id = ?")) {
-        stmt.setString(1, originalStatus);
-        stmt.setObject(
-            2,
-            originalWarehouseId == null
-                ? null
-                : java.util.UUID.fromString(originalWarehouseId));
-        stmt.setObject(3, java.util.UUID.fromString(itemId));
-        stmt.executeUpdate();
-      }
-    }
+    purge();
   }
 
   @Test
@@ -228,11 +206,66 @@ class StockMovementTimestampTests {
         .andExpect(status().isBadRequest());
   }
 
+  private static String insertItemType(Connection conn, String companyId) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item_type (company_id, code, name) VALUES (?, ?, ?) RETURNING id")) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setString(2, TYPE_CODE);
+      stmt.setString(3, TYPE_CODE);
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
+  private static String insertItem(
+      Connection conn, String companyId, String itemTypeId, String warehouseId) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item "
+                + "(company_id, item_type_id, qr_code, status, current_warehouse_id) "
+                + "VALUES (?, ?, ?, 'AVAILABLE', ?) RETURNING id")) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setObject(2, UUID.fromString(itemTypeId));
+      stmt.setString(3, ITEM_QR);
+      stmt.setObject(4, UUID.fromString(warehouseId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
+  private static void insertBalance(
+      Connection conn, String companyId, String warehouseId, String itemTypeId) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.stock_balance "
+                + "(company_id, warehouse_id, item_type_id, quantity) VALUES (?, ?, ?, ?)")) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setObject(2, UUID.fromString(warehouseId));
+      stmt.setObject(3, UUID.fromString(itemTypeId));
+      stmt.setBigDecimal(4, BigDecimal.ONE);
+      stmt.executeUpdate();
+    }
+  }
+
   private static String firstId(Connection conn, String sql) throws Exception {
     try (PreparedStatement stmt = conn.prepareStatement(sql);
         ResultSet rs = stmt.executeQuery()) {
       return rs.next() ? rs.getString(1) : null;
     }
+  }
+
+  private static void purge() throws Exception {
+    execute("DELETE FROM security.stock_movement WHERE notes LIKE 'phase2-ts-%'");
+    execute(
+        "DELETE FROM security.stock_balance WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = '" + TYPE_CODE + "')");
+    execute("DELETE FROM security.item WHERE qr_code = '" + ITEM_QR + "'");
+    execute("DELETE FROM security.item_type WHERE code = '" + TYPE_CODE + "'");
   }
 
   private static void execute(String sql) throws Exception {

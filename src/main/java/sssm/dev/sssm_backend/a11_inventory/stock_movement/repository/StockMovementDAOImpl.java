@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.stock_movement.repository;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -120,8 +121,9 @@ public class StockMovementDAOImpl implements StockMovementDAO {
     // Colonnes requises toujours écrites ; les colonnes nullable sont omises
     // quand absentes pour laisser s'appliquer les défauts PostgreSQL
     // (movement_date NOT NULL DEFAULT now()).
-    StringBuilder columns = new StringBuilder("warehouse_id, item_id, movement_type");
-    StringBuilder placeholders = new StringBuilder("?, ?, CAST(? AS security.movement_type)");
+    StringBuilder columns = new StringBuilder("warehouse_id, item_id, movement_type, quantity");
+    StringBuilder placeholders =
+        new StringBuilder("?, ?, CAST(? AS security.movement_type), ?");
     List<Object> parameters = new ArrayList<>();
     String generatedId = null;
 
@@ -132,11 +134,32 @@ public class StockMovementDAOImpl implements StockMovementDAO {
         value.getMovement_type() == null
             ? MovementType.IN.name()
             : value.getMovement_type().name());
+    parameters.add(value.getQuantity() == null ? BigDecimal.ONE : value.getQuantity());
 
     if (value.getEmployee_id() != null) {
       columns.append(", employee_id");
       placeholders.append(", ?");
       parameters.add(UUID.fromString(value.getEmployee_id()));
+    }
+    if (value.getSource_warehouse_id() != null) {
+      columns.append(", source_warehouse_id");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(value.getSource_warehouse_id()));
+    }
+    if (value.getDestination_warehouse_id() != null) {
+      columns.append(", destination_warehouse_id");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(value.getDestination_warehouse_id()));
+    }
+    if (value.getOperation_id() != null) {
+      columns.append(", operation_id");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(value.getOperation_id()));
+    }
+    if (value.getPerformed_by() != null) {
+      columns.append(", performed_by");
+      placeholders.append(", ?");
+      parameters.add(UUID.fromString(value.getPerformed_by()));
     }
     if (value.getReference() != null) {
       columns.append(", reference");
@@ -277,6 +300,12 @@ public class StockMovementDAOImpl implements StockMovementDAO {
         MovementType.valueOf(rs.getString("movement_type")),
         rs.getString("reference"),
         rs.getTimestamp("movement_date"),
-        rs.getString("notes"));
+        rs.getString("notes"),
+        rs.getString("source_warehouse_id"),
+        rs.getString("destination_warehouse_id"),
+        rs.getString("operation_id"),
+        rs.getBigDecimal("quantity"),
+        rs.getString("performed_by"),
+        rs.getTimestamp("created_at"));
   }
 }

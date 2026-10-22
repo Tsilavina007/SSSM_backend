@@ -125,7 +125,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P0-05 — Stock non calculé et non réconcilié
 
-**Constat :**
+**Statut au 22 octobre 2026 (Lot 3) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 3.** La migration additive `19_lot3_stock.sql` crée `security.stock_balance` (clé unique entreprise/entrepôt/type, quantité et version), ajoute les quantités de comptage et backfille les soldes depuis les articles disponibles. `GET /api/inventory/stock-balances` expose le solde réel. Les mouvements `IN`, `OUT`, `TRANSFER`, `RETURN`, `DESTRUCTION` et `ADJUSTMENT` mettent à jour ce solde dans la même transaction ; un solde négatif est refusé en `409 INSUFFICIENT_STOCK`. Le dashboard low-stock lit désormais `stock_balance` et le seuil effectif `warehouse_stock_config`/`item_type.minimum_stock`. La clôture d'un comptage réconcilie l'article, son emplacement et le solde, et écrit `last_inventory_at`. **Limites résiduelles :** les lignes de mouvement antérieures au Lot 3 n'ont pas de source/destination/acteur ; `item_type.quantity_total` existe encore et reste modifiable mais n'est plus le critère low-stock ; les affectations (`P0-06`) peuvent encore changer l'état d'un article sans mettre à jour le solde ; les ajustements de clôture ne créent pas de mouvement compensatoire dans le journal.
+
+**Constat initial :**
 
 - `item_type.quantity_total` est un champ manuel, modifiable par `PATCH`, jamais mis à jour par un mouvement, une affectation, une destruction ou un comptage.
 - `stock_movement.quantity` vaut toujours `1` : le DTO ne l'expose pas.
@@ -199,7 +201,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-03 — Journal de mouvements mutable et incomplet
 
-**Constat :**
+**Statut au 22 octobre 2026 (Lot 3) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 3.** `PATCH` et `DELETE` sur un mouvement renvoient `409 IMMUTABLE_RESOURCE` après vérification de l'existence ; aucune ligne n'est modifiée ou supprimée. Les réponses exposent `quantity`, `source_warehouse_id`, `destination_warehouse_id`, `operation_id`, `performed_by` et `created_at`. L'acteur est résolu depuis le JWT lorsqu'il porte un UUID, sinon depuis l'UUID fourni ; à défaut il reste nul. Les mouvements créés par une opération portent `operation_id`. **Limites résiduelles :** les mouvements historiques restent incomplets ; l'acteur peut être nul pour les appels sans JWT UUID ni UUID explicite ; aucune compensation automatique n'est exposée, seule la création d'un mouvement inverse manuel est possible.
+
+**Constat initial :**
 
 - `PATCH` et `DELETE` sont exposés sans compensation ni contrôle d'état ;
 - la réponse standard n'expose ni quantité, ni source/destination, ni opération, ni acteur ;
@@ -245,7 +249,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-06 — Opérations d'inventaire vides
 
-**Constat :** `/receipt`, `/issue` et `/transfer` appellent la même méthode. Elles insèrent un en-tête `inventory_operation` avec les colonnes fournies, sans ligne d'article, sans mouvement, sans modification. Le type n'est pas déduit de la route. S'il est absent, `23502` → 500.
+**Statut au 22 octobre 2026 (Lot 3) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 3.** `/receipt`, `/issue` et `/transfer` déterminent le type par la route, refusent un corps sans ligne, créent l'en-tête, les lignes `inventory_operation_item` et les mouvements dans une seule transaction, et renvoient `201` avec les lignes et le statut `COMPLETED`. Un test vérifie qu'une erreur sur la deuxième ligne annule l'en-tête, les lignes, le mouvement et le solde de la première. **Limite résiduelle :** l'idempotence de création (`Idempotency-Key`) reste ouverte (`P1-14`).
+
+**Constat initial :** `/receipt`, `/issue` et `/transfer` appellent la même méthode. Elles insèrent un en-tête `inventory_operation` avec les colonnes fournies, sans ligne d'article, sans mouvement, sans modification. Le type n'est pas déduit de la route. S'il est absent, `23502` → 500.
 
 **Impact :** une opération ne prouve aucune réception, sortie ou transfert. Le dashboard compte des en-têtes vides.
 
@@ -255,7 +261,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-07 — Comptages sans réconciliation
 
-**Constat :** `inventory_count_scan` ne contient pas de quantité attendue ou comptée. La clôture ne met à jour ni `item.current_warehouse_id`, ni `item.status`, ni `item.last_inventory_at`, ni `completed_at` si le corps est vide. Les scans ne sont pas contrôlés par entreprise. `GET /inventory-counts/{id}` est absent ; `GET /{id}/results` renvoie 200 `[]` pour un comptage inconnu.
+**Statut au 22 octobre 2026 (Lot 3) : CORRIGÉ DANS LE PÉRIMÈTRE DU LOT 3.** Le scan fige `expected_quantity` à partir de l'état de l'article et de l'entrepôt du comptage, enregistre `counted_quantity`, calcule `difference` et `discrepancy_type` côté serveur, et refuse un article d'une autre entreprise. `GET /api/inventory/inventory-counts/{id}` et `GET /{id}/results` renvoient `404` pour un comptage inconnu. La clôture est transactionnelle : elle réconcilie chaque ligne scannée, met à jour le statut et l'emplacement de l'article, ajuste le solde, écrit `last_inventory_at` et `completed_at`, puis refuse une seconde clôture en `409 COUNT_NOT_OPEN`. Un test vérifie le rollback complet lorsqu'une réconciliation échoue après la première ligne. **Limites résiduelles :** les scans historiques sans quantité sont horodatés mais ne produisent aucun ajustement inventé ; les ajustements de clôture ne créent pas de mouvement compensatoire ; un comptage vide peut encore être clôturé (hors périmètre du Lot 3).
+
+**Constat initial :** `inventory_count_scan` ne contient pas de quantité attendue ou comptée. La clôture ne met à jour ni `item.current_warehouse_id`, ni `item.status`, ni `item.last_inventory_at`, ni `completed_at` si le corps est vide. Les scans ne sont pas contrôlés par entreprise. `GET /inventory-counts/{id}` est absent ; `GET /{id}/results` renvoie 200 `[]` pour un comptage inconnu.
 
 **Impact :** un comptage est une collecte d'observations, pas une réconciliation d'inventaire.
 
@@ -397,7 +405,7 @@ Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 �
 
 ## 5. Matrice de risque
 
-La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. `P0-05`, `P0-06`, les autres P1 et la concurrence (`P1-14`) restent ouverts.
+La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. `P0-01`, `P0-06`, les autres P1 et la concurrence (`P1-14`) restent ouverts.
 
 | ID | Risque | Probabilité | Impact | Score | Niveau |
 |---|---|---:|---:|---:|---|
@@ -453,15 +461,15 @@ L'ordre recommandé n'est pas l'ordre alphabétique des modules. Il suit les dé
 2. Faire participer les DAO à la transaction Spring. **Fait** (`DataSourceUtils`).
 3. Tester un échec après la première écriture. **Fait** (rollback DAO et service mouvement).
 
-**Sortie :** aucune écriture partielle en cas d'erreur, pour les cas d'usage existants. Les opérations multi-lignes restent dépendantes de `P1-06`.
+**Sortie :** aucune écriture partielle en cas d'erreur, pour les cas d'usage existants. Les opérations multi-lignes sont implémentées et atomiques depuis le Lot 3 (`P1-06`).
 
-### Étape 3 — Choisir le modèle de stock
+### Étape 3 — Choisir le modèle de stock — **FAIT au Lot 3**
 
-1. Décider si le stock est déclaratif ou calculé.
-2. Si calculé : ajouter les quantités, les soldes par entrepôt et les mouvements immuables.
-3. Si déclaratif : assumer que le dashboard n'est pas un stock réel.
+1. Décider si le stock est déclaratif ou calculé. **Fait : journal calculé + `stock_balance` (D-01).**
+2. Si calculé : ajouter les quantités, les soldes par entrepôt et les mouvements immuables. **Fait : migration 19, API de soldes, journal append-only, opérations et comptages réconciliés.**
+3. Si déclaratif : assumer que le dashboard n'est pas un stock réel. **Sans objet.**
 
-**Sortie :** une réponse unique et documentée à « quel est le stock ? ».
+**Sortie :** `GET /api/inventory/stock-balances` fournit une réponse testée par entrepôt et type ; le dashboard low-stock utilise ce solde. Les affectations (`P0-06`) et la concurrence (`P1-14`) restent à traiter.
 
 ### Étape 4 — Unifier les affectations
 

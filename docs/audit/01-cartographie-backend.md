@@ -15,7 +15,7 @@ Client HTTP
 Spring Security (JwtAuthenticationFilter)
    |
    v
-@RestController  (26 contrôleurs, 131 routes après le Lot 1)
+@RestController  (27 contrôleurs, 133 routes après le Lot 3)
    |
    v
 @Service         (règles métier, parfois @Transactional)
@@ -72,10 +72,10 @@ Le code est rangé sous `sssm.dev.sssm_backend`, avec une convention de préfixe
 | `a04_personnel` | employés, documents employés | 2 |
 | `a05_clients` | clients, contacts clients | 2 |
 | `a06_sites` | sites, postes de sécurité, exigences de poste | 3 |
-| `a11_inventory` | inventaire, stock, QR, affectations, comptages, dashboard, rapports | 12 |
+| `a11_inventory` | inventaire, stock, QR, affectations, comptages, dashboard, rapports | 13 |
 | `controller_test` | contrôleurs de test (`Hello`, `Ping`) | 2 |
 
-Total : **26 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **131 routes applicatives après le Lot 1** (130 à l'audit initial ; 133 en incluant `Hello` et `Ping`).
+Total : **27 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **133 routes applicatives après le Lot 3** (130 à l'audit initial, 131 après le Lot 1 ; 135 en incluant `Hello` et `Ping`).
 
 ### 3.1. Détail du module inventaire
 
@@ -86,12 +86,13 @@ Total : **26 contrôleurs REST métier**, plus deux contrôleurs de test et un c
 | `item_category` | `ItemCategoryController` | `ItemCategoryService` | `ItemCategoryDAOImpl` | `item_category` |
 | `warehouse` | `WarehouseController` | `WarehouseService` | `WarehouseDAOImpl` | `warehouse` |
 | `stock_movement` | `StockMovementController` | `StockMovementService` | `StockMovementDAOImpl` | `stock_movement` |
+| `stock_balance` | `StockBalanceController` | `StockBalanceService` | `StockBalanceDAOImpl` | `stock_balance` |
 | `item_assignment` | `ItemAssignmentController` | `ItemAssignmentService` | `ItemAssignmentDAOImpl` | `item_assignment` |
 | `assignment` | `AssignmentController` | `AssignmentService` | `AssignmentDAOImpl` | `item_assignment` |
 | `qr_scan` | `QrScanController` | `QrScanService` | `QrScanDAOImpl` | `item` |
 | `inventory_count` | `InventoryCountController` | `InventoryCountService` | `InventoryCountDAOImpl` | `inventory_count`, `inventory_count_scan` |
 | `operation` | `OperationController` | `OperationService` | `OperationDAOImpl` | `inventory_operation` |
-| `dashboard` | `DashboardController` | `DashboardService` | `DashboardDAOImpl` | `item`, `warehouse`, `inventory_operation`, `item_type` |
+| `dashboard` | `DashboardController` | `DashboardService` | `DashboardDAOImpl` | `item`, `warehouse`, `inventory_operation`, `item_type`, `stock_balance`, `warehouse_stock_config` |
 | `report` | `ReportController` | `ReportService` | `ReportDAOImpl` | `stock_movement` |
 
 Deux modules distincts manipulent la même table `item_assignment` : `item_assignment` (API typée `/api/item-assignments`) et `assignment` (API générique `/api/inventory/assignments`). Cette duplication est une dette d'architecture majeure, détaillée dans le rapport 08.
@@ -213,11 +214,11 @@ Le détail est dans le rapport 09.
 
 | Artefact | Nombre | État |
 |---|---|---|
-| Scripts SQL | 19 (`00` à `18`) | Présents, non migrés automatiquement |
+| Scripts SQL | 20 (`00` à `19`) | Présents, non migrés automatiquement ; `19_lot3_stock.sql` est additive |
 | Fichiers OpenAPI | 26 | Présents, structure valide, 183 avertissements Redocly relevés à l'audit initial (non rejoués après `7e3f196`) |
 | Fichiers OpenAPI inventaire | 12 | Présents, cohérents avec les routes principales |
-| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests ; après Lot 2 : 27 suites, 132 tests | Suite courante exécutée : 132 succès, 0 échec, 0 erreur, 0 ignoré. |
-| Rapport Surefire | `target/surefire-reports` | Rapport complet courant : 27 suites, 132 tests. |
+| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests ; après Lot 2 : 27 suites, 132 tests ; après Lot 3 : 28 suites, 140 tests | Suite courante exécutée : 140 succès, 0 échec, 0 erreur, 0 ignoré. |
+| Rapport Surefire | `target/surefire-reports` | Rapport complet courant : 28 suites, 140 tests. |
 
 Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquibase). Le schéma est créé manuellement ou par un script externe. Il n'existe pas de table de version de schéma applicative.
 

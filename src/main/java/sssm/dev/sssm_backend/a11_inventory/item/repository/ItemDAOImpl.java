@@ -313,6 +313,19 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
+  public void updateLastInventoryAt(String id, java.sql.Timestamp value) {
+    String sql = "UPDATE security.item SET last_inventory_at = ? WHERE id = ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setTimestamp(1, value);
+      stmt.setObject(2, UUID.fromString(id));
+      stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
   public void deleteItem(String id) {
     String sql = "DELETE FROM security.item WHERE id = ?";
     UUID uuid = UUID.fromString(id);

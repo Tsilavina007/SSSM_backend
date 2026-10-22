@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** la suite complète a été exécutée après le Lot 2 : **132 tests, 132 succès, 0 échec, 27 suites**. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés. Les statuts ci-dessous intègrent les corrections du Lot 2 vérifiées par les tests ; le détail historique reste disponible dans les rapports 11 et 16.
+**Important :** la suite complète a été exécutée après le Lot 3 : **140 tests, 140 succès, 0 échec, 28 suites**. Un `PASS` signifie « cohérent avec le code et les tests disponibles » ; les critères de tenancy A/B et de concurrence restent non vérifiés. Les statuts ci-dessous intègrent les corrections des Lots 2 et 3 vérifiées par les tests ; le détail historique reste disponible dans les rapports 11 et 16.
 
 ### 1.2. Règle de décision
 
@@ -46,13 +46,13 @@ Une capture d'écran ne remplace pas un test de contrat.
 | **G0-1** | Un utilisateur de l'entreprise A ne peut lire aucune donnée de B | **FAIL** | Requêtes globales ; aucun filtre `company_id` |
 | **G0-2** | Un utilisateur de A ne peut écrire aucune donnée de B | **FAIL** | `company_id` contrôlé par le client ; pas de FK composite |
 | **G0-3** | Un compte sans entreprise ou sans rôle ne peut pas accéder à l'inventaire | **PARTIEL** | Un compte sans rôle est bloqué ; un admin plateforme sans entreprise reste autorisé par conception. |
-| **G0-4** | Les écritures multi-lignes sont atomiques | **PARTIEL** | Transactions Spring effectives et rollback service testé pour mouvement + article. Les opérations multi-lignes ne sont pas encore implémentées (`P1-06`). |
-| **G0-5** | Le stock a une source de vérité unique et testée | **FAIL** | `quantity_total` manuel ; quantité de mouvement fixe |
-| **G0-6** | `ASSIGNED` implique exactement une affectation active | **FAIL** | `OUT`, `RETURN`, `DELETE`, retour no-op |
+| **G0-4** | Les écritures multi-lignes sont atomiques | **PASS** | Opérations `receipt`/`issue`/`transfer` avec lignes et mouvements atomiques ; rollback testé après échec sur la deuxième ligne (`P1-06`). |
+| **G0-5** | Le stock a une source de vérité unique et testée | **PASS** | `stock_balance` alimenté par les mouvements, opérations, articles et clôtures de comptage ; `GET /stock-balances` et dashboard low-stock testés (`P0-05`). Les ajustements de clôture ne sont pas encore journalisés. |
+| **G0-6** | `ASSIGNED` implique exactement une affectation active | **FAIL** | `OUT`, `RETURN`, `DELETE`, retour no-op (`P0-06`, Lot 4) |
 | **G0-7** | Aucune erreur de saisie ne produit 500 avec SQLSTATE | **PASS** | Doublons 409, FK/CHECK 422, NOT NULL/format 400 ; aucun SQLSTATE exposé. |
 | **G0-8** | Un rôle révoqué ne peut pas être rafraîchi | **PASS** | `/refresh` recharge les rôles et permissions en base ; rotation testée. |
 
-**Verdict :** 2 portes sur 8 en `PASS` (`G0-7`, `G0-8`), 2 `PARTIEL` (`G0-3`, `G0-4`), 4 `FAIL`. La production reste bloquée.
+**Verdict :** 4 portes sur 8 en `PASS` (`G0-4`, `G0-5`, `G0-7`, `G0-8`), 1 `PARTIEL` (`G0-3`), 3 `FAIL` (`G0-1`, `G0-2`, `G0-6`). La production reste bloquée par la tenancy et les affectations.
 
 ---
 
@@ -69,7 +69,7 @@ Une capture d'écran ne remplace pas un test de contrat.
 | T-07 | Une affectation ne peut pas lier un article, un employé et un poste de trois entreprises différentes | **FAIL** | Aucun contrôle |
 | T-08 | Un mouvement ne peut pas référencer un entrepôt ou un employé d'une autre entreprise | **FAIL** | FK simple, pas de tenant |
 | T-09 | Un scan QR ne renvoie jamais un article d'une autre entreprise | **FAIL** | `QrScanDAOImpl` global |
-| T-10 | Un comptage ne peut scanner que des articles de son entreprise et de son périmètre | **FAIL** | Aucun contrôle |
+| T-10 | Un comptage ne peut scanner que des articles de son entreprise et de son périmètre | **PARTIEL** | Le scan vérifie l'entreprise de l'article et refuse un comptage inconnu ; un article d'un autre entrepôt reste scannable et produit un écart `WRONG_LOCATION`/`MISSING`, pas un refus. |
 | T-11 | Les listes de types, catégories, entrepôts, mouvements, affectations, comptages et rapports sont tenant-scoped | **FAIL** | Toutes les listes sont globales |
 | T-12 | Un administrateur d'entreprise ne peut pas administrer une autre entreprise | **PASS** | Scope `company_id` sur `/api/users` et `/api/roles` ; admin plateforme non filtré. |
 | T-13 | La base possède des contraintes composites ou une RLS empêchant le cross-tenant | **FAIL** | Schéma à FK simples |
@@ -158,24 +158,24 @@ Et l'accès à /api/v1/users renvoie 403
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| STK-01 | Un mouvement porte une quantité > 0 | **FAIL** | Quantité fixe à 1 |
-| STK-02 | Un mouvement porte source, destination, opération et acteur | **FAIL** | Champs absents du DTO |
-| STK-03 | Le stock disponible est calculé par entrepôt et type | **FAIL** | Aucun solde |
-| STK-04 | Le stock ne peut pas devenir négatif | **FAIL** | Aucune logique de stock |
-| STK-05 | Un mouvement validé est immuable | **FAIL** | `PATCH` et `DELETE` exposés |
-| STK-06 | Une correction crée un mouvement inverse | **FAIL** | Aucune compensation |
-| STK-07 | `IN` incrémente le stock | **FAIL** | Change seulement le statut |
-| STK-08 | `OUT` décrémente le stock et exige une affectation | **FAIL** | Statut `ASSIGNED` sans affectation |
-| STK-09 | `TRANSFER` déplace une quantité d'un entrepôt à l'autre | **FAIL** | Change seulement `current_warehouse_id` |
-| STK-10 | `RETURN` clôt l'affectation active | **FAIL** | Ne la clôt pas |
-| STK-11 | `DESTRUCTION` interdit un article affecté | **FAIL** | Aucun contrôle |
-| STK-12 | `ADJUSTMENT` modifie une quantité | **FAIL** | Aucun effet |
-| STK-13 | La réponse de création renvoie le type et la date réellement stockés | **FAIL** | `null` si absents en entrée |
-| STK-14 | Un mouvement inconnu renvoie 404 | **PASS** | Code + test |
-| STK-15 | Un mouvement référencé ne peut pas être supprimé sans compensation | **FAIL** | `DELETE` libre |
-| STK-16 | Le rapport mouvements filtre par date, type, acteur et entreprise | **FAIL** | Filtres item/entrepôt seulement |
-| STK-17 | Le dashboard utilise le stock réel | **FAIL** | Compteurs globaux et champ manuel |
-| STK-18 | Les alertes low-stock utilisent un seuil par entrepôt | **FAIL** | `quantity_total` / `minimum_stock` |
+| STK-01 | Un mouvement porte une quantité > 0 | **PASS** | `quantity` exposée, valeur par défaut 1, quantité nulle ou négative refusée. |
+| STK-02 | Un mouvement porte source, destination, opération et acteur | **PARTIEL** | Champs exposés et alimentés ; l'acteur peut rester nul si le JWT et la requête n'apportent pas d'UUID. Les lignes historiques restent incomplètes. |
+| STK-03 | Le stock disponible est calculé par entrepôt et type | **PASS** | `stock_balance` et `GET /stock-balances`. |
+| STK-04 | Le stock ne peut pas devenir négatif | **PASS** | `409 INSUFFICIENT_STOCK`, état inchangé, test dédié. |
+| STK-05 | Un mouvement validé est immuable | **PASS** | `PATCH`/`DELETE` renvoient `409 IMMUTABLE_RESOURCE`. |
+| STK-06 | Une correction crée un mouvement inverse | **PARTIEL** | Un mouvement inverse manuel est possible ; aucune compensation automatique. |
+| STK-07 | `IN` incrémente le stock | **PASS** | Solde incrémenté et article remis `AVAILABLE`. |
+| STK-08 | `OUT` décrémente le stock et exige une affectation | **PARTIEL** | Solde décrémenté et article `ASSIGNED` ; aucune affectation active n'est créée (`P0-06`). |
+| STK-09 | `TRANSFER` déplace une quantité d'un entrepôt à l'autre | **PASS** | Solde source/destination et emplacement de l'article mis à jour. |
+| STK-10 | `RETURN` clôt l'affectation active | **FAIL** | Le retour ne clôt pas l'affectation active (`P0-06`). |
+| STK-11 | `DESTRUCTION` interdit un article affecté | **FAIL** | Aucun contrôle d'affectation active. |
+| STK-12 | `ADJUSTMENT` modifie une quantité | **PASS** | Solde ajusté selon la source/destination, sans changer l'état physique. |
+| STK-13 | La réponse de création renvoie le type et la date réellement stockés | **PASS** | Création relue depuis la base (Lot 2). |
+| STK-14 | Un mouvement inconnu renvoie 404 | **PASS** | Code + test. |
+| STK-15 | Un mouvement référencé ne peut pas être supprimé sans compensation | **PASS** | `DELETE` interdit par le journal append-only. |
+| STK-16 | Le rapport mouvements filtre par date, type, acteur et entreprise | **FAIL** | Filtres item/entrepôt seulement. |
+| STK-17 | Le dashboard utilise le stock réel | **PARTIEL** | Le low-stock lit `stock_balance` ; les compteurs de synthèse restent globaux. |
+| STK-18 | Les alertes low-stock utilisent un seuil par entrepôt | **PASS** | Seuil effectif `warehouse_stock_config.minimum_stock`, sinon `item_type.minimum_stock`. |
 
 ### Scénario d'acceptation STK-A
 
@@ -265,22 +265,22 @@ Et le scan est journalisé avec l'utilisateur et l'appareil
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| CNT-01 | Un comptage fige la quantité attendue à l'ouverture | **FAIL** | Colonne absente |
-| CNT-02 | Un scan de comptage calcule l'écart côté serveur | **FAIL** | Écart fourni par le client |
-| CNT-03 | Un article hors périmètre est refusé | **FAIL** | Aucun contrôle |
-| CNT-04 | Un doublon de scan est traité explicitement | **PARTIEL** | Contrainte + mapping 409 ; pas de traitement métier dédié |
-| CNT-05 | Un comptage vide ne peut pas être clôturé comme complet | **FAIL** | Clôture sans corps acceptée |
-| CNT-06 | La clôture renseigne `completed_at` | **FAIL** | Non renseigné |
-| CNT-07 | La clôture réconcilie le stock | **FAIL** | Aucun ajustement |
-| CNT-08 | La clôture met à jour `last_inventory_at` | **FAIL** | Jamais écrit |
-| CNT-09 | `GET /inventory-counts/{id}` existe et renvoie 404 si inconnu | **FAIL** | Absent |
-| CNT-10 | Les lignes sont paginées et filtrables | **FAIL** | Résultats non structurés |
-| CNT-11 | Un comptage peut être annulé | **FAIL** | Absent |
-| CNT-12 | Un comptage est tenant-scoped | **FAIL** | Aucun filtre |
-| OPS-01 | `POST /operations/receipt` impose `RECEIPT` | **FAIL** | Type non déduit |
-| OPS-02 | `POST /operations/issue` impose `ISSUE` | **FAIL** | Type non déduit |
-| OPS-03 | Une opération contient des lignes d'articles | **FAIL** | En-tête seul |
-| OPS-04 | Une opération crée des mouvements atomiques | **FAIL** | Aucun mouvement |
+| CNT-01 | Un comptage fige la quantité attendue à l'ouverture | **PASS** | `expected_quantity` calculée au scan depuis l'état de l'article et l'entrepôt (`Lot3StockModelTests`). |
+| CNT-02 | Un scan de comptage calcule l'écart côté serveur | **PASS** | `difference` et `discrepancy_type` calculés par le serveur ; le client ne peut pas les imposer. |
+| CNT-03 | Un article hors périmètre est refusé | **PARTIEL** | Article d'une autre entreprise refusé en 404 ; article d'un autre entrepôt accepté comme écart `WRONG_LOCATION`/`MISSING`. |
+| CNT-04 | Un doublon de scan est traité explicitement | **PASS** | Contrainte unique et erreur métier `Article déjà scanné`. |
+| CNT-05 | Un comptage vide ne peut pas être clôturé comme complet | **FAIL** | Clôture sans corps toujours acceptée (hors périmètre du Lot 3). |
+| CNT-06 | La clôture renseigne `completed_at` | **PASS** | Horodatage serveur écrit dans la clôture transactionnelle. |
+| CNT-07 | La clôture réconcilie le stock | **PARTIEL** | Statut, emplacement et `stock_balance` réconciliés ; aucun mouvement compensatoire n'est journalisé. |
+| CNT-08 | La clôture met à jour `last_inventory_at` | **PASS** | Écrit pour chaque ligne scannée ; rollback testé. |
+| CNT-09 | `GET /inventory-counts/{id}` existe et renvoie 404 si inconnu | **PASS** | Route ajoutée et testée. |
+| CNT-10 | Les lignes sont paginées et filtrables | **FAIL** | Résultats non paginés. |
+| CNT-11 | Un comptage peut être annulé | **FAIL** | Absent. |
+| CNT-12 | Un comptage est tenant-scoped | **PARTIEL** | Le scan contrôle l'entreprise de l'article ; les listes et lectures par ID ne filtrent pas encore par entreprise (`P0-01`). |
+| OPS-01 | `POST /operations/receipt` impose `RECEIPT` | **PASS** | Type imposé par la route et testé. |
+| OPS-02 | `POST /operations/issue` impose `ISSUE` | **PASS** | Type imposé par la route et testé. |
+| OPS-03 | Une opération contient des lignes d'articles | **PASS** | `inventory_operation_item` créé pour chaque ligne. |
+| OPS-04 | Une opération crée des mouvements atomiques | **PASS** | Mouvement, ligne et en-tête dans une transaction ; rollback testé. |
 | OPS-05 | Un type manquant renvoie 400/422 | **PASS** | `23502` → 400 ; test `OperationApiTests.missingOperationTypeReturns400Envelope`. |
 | OPS-06 | Une opération inconnue renvoie 404 | **FAIL** | Soft 200 |
 | OPS-07 | Une opération est idempotente | **FAIL** | Absent |
@@ -360,7 +360,7 @@ Et un comptage déjà clôturé renvoie 409
 | TST-10 | Le code et les tests sont synchronisés | **PARTIEL** | Ancien test 404 retiré ; l'historique reste sans test négatif (`P1-12`). |
 | TST-11 | Un pipeline CI bloque les régressions | **PARTIEL** | Workflow GitHub Actions présent ; tests RBAC et transaction locaux, pas de tenancy A/B ni de concurrence |
 | TST-12 | Les performances critiques sont mesurées | **FAIL** | Aucun test |
-| TST-13 | La suite actuelle est verte sur l'état courant | **PASS** | 132 tests exécutés ; 0 échec, 0 erreur, 0 ignoré, 27 suites. |
+| TST-13 | La suite actuelle est verte sur l'état courant | **PASS** | 140 tests exécutés ; 0 échec, 0 erreur, 0 ignoré, 28 suites. |
 | TST-14 | Les tests n'écrivent pas dans la base de démonstration partagée | **FAIL** | Nettoyage SQL sur base réelle |
 
 ---
@@ -378,7 +378,7 @@ Et un comptage déjà clôturé renvoie 409
 | FE-07 | Une affectation peut être créée, retournée et auditée | **FAIL** | Cycle incohérent |
 | FE-08 | Un scan QR fournit assez d'informations pour agir | **FAIL** | Réponse brute |
 | FE-09 | Une étiquette PDF peut être imprimée en lot | **FAIL** | Absent |
-| FE-10 | Le dashboard affiche un stock réel | **FAIL** | Champ manuel |
+| FE-10 | Le dashboard affiche un stock réel | **PARTIEL** | Le low-stock utilise `stock_balance` ; les autres compteurs ne sont pas encore un stock par entrepôt. |
 | FE-11 | Le dashboard est tenant-scoped | **FAIL** | Global |
 | FE-12 | Les écrans peuvent gérer le multi-entreprise | **FAIL** | Pas de tenant |
 | FE-13 | Les dates sont affichables sans rechargement après création | **PASS** | Réponses de création relues depuis la base. |
@@ -390,23 +390,23 @@ Et un comptage déjà clôturé renvoie 409
 
 | Domaine | PASS | PARTIEL | FAIL | NON VÉRIFIÉ |
 |---|---:|---:|---:|---:|
-| Portes Go/No-Go | 2 | 2 | 4 | 0 |
-| Tenancy | 2 | 1 | 12 | 0 |
+| Portes Go/No-Go | 4 | 1 | 3 | 0 |
+| Tenancy | 2 | 2 | 11 | 0 |
 | Authentification | 15 | 3 | 4 | 0 |
 | Catalogue | 4 | 2 | 12 | 0 |
-| Stock | 1 | 0 | 17 | 0 |
+| Stock | 11 | 4 | 3 | 0 |
 | Affectations | 1 | 2 | 15 | 0 |
 | QR | 3 | 0 | 12 | 0 |
-| Comptages / opérations | 1 | 1 | 17 | 0 |
+| Comptages / opérations | 11 | 3 | 5 | 0 |
 | Contrat HTTP | 4 | 4 | 9 | 1 |
 | Performance / sécurité | 2 | 1 | 8 | 2 |
 | Tests / CI | 3 | 4 | 7 | 0 |
-| Frontend | 2 | 3 | 9 | 0 |
-| **Total** | **40** | **23** | **126** | **3** |
+| Frontend | 2 | 4 | 8 | 0 |
+| **Total** | **62** | **30** | **97** | **3** |
 
-**Total : 192 critères** (40 `PASS`, 23 `PARTIEL`, 126 `FAIL`, 3 `NON VÉRIFIÉ`) après le Lot 2. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
+**Total : 192 critères** (62 `PASS`, 30 `PARTIEL`, 97 `FAIL`, 3 `NON VÉRIFIÉ`) après le Lot 3. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
-**Lecture :** les `PASS` supplémentaires portent sur l'identité, le RBAC inventaire/administration, le scope entreprise des utilisateurs/rôles, le refresh rotatif, le logout, la révocation, le pool, les transactions des cas d'usage existants, les erreurs SQL et les défauts de création. Les portes de tenancy complète, stock, affectations, concurrence et opérations multi-lignes restent bloquantes.
+**Lecture :** les `PASS` supplémentaires portent sur l'identité, le RBAC inventaire/administration, le scope entreprise des utilisateurs/rôles, le refresh rotatif, le logout, la révocation, le pool, les transactions, les erreurs SQL, les défauts de création, le solde calculé, l'immuabilité du journal, les opérations multi-lignes et la réconciliation des comptages. Les portes de tenancy complète, d'affectations synchronisées et de concurrence restent bloquantes.
 
 ---
 

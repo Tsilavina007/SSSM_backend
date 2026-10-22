@@ -14,6 +14,7 @@ public class DashboardLowStockRestMapper {
     return (new DashboardLowStockRest(
         rs.getId(),
         rs.getCompany_id(),
+        rs.getWarehouse_id(),
         rs.getCategory_id(),
         rs.getCode(),
         rs.getName(),

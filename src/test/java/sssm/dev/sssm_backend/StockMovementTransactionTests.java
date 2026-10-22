@@ -7,10 +7,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,29 +35,29 @@ import sssm.dev.sssm_backend.a11_inventory.stock_movement.service.StockMovementS
 @SpringBootTest
 class StockMovementTransactionTests {
 
+  private static final String TYPE_CODE = "phase2-tx-type";
+  private static final String ITEM_QR = "phase2-tx-item";
+
   @Autowired private StockMovementService stockMovementService;
   @MockitoBean private ItemDAO itemDAO;
 
+  private String companyId;
+  private String itemTypeId;
   private String itemId;
   private String warehouseId;
 
   @BeforeEach
   void setUp() throws Exception {
-    try (Connection conn = DatabaseConnection.getConnection();
-        PreparedStatement stmt =
-            conn.prepareStatement(
-                "SELECT i.id AS item_id, w.id AS warehouse_id "
-                    + "FROM security.item i CROSS JOIN security.warehouse w "
-                    + "ORDER BY i.id, w.id LIMIT 1");
-        ResultSet rs = stmt.executeQuery()) {
-      if (rs.next()) {
-        itemId = rs.getString("item_id");
-        warehouseId = rs.getString("warehouse_id");
-      }
+    try (Connection conn = DatabaseConnection.getConnection()) {
+      companyId = firstId(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
+      warehouseId = firstId(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 1");
+      Assumptions.assumeTrue(
+          companyId != null && warehouseId != null, "entreprise et entrepôt de démonstration requis");
+      purge();
+      itemTypeId = insertItemType(conn);
+      itemId = insertItem(conn);
+      insertBalance(conn);
     }
-    Assumptions.assumeTrue(
-        itemId != null && warehouseId != null, "article et entrepôt de démonstration requis");
-    purge();
   }
 
   @AfterEach
@@ -67,6 +69,8 @@ class StockMovementTransactionTests {
   void movementIsRolledBackWhenItemUpdateFails() throws Exception {
     ItemResponse item = new ItemResponse();
     item.setId(itemId);
+    item.setCompany_id(companyId);
+    item.setItem_type_id(itemTypeId);
     item.setStatus(ItemStatus.AVAILABLE);
     when(itemDAO.getItemById(itemId)).thenReturn(Optional.of(item));
     doThrow(new ServerException("échec forcé après l'insertion du mouvement"))
@@ -81,6 +85,53 @@ class StockMovementTransactionTests {
 
     assertThrows(ServerException.class, () -> stockMovementService.createStockMovement(request));
     assertFalse(movementExists(marker), "le mouvement doit être annulé avec la transaction");
+    assertFalse(
+        balanceWasDuplicated(companyId, warehouseId, itemTypeId),
+        "le solde doit être restauré par le rollback");
+  }
+
+  private String insertItemType(Connection conn) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item_type (company_id, code, name) VALUES (?, ?, ?) RETURNING id")) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setString(2, TYPE_CODE);
+      stmt.setString(3, TYPE_CODE);
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
+  private String insertItem(Connection conn) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item "
+                + "(company_id, item_type_id, qr_code, status, current_warehouse_id) "
+                + "VALUES (?, ?, ?, 'AVAILABLE', ?) RETURNING id")) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setObject(2, UUID.fromString(itemTypeId));
+      stmt.setString(3, ITEM_QR);
+      stmt.setObject(4, UUID.fromString(warehouseId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
+  }
+
+  private void insertBalance(Connection conn) throws Exception {
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.stock_balance "
+                + "(company_id, warehouse_id, item_type_id, quantity) VALUES (?, ?, ?, ?)")) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setObject(2, UUID.fromString(warehouseId));
+      stmt.setObject(3, UUID.fromString(itemTypeId));
+      stmt.setBigDecimal(4, BigDecimal.ONE);
+      stmt.executeUpdate();
+    }
   }
 
   private static boolean movementExists(String notes) throws Exception {
@@ -94,11 +145,41 @@ class StockMovementTransactionTests {
     }
   }
 
-  private static void purge() throws Exception {
+  private static boolean balanceWasDuplicated(
+      String companyId, String warehouseId, String itemTypeId) throws Exception {
     try (Connection conn = DatabaseConnection.getConnection();
         PreparedStatement stmt =
             conn.prepareStatement(
-                "DELETE FROM security.stock_movement WHERE notes LIKE 'phase2-ts-tx-%'")) {
+                "SELECT quantity FROM security.stock_balance "
+                    + "WHERE company_id=? AND warehouse_id=? AND item_type_id=?")) {
+      stmt.setObject(1, UUID.fromString(companyId));
+      stmt.setObject(2, UUID.fromString(warehouseId));
+      stmt.setObject(3, UUID.fromString(itemTypeId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        return !rs.next() || rs.getBigDecimal(1).compareTo(BigDecimal.ONE) != 0;
+      }
+    }
+  }
+
+  private static void purge() throws Exception {
+    execute("DELETE FROM security.stock_movement WHERE notes LIKE 'phase2-ts-tx-%'");
+    execute(
+        "DELETE FROM security.stock_balance WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = '" + TYPE_CODE + "')");
+    execute("DELETE FROM security.item WHERE qr_code = '" + ITEM_QR + "'");
+    execute("DELETE FROM security.item_type WHERE code = '" + TYPE_CODE + "'");
+  }
+
+  private static String firstId(Connection conn, String sql) throws Exception {
+    try (PreparedStatement stmt = conn.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery()) {
+      return rs.next() ? rs.getString(1) : null;
+    }
+  }
+
+  private static void execute(String sql) throws Exception {
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
       stmt.executeUpdate();
     }
   }

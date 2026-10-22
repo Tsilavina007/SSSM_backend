@@ -55,16 +55,18 @@ class StockMovementBusinessRulesTests {
 
     try (Connection conn = DatabaseConnection.getConnection()) {
       companyId = firstValue(conn, "SELECT id FROM security.company ORDER BY id LIMIT 1");
-      itemTypeId = firstValue(conn, "SELECT id FROM security.item_type ORDER BY id LIMIT 1");
       List<String> warehouseIds =
           values(conn, "SELECT id FROM security.warehouse ORDER BY id LIMIT 2");
       warehouseId = warehouseIds.isEmpty() ? null : warehouseIds.get(0);
       secondWarehouseId = warehouseIds.size() < 2 ? null : warehouseIds.get(1);
     }
     Assumptions.assumeTrue(
-        companyId != null && itemTypeId != null && warehouseId != null,
+        companyId != null && warehouseId != null,
         "base initialisée avec des données de démonstration requise");
     purge();
+    try (Connection conn = DatabaseConnection.getConnection()) {
+      itemTypeId = insertItemType(conn, companyId);
+    }
   }
 
   @AfterEach
@@ -198,13 +200,34 @@ class StockMovementBusinessRulesTests {
   }
 
   private static String movementBody(String itemId, String type, String warehouse) {
+    String adjustmentDestination =
+        "ADJUSTMENT".equals(type) || "TRANSFER".equals(type)
+            ? ",\"destination_warehouse_id\":\"" + warehouse + "\""
+            : "";
     return "{\"warehouse_id\":\""
         + warehouse
         + "\",\"item_id\":\""
         + itemId
         + "\",\"movement_type\":\""
         + type
-        + "\"}";
+        + "\""
+        + adjustmentDestination
+        + "}";
+  }
+
+  private static String insertItemType(Connection conn, String companyId) throws Exception {
+    String code = "phase5-state-type";
+    try (PreparedStatement stmt =
+        conn.prepareStatement(
+            "INSERT INTO security.item_type (company_id, code, name) VALUES (?, ?, ?) RETURNING id")) {
+      stmt.setObject(1, java.util.UUID.fromString(companyId));
+      stmt.setString(2, code);
+      stmt.setString(3, code);
+      try (ResultSet rs = stmt.executeQuery()) {
+        rs.next();
+        return rs.getString(1);
+      }
+    }
   }
 
   private static Map<String, String> itemState(String id) throws Exception {
@@ -230,7 +253,11 @@ class StockMovementBusinessRulesTests {
     execute(
         "DELETE FROM security.item_assignment WHERE item_id IN "
             + "(SELECT id FROM security.item WHERE description LIKE 'phase5-state-%')");
+    execute(
+        "DELETE FROM security.stock_balance WHERE item_type_id IN "
+            + "(SELECT id FROM security.item_type WHERE code = 'phase5-state-type')");
     execute("DELETE FROM security.item WHERE description LIKE 'phase5-state-%'");
+    execute("DELETE FROM security.item_type WHERE code = 'phase5-state-type'");
   }
 
   private static List<String> values(Connection conn, String sql) throws Exception {

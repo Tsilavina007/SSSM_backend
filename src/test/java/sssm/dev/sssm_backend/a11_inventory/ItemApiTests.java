@@ -417,7 +417,7 @@ class ItemApiTests {
     return JsonPath.read(created.getResponse().getContentAsString(), "$.id");
   }
 
-  private static void purge() throws Exception {
+  private void purge() throws Exception {
     execute(
         "DELETE FROM security.stock_movement WHERE item_id IN ("
             + "SELECT id FROM security.item WHERE qr_code LIKE 'phase5-item-%'"
@@ -429,6 +429,23 @@ class ItemApiTests {
     execute(
         "DELETE FROM security.item WHERE qr_code LIKE 'phase5-item-%'"
             + " OR qr_code LIKE 'phase5-bulk-%' OR description LIKE 'phase5-autoqr-%'");
+    // Les articles et mouvements de test ont modifié le solde calculé : le recalculer
+    // depuis l'état réel des articles restants pour ne pas polluer les autres suites.
+    if (itemTypeId != null) {
+      execute(
+          "UPDATE security.stock_balance b SET quantity = COALESCE(("
+              + "SELECT count(*) FROM security.item i WHERE i.company_id = b.company_id "
+              + "AND i.current_warehouse_id = b.warehouse_id "
+              + "AND i.item_type_id = b.item_type_id AND i.status = 'AVAILABLE' "
+              + "AND i.archived_at IS NULL), 0), version = b.version + 1, updated_at = now() "
+              + "WHERE b.item_type_id = '"
+              + itemTypeId
+              + "'");
+      execute(
+          "DELETE FROM security.stock_balance WHERE item_type_id = '"
+              + itemTypeId
+              + "' AND quantity = 0");
+    }
   }
 
   private static String firstValue(Connection conn, String sql) throws Exception {

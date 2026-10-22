@@ -2,6 +2,7 @@ package sssm.dev.sssm_backend.a11_inventory.operation.dto;
 
 import java.sql.Timestamp;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.Data;
 
@@ -19,6 +20,7 @@ public class OperationRequest {
   private String performed_by;
   private String notes;
   private Timestamp completed_at;
+  private List<OperationLineRequest> lines;
 
   public Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();

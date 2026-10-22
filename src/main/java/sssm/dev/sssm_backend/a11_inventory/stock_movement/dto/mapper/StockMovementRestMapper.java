@@ -19,6 +19,12 @@ public class StockMovementRestMapper {
         rs.getMovement_type(),
         rs.getReference(),
         rs.getMovement_date(),
-        rs.getNotes()));
+        rs.getNotes(),
+        rs.getSource_warehouse_id(),
+        rs.getDestination_warehouse_id(),
+        rs.getOperation_id(),
+        rs.getQuantity(),
+        rs.getPerformed_by(),
+        rs.getCreated_at()));
   }
 }

@@ -283,18 +283,19 @@ Mais ces champs sont presque toujours nuls ou égaux à 1 dans les données cré
 
 Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, les DAO utilisent la connexion transactionnelle issue du `DataSource` Spring/HikariCP. Un échec après l'insertion du mouvement annule désormais le mouvement et la mise à jour de l'article ; ce rollback est couvert par `StockMovementTransactionTests`.
 
-Les limites restantes sont métier, pas transactionnelles :
+**Mise à jour du 22 octobre 2026 (Lot 3) :** `stock_balance` est la source du stock disponible ; les mouvements, opérations, créations/modifications/suppressions d'articles et clôtures de comptage mettent à jour le solde. Les opérations multi-lignes sont implémentées et atomiques, et la clôture de comptage réconcilie statut, emplacement et solde avec `last_inventory_at`. Les limites restantes sont :
 
-- le stock n'est toujours pas dérivé des mouvements (`quantity_total` manuel) ;
-- les opérations multi-lignes ne sont pas implémentées ;
-- un comptage peut encore être clôturé sans réconciliation complète ;
-- la concurrence entre deux écritures n'est pas contrôlée par version.
+- les affectations (`P0-06`) peuvent encore changer l'état d'un article sans mettre à jour le solde ;
+- les ajustements de clôture de comptage ne créent pas de mouvement compensatoire ;
+- un comptage vide peut encore être clôturé comme complet ;
+- la concurrence entre deux écritures n'est pas contrôlée par version (`P1-14`) ;
+- les mouvements historiques n'ont pas de source/destination/acteur rétroactifs.
 
 ---
 
 ## 10. Vérifications et tests
 
-### 10.1. Vérifications en base
+### 10.1. Vérifications en base (audit initial)
 
 | Contrôle | Résultat |
 |---|---|
@@ -314,18 +315,16 @@ Les limites restantes sont métier, pas transactionnelles :
 - `DashboardApiTests` : 3 tests sur les compteurs et le low-stock.
 - `ReportApiTests` : 5 tests sur les filtres du rapport.
 - `OperationApiTests` : 4 tests sur les en-têtes et les erreurs.
+- `Lot3StockModelTests` : 8 tests sur les soldes, l'API, l'acteur, le stock négatif, l'immuabilité, le rollback multi-lignes, le comptage/écart/clôture et les erreurs 404.
+- Suite complète après le Lot 3 : 140 tests, 0 échec, 28 suites.
 
-### 10.3. Ce que les tests ne couvrent pas
+### 10.3. Ce que les tests ne couvrent pas encore
 
-- quantité réelle et solde ;
-- stock négatif ;
-- stock par entrepôt ;
-- réconciliation d'un comptage ;
-- mise à jour de `last_inventory_at` ;
-- cohérence entre mouvement et article en cas d'échec ;
-- opérations avec lignes d'articles ;
-- mouvements de plusieurs unités ;
-- concurrence.
+- synchronisation des affectations avec `stock_balance` (`P0-06`) ;
+- concurrence, `If-Match` et idempotence (`P1-14`) ;
+- scénario réel à deux entreprises (`P0-01`) ;
+- journalisation des ajustements de clôture de comptage ;
+- réconciliation complète des mouvements historiques sans source/destination/acteur.
 
 ---
 

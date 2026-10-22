@@ -38,6 +38,11 @@ public class InventoryCountController {
     return ResponseEntity.ok().body(inventoryCountService.save(null, request.toMap(), false));
   }
 
+  @GetMapping("/{id}")
+  public InventoryCountRest one(@PathVariable String id) {
+    return (InventoryCountRest) inventoryCountService.one(id);
+  }
+
   @PostMapping("/{id}/scans")
   public InventoryCountScanRest scan(
       @PathVariable String id, @RequestBody InventoryCountScanRequest request) {

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
@@ -30,6 +31,15 @@ public class ErrorMapper {
               clientException.detail(),
               "La requête n'a pas pu être traitée. Vérifiez les données envoyées."),
           textOr(clientException.code(), "CLIENT_ERROR"));
+    }
+
+    if (exception instanceof ConflictException conflictException) {
+      return new ItemError(
+          textOr(conflictException.getMessage(), "Conflit de ressource"),
+          textOr(
+              conflictException.detail(),
+              "La ressource a été modifiée ou se trouve dans un état incompatible avec cette opération."),
+          textOr(conflictException.code(), "CONFLICT"));
     }
 
     if (exception instanceof NotFoundException notFoundException) {

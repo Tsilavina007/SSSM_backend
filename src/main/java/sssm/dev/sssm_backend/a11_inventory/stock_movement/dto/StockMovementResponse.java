@@ -1,5 +1,6 @@
 package sssm.dev.sssm_backend.a11_inventory.stock_movement.dto;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,4 +20,10 @@ public class StockMovementResponse {
   private String reference;
   private Timestamp movement_date;
   private String notes;
+  private String source_warehouse_id;
+  private String destination_warehouse_id;
+  private String operation_id;
+  private BigDecimal quantity;
+  private String performed_by;
+  private Timestamp created_at;
 }
