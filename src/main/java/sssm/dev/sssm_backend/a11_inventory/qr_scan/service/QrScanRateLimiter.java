@@ -81,14 +81,16 @@ public class QrScanRateLimiter {
     if (hits.size() < 1024) {
       return;
     }
-    hits.entrySet().removeIf(entry -> {
-      Deque<Long> timestamps = entry.getValue();
-      synchronized (timestamps) {
-        while (!timestamps.isEmpty() && now - timestamps.peekFirst() >= windowMillis) {
-          timestamps.pollFirst();
-        }
-        return timestamps.isEmpty();
-      }
-    });
+    hits.entrySet()
+        .removeIf(
+            entry -> {
+              Deque<Long> timestamps = entry.getValue();
+              synchronized (timestamps) {
+                while (!timestamps.isEmpty() && now - timestamps.peekFirst() >= windowMillis) {
+                  timestamps.pollFirst();
+                }
+                return timestamps.isEmpty();
+              }
+            });
   }
 }

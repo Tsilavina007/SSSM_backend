@@ -14,8 +14,8 @@ import sssm.dev.sssm_backend.a11_inventory.qr_scan.service.QrScanService;
  * Résolution des QR codes.
  *
  * <p>La résolution est limitée à l'entreprise de l'appelant et renvoie un article enrichi (type,
- * catégorie, entrepôt, affectation active et détenteur). Un code inconnu ou appartenant à une
- * autre entreprise renvoie 404. Chaque tentative est journalisée.
+ * catégorie, entrepôt, affectation active et détenteur). Un code inconnu ou appartenant à une autre
+ * entreprise renvoie 404. Chaque tentative est journalisée.
  */
 @RestController
 @RequestMapping("/api/inventory/scans")

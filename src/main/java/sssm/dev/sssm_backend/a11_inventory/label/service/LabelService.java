@@ -81,8 +81,7 @@ public class LabelService {
     cell.append("<div class=\"lines\">");
     cell.append("<div class=\"code\">").append(escape(label.getQr_code())).append("</div>");
     if (label.getType_name() != null) {
-      cell
-          .append("<div class=\"name\">")
+      cell.append("<div class=\"name\">")
           .append(escape(label.getType_code()))
           .append(" — ")
           .append(escape(label.getType_name()))
@@ -92,10 +91,14 @@ public class LabelService {
       cell.append("<div>").append(escape(label.getDescription())).append("</div>");
     }
     if (label.getCategory_name() != null) {
-      cell.append("<div class=\"muted\">").append(escape(label.getCategory_name())).append("</div>");
+      cell.append("<div class=\"muted\">")
+          .append(escape(label.getCategory_name()))
+          .append("</div>");
     }
     if (label.getWarehouse_name() != null) {
-      cell.append("<div class=\"muted\">").append(escape(label.getWarehouse_name())).append("</div>");
+      cell.append("<div class=\"muted\">")
+          .append(escape(label.getWarehouse_name()))
+          .append("</div>");
     }
     if (label.getCompany_name() != null) {
       cell.append("<div class=\"muted\">").append(escape(label.getCompany_name())).append("</div>");

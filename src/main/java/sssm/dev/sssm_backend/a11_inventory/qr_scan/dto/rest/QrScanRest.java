@@ -3,6 +3,7 @@ package sssm.dev.sssm_backend.a11_inventory.qr_scan.dto.rest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 
 /**

@@ -1,5 +1,4 @@
 package sssm.dev.sssm_backend.a00_infrastructure.exception;
-
 /** Depassement de la limite de debit, traduit en HTTP 429 par le gestionnaire global. */
 public class TooManyRequestsException extends RuntimeException {
   private final String detail;

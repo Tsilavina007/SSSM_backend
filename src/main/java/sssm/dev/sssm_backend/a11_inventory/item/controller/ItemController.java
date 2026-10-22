@@ -113,7 +113,8 @@ public class ItemController {
             .build();
       }
       try {
-        byte[] image = qrCodeService.generatePng(qrCodeRest.getQr_code(), requestedSize, requestedSize);
+        byte[] image =
+            qrCodeService.generatePng(qrCodeRest.getQr_code(), requestedSize, requestedSize);
         return ResponseEntity.ok()
             .contentType(MediaType.IMAGE_PNG)
             .eTag(etag)
@@ -155,7 +156,9 @@ public class ItemController {
     }
   }
 
-  /** Politique de cache appliquée aux images QR : le contenu ne change qu'après rotation du code. */
+  /**
+   * Politique de cache appliquée aux images QR : le contenu ne change qu'après rotation du code.
+   */
   private static CacheControl cacheControl() {
     return CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic();
   }
