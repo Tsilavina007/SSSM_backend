@@ -2,6 +2,8 @@
 
 **Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
 
+**Note Lot 9 (23 octobre 2026) :** les constats de ce rapport décrivent l'état antérieur aux Lots 4 à 7. Depuis, le stock est calculé (`stock_balance`), les affectations ont un contrat canonique unique et un cycle de vie audité, le scan QR est tenant-scoped, enrichi et journalisé, les étiquettes HTML sont disponibles, et le contrat HTTP est versionné avec Problem Details et `PageResponse`. La préparation frontend, les maquettes et les critères d'acceptation sont dans [`docs/frontend/`](../frontend/). Le verdict reste **No-Go production** à cause de `P0-01` (tenancy) et `P1-14` (concurrence/idempotence) ; un frontend de démonstration mono-entreprise est autorisé.
+
 **Objectif :** évaluer si le contrat HTTP actuel permet de construire un frontend web et une application mobile sans masquer des comportements faux. Ce rapport ne propose pas de code frontend ; il identifie les écarts entre l'API et les besoins d'interface.
 
 ---

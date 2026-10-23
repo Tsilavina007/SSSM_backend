@@ -1,6 +1,6 @@
 ﻿# 14 — Plan de correction
 
-**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Les Lots 1 à 4 ont été exécutés les 21 et 22 octobre 2026 ; les autres lots restent à planifier. Le détail du Lot 1 est consigné dans la section 4.6, celui du Lot 3 dans la section 6.5 et celui du Lot 4 dans la section 7.6.
+**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Les Lots 1 à 7 et le Lot 9 ont été exécutés entre le 21 et le 23 octobre 2026 ; le Lot 8 reste à planifier. Le détail du Lot 1 est consigné dans la section 4.6, celui du Lot 3 dans la section 6.5, celui du Lot 4 dans la section 7.6 et celui du Lot 9 dans la section 12.
 
 **Principe directeur :** ne pas ajouter d'écran sur un contrat faux. La stabilité de la tenancy, des transactions et du stock précède le frontend.
 
@@ -39,7 +39,7 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | L6 | Compléments de comptage et journalisation des ajustements | P1 | L3 | L |
 | L7 | Contrat HTTP, erreurs, pagination | P1 | L1, L3 | M |
 | L8 | Tests, CI, performance | P1 | L1-L7 | M |
-| L9 | Préparation frontend | P2 | L7, L8 | M |
+| L9 | Préparation frontend — **exécuté le 23 octobre 2026** (documentation, verdict No-Go production) | P2 | L7, L8 | M |
 
 Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plusieurs semaines, XL = chantier transversal. Elles ne remplacent pas une estimation d'équipe.
 
@@ -537,7 +537,7 @@ Aucune colonne, table ou ligne existante n'est modifiée ou supprimée ; aucun `
 - **P1-12** : `GET /inventory/items/{id}/history` renvoie 404 pour un article inconnu, pagine mouvements et affectations, et accepte `movementType` (enum validé → 400) et `active=true`. Nouveau DTO `ItemHistoryRest` ; lectures SQL dédiées avec counts.
 - **Tests** : `HttpContractApiTests` (9 tests) couvre l'alias déprécié, Problem Details 404/400, `errors[]`, 201 + `Location` + dates UTC, pagination `page=0`, historique 404/paginé/filtré, UUID invalide et 204. Suite complète : **58 tests, 8 suites, 0 échec** sur la base isolée `sssm_ci_lot6`.
 - **OpenAPI** : 27 spécifications passées en `/api/v1` ; schéma `Problem` unique et conforme RFC 9457, médias d'erreur en `application/problem+json`, ancien schéma `ItemError` supprimé des erreurs globales (conservé uniquement pour les erreurs par ligne des créations en lot) ; enveloppes `Page*` pour les listes paginées ; `ItemHistory` et filtres ; `Location` sur tous les 201, y compris `auth/register`, `inventory-counts` et les opérations ; `POST /inventory/operations/*` documenté en 201. Validation ruamel : 0 erreur de parsing, 0 `$ref` orphelin sur les 27 fichiers ; `scripts/validate_specs.py` : 0 problème sur 13 fichiers / 75 opérations.
-- **Limites et différés** : `API-02` reste **PARTIEL** (les listes organisation/personnel/clients/sites et les référentiels types/catégories/entrepôts renvoient encore des tableaux bruts). `API-10` (`Idempotency-Key`) et `API-11` (`If-Match`/ETag) restent ouverts : ils exigent une décision sur le stockage (colonne `version`/`updated_at` ou table d'idempotence). `page=0` est normalisé à 1 au lieu de renvoyer 400. Aucune spécification dédiée aux soldes (`/inventory/stock-balances`), et les filtres des écrans restent partiels. Aucune migration SQL n'a été nécessaire.
+- **Limites et différés** : `API-02` reste **PARTIEL** (les listes organisation/personnel/clients/sites et les référentiels types/catégories/entrepôts renvoient encore des tableaux bruts). `API-10` (`Idempotency-Key`) et `API-11` (`If-Match`/ETag) restent ouverts : ils exigent une décision sur le stockage (colonne `version`/`updated_at` ou table d'idempotence). `page=0` est normalisé à 1 au lieu de renvoyer 400. Aucune spécification dédiée aux soldes (`/inventory/stock-balances`) à cette date — **résolu au Lot 9** —, et les filtres des écrans restent partiels. Aucune migration SQL n'a été nécessaire.
 
 ---
 
@@ -581,7 +581,51 @@ Ce lot ne commence pas le frontend. Il produit les éléments nécessaires pour 
 - pagination et filtres ;
 - maquettes de scan et d'étiquette ;
 - critères d'acceptation du rapport 15 ;
-- jeu de données de démonstration multi-entreprise.
+- jeu de données de démonstration multi-entreprise — **reporté au Lot 9** (voir l'exécution ci-dessous : le jeu reste mono-entreprise tant que `P0-01` n'est pas corrigé).
+
+### Exécution (23 octobre 2026)
+
+**Périmètre :** le Lot 8 (tests, CI, performance) n'étant pas exécuté, le Lot 9 se
+limite à ses livrables documentaires et à la validation du contrat ; il ne
+débloque pas la production.
+
+**Décisions appliquées :** le jeu de démonstration reste **mono-entreprise** ; le
+multi-entreprise est reporté tant que `P0-01` n'est pas corrigé. Le stockage des
+jetons retenu pour le web est **access token en mémoire + refresh token en
+`localStorage`**. Le verdict est **No-Go production, Go démonstration
+mono-entreprise**.
+
+**Livrables :**
+
+- `docs/frontend/README.md` : environnements, URLs, conventions, limites et
+  verdict ;
+- `docs/frontend/01-authentification-jetons.md` : stockage, refresh à appel
+  unique, logout, cas d'erreur ;
+- `docs/frontend/02-erreurs.md` : catalogue HTTP et codes applicatifs, mapping
+  UI, politique de retry ;
+- `docs/frontend/03-pagination-filtres.md` : enveloppe, défauts par route,
+  filtres disponibles et listes non paginées ;
+- `docs/frontend/04-parcours-scan-etiquettes.md` : maquettes du scan et de
+  l'impression, états d'écran, contrainte de jeton sur les étiquettes HTML ;
+- `docs/frontend/05-criteres-acceptation.md` : portes Go/No-Go, critères par
+  écran, recettes minimales et blocages production ;
+- `docs/frontend/06-donnees-demonstration.md` : jeu mono-entreprise existant,
+  comptes, parcours, anomalies de données et prérequis du multi-entreprise.
+
+**Contrat OpenAPI :** ajout de
+`docs/api/11_inventory/stock_balance-openapi.yaml`, qui documente
+`GET /api/v1/inventory/stock-balances` (filtres, pagination, `below_minimum`,
+`version`). La spécification a été corrigée : `servers`, `security` et `tags`
+étaient imbriqués sous `info`, ce qui les rendait invalides. Le code `409
+INVALID_IDENTIFIER` réellement produit sur un UUID de filtre malformé est
+documenté. Le corpus passe à **28 fichiers / 149 opérations** ;
+`scripts/validate_specs.py` rapporte **0 problème sur 14 fichiers / 76
+opérations** d'inventaire ; le contrôle structurel des 28 fichiers ne relève ni
+erreur de parsing ni `$ref` orphelin, et le lint Redocly rejoué donne **0 erreur
+et 175 avertissements** (license, localhost, operationId, exemples).
+
+**Aucun changement de code, de schéma SQL, de donnée ou de dépendance.** Aucune
+migration n'a été appliquée et aucune base n'a été réinitialisée.
 
 ### Go / No-Go
 

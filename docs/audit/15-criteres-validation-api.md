@@ -244,9 +244,9 @@ Et il n'existe plus aucune affectation active pour cet article
 | QR-10 | L'image PNG est générée correctement | **PASS** | Code + test existant |
 | QR-11 | L'image est mise en cache | **PASS** | `Cache-Control: public, max-age=300` et `ETag` ; 304 sur `If-None-Match` ; taille configurable. |
 | QR-12 | Une étiquette PDF est disponible | **PARTIEL** | Étiquette et planche HTML imprimables (100 articles en un appel), texte lisible et QR intégré ; pas de PDF généré par le serveur (impression via le navigateur). |
-| QR-13 | Une planche d'étiquettes est disponible | **FAIL** | Absent |
-| QR-14 | Un code peut être révoqué avec grâce | **FAIL** | Rotation absente |
-| QR-15 | Deux entreprises peuvent avoir le même code sans ambiguïté | **FAIL** | Scan global |
+| QR-13 | Une planche d'étiquettes est disponible | **PASS** | Planche HTML de 100 articles en un appel (`POST /api/v1/inventory/labels/batch`), Lot 5. |
+| QR-14 | Un code peut être révoqué avec grâce | **FAIL** | Rotation absente (décision D-05 : code immuable, sans historique ni rotation). |
+| QR-15 | Deux entreprises peuvent avoir le même code sans ambiguïté | **PASS** | `UNIQUE(company_id, qr_code)` et résolution filtrée par l'entreprise du jeton ; un code d'une autre entreprise renvoie 404 (Lot 5). |
 
 ### Scénario d'acceptation QR-A
 
@@ -316,7 +316,7 @@ Et un article hors de l'instantané est refusé en 409
 | API-10 | Les créations sensibles acceptent `Idempotency-Key` | **FAIL** | Toujours absent ; décision de stockage requise (mémoire vs table) avant implémentation. |
 | API-11 | Les `PATCH` sensibles utilisent `If-Match`/ETag | **FAIL** | Toujours absent ; décision requise sur une colonne `version`/`updated_at` ou un ETag faible calculé. |
 | API-12 | Les erreurs ont un `code` stable et documenté | **PASS** | `Problem.code` stable (`BAD_REQUEST`, `VALIDATION_ERROR`, `NOT_FOUND`, `CLIENT_ERROR`, `SERVER_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, etc.) et documenté. |
-| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 27 fichiers alignés sur `/api/v1` ; schéma `Problem` unique conforme RFC 9457, `ItemError` supprimé des erreurs globales et `Location` documenté sur tous les 201 ; validation 0 erreur / 0 `$ref` orphelin. Manquent encore une spec pour `/inventory/stock-balances`, des exemples et les `license`. |
+| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | Depuis le Lot 9, **28 fichiers** couvrent les 28 contrôleurs, dont `stock_balance-openapi.yaml` pour `/inventory/stock-balances` ; schéma `Problem` unique conforme RFC 9457, `ItemError` supprimé des erreurs globales et `Location` documenté sur tous les 201. Validation structurelle des 28 fichiers : 0 erreur de parsing, 0 `$ref` orphelin ; `validate_specs.py` : 0 problème sur 14 fichiers / 76 opérations. Lint Redocly rejoué au Lot 9 : **0 erreur, 175 avertissements**. Manquent encore des exemples contractuels et les `license`. |
 | API-14 | Le CORS est restreint par environnement | **PASS** | `CORS_ALLOWED_ORIGINS` avec défauts locaux (`localhost:3000/5173/4200`) ; plus de `*`. |
 | API-15 | Les filtres couvrent les besoins des écrans | **FAIL** | L'historique article est filtrable (type de mouvement, actif) ; les filtres des listes articles et des autres modules restent partiels. |
 | API-16 | Chaque réponse d'erreur contient un `traceId` | **PASS** | `Problem.traceId` renseigné par le handler global, les erreurs de sécurité et le filtre JWT ; vérifié par `HttpContractApiTests`. |
@@ -375,15 +375,15 @@ Et un article hors de l'instantané est refusé en 409
 | FE-03 | La création d'un type ne casse pas si les champs facultatifs sont omis | **PASS** | Défauts PostgreSQL appliqués et relus. |
 | FE-04 | Les erreurs peuvent être mappées sur des messages utilisateur | **PASS** | Problem Details homogènes avec `code` stable, `detail` et `errors[]` ; plus de soft-200 atteignable. |
 | FE-05 | L'historique d'un article est complet et paginé | **PASS** | `/api/v1/inventory/items/{id}/history` paginé et filtré, avec 404 sur article inconnu. |
-| FE-06 | Un mouvement peut être créé avec quantité et acteur | **FAIL** | Champs absents |
-| FE-07 | Une affectation peut être créée, retournée et auditée | **FAIL** | Cycle incohérent |
-| FE-08 | Un scan QR fournit assez d'informations pour agir | **FAIL** | Réponse brute |
-| FE-09 | Une étiquette PDF peut être imprimée en lot | **FAIL** | Absent |
-| FE-10 | Le dashboard affiche un stock réel | **PARTIEL** | Le low-stock utilise `stock_balance` ; les autres compteurs ne sont pas encore un stock par entrepôt. |
-| FE-11 | Le dashboard est tenant-scoped | **FAIL** | Global |
-| FE-12 | Les écrans peuvent gérer le multi-entreprise | **FAIL** | Pas de tenant |
+| FE-06 | Un mouvement peut être créé avec quantité et acteur | **PARTIEL** | `quantity`, source/destination, opération et acteur sont exposés (Lot 3) ; l'acteur peut rester nul si le jeton et le corps n'apportent pas d'UUID. |
+| FE-07 | Une affectation peut être créée, retournée et auditée | **PASS** | Contrat unique `/item-assignments`, retour serveur daté, void et archivage audités (Lot 4). |
+| FE-08 | Un scan QR fournit assez d'informations pour agir | **PASS** | Réponse enrichie, tenant-scoped, 404 et journal de scan (Lot 5). |
+| FE-09 | Une étiquette PDF peut être imprimée en lot | **PARTIEL** | Planche HTML de 100 articles et impression navigateur (Lot 5) ; pas de PDF généré par le serveur. |
+| FE-10 | Le dashboard affiche un stock réel | **PARTIEL** | Le low-stock utilise `stock_balance` ; les compteurs de synthèse restent globaux. |
+| FE-11 | Le dashboard est tenant-scoped | **FAIL** | `DashboardDAOImpl` reste global (`P0-01`). |
+| FE-12 | Les écrans peuvent gérer le multi-entreprise | **FAIL** | Aucun cloisonnement d'inventaire ; jeu de démonstration volontairement mono-entreprise (Lot 9). |
 | FE-13 | Les dates sont affichables sans rechargement après création | **PASS** | Réponses de création relues depuis la base. |
-| FE-14 | Les actions sensibles sont idempotentes | **FAIL** | Absent |
+| FE-14 | Les actions sensibles sont idempotentes | **FAIL** | `Idempotency-Key` et `If-Match`/ETag absents (`P1-14`). |
 
 ---
 
@@ -397,17 +397,17 @@ Et un article hors de l'instantané est refusé en 409
 | Catalogue | 10 | 3 | 5 | 0 |
 | Stock | 14 | 3 | 1 | 0 |
 | Affectations | 10 | 4 | 4 | 0 |
-| QR | 10 | 2 | 3 | 0 |
+| QR | 12 | 2 | 1 | 0 |
 | Comptages / opérations | 16 | 1 | 2 | 0 |
 | Contrat HTTP | 12 | 2 | 4 | 0 |
 | Performance / sécurité | 4 | 3 | 4 | 2 |
 | Tests / CI | 6 | 4 | 4 | 0 |
-| Frontend | 4 | 3 | 7 | 0 |
-| **Total** | **109** | **30** | **51** | **2** |
+| Frontend | 6 | 5 | 3 | 0 |
+| **Total** | **113** | **32** | **45** | **2** |
 
-**Total : 192 critères** (109 `PASS`, 30 `PARTIEL`, 51 `FAIL`, 2 `NON VÉRIFIÉ`) après le Lot 7. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
+**Total : 192 critères** (113 `PASS`, 32 `PARTIEL`, 45 `FAIL`, 2 `NON VÉRIFIÉ`) après le Lot 9. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
-**Lecture :** le Lot 7 fait passer le contrat HTTP de 4 à 12 `PASS` : versionnement `/api/v1`, Problem Details, `traceId`, dates UTC, `Location`, 204, UUID invalide, CORS restreint. Les `PASS` supplémentaires portent aussi sur l'historique article (404, pagination, filtres), la pagination des listes d'inventaire et la mise en cache QR. Restent bloquants : la tenancy complète (`G0-1`, `G0-2`), la concurrence sans ETag/idempotence (`API-10`, `API-11`), les filtres d'écran (`API-15`) et le RBAC des modules hors inventaire.
+**Lecture :** le Lot 7 fait passer le contrat HTTP de 4 à 12 `PASS` : versionnement `/api/v1`, Problem Details, `traceId`, dates UTC, `Location`, 204, UUID invalide, CORS restreint. Les `PASS` supplémentaires portent aussi sur l'historique article (404, pagination, filtres), la pagination des listes d'inventaire et la mise en cache QR. Le Lot 9 ajoute deux `PASS` QR (planche, unicité inter-entreprise) et deux `PASS` frontend (affectation auditée, scan enrichi) ; l'étiquette en lot passe de `FAIL` à `PARTIEL` (HTML sans PDF serveur). Restent bloquants : la tenancy complète (`G0-1`, `G0-2`), la concurrence sans ETag/idempotence (`API-10`, `API-11`), les filtres d'écran (`API-15`), le dashboard global (`FE-11`) et le RBAC des modules hors inventaire.
 
 ---
 

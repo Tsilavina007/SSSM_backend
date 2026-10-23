@@ -1,10 +1,10 @@
 # Audit technique et fonctionnel — Backend SSSM
 
-**Date de l'audit :** 21 octobre 2026, mise à jour du 22 octobre 2026 (Lots 2, 3 et 4)  
+**Date de l'audit :** 21 octobre 2026, mise à jour du 23 octobre 2026 (Lots 2 à 7 et 9)
 **Périmètre :** backend Spring Boot, API HTTP, PostgreSQL, modules inventaire / stock / QR Code / affectations / authentification  
-**Nature :** audit statique initial, puis exécution des Lots 1 à 4 (identité et RBAC, DataSource et transactions, modèle de stock, cycle de vie des affectations et archivage)
-**Statut de la mission :** audit initial et revue de cohérence terminés ; **Lots 1 à 4 exécutés** (21 et 22 octobre 2026) ; lots 5 à 9 non démarrés ; aucun frontend démarré. Le correctif QR `7e3f196` est postérieur à l'audit initial.
-**Revue de cohérence :** 21 octobre 2026, mise à jour du 22 octobre 2026 — voir [`16-revue-coherence.md`](16-revue-coherence.md)
+**Nature :** audit statique initial, puis exécution des Lots 1 à 7 et du Lot 9 (identité et RBAC, DataSource et transactions, modèle de stock, cycle de vie des affectations et archivage, QR, comptages, contrat HTTP, préparation frontend)
+**Statut de la mission :** audit initial et revue de cohérence terminés ; **Lots 1 à 7 et 9 exécutés** (21 au 23 octobre 2026) ; **Lot 8 non démarré** ; aucun code frontend démarré, seuls les documents de préparation du Lot 9 existent. Le correctif QR `7e3f196` est postérieur à l'audit initial.
+**Revue de cohérence :** 21 octobre 2026, mise à jour du 23 octobre 2026 — voir [`16-revue-coherence.md`](16-revue-coherence.md)
 
 ---
 
@@ -37,7 +37,7 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Affectations | un contrat canonique (`item_assignment`) et une façade dépréciée (`assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
 | Tests | 8 suites / 58 tests après le Lot 7 : conformité schéma ↔ application, contrat QR, comptages et contrat HTTP |
-| OpenAPI | 27 fichiers YAML, dont 13 pour l'inventaire |
+| OpenAPI | 28 fichiers YAML, dont 14 pour l'inventaire (spec des soldes ajoutée au Lot 9) |
 
 ## 3. Périmètre exclu
 
@@ -62,7 +62,7 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
 | Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations additives des Lots 1, 3, 4, 5 et 6 appliquées ensuite, tests des Lots 2 à 7 avec nettoyage des marqueurs |
 | Rapports de tests | Exécution du 23 octobre 2026 après le Lot 7 : 58 tests, 58 succès, 0 échec, 8 suites. La suite historique de 150 tests a été remplacée par des tests de conformité, du contrat QR, du contrat de comptage et du contrat HTTP. |
-| Documentation API | `docs/api/**/*.yaml` — 27 fichiers |
+| Documentation API | `docs/api/**/*.yaml` — 28 fichiers |
 | Scripts SQL | `docs/database/schema/00_init.sql` à `22_lot6_inventory_counts.sql` — 23 fichiers |
 
 Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond au commit `a3f7c56` (`docs(audit): add backend readiness and security audit`). Le code a ensuite évolué avec le commit `7e3f196` (`fix(inventory): guarantee ItemError envelope on QR code image endpoint`), qui ajoute notamment `ItemControllerQrCodeImageTest`. La revue de cohérence porte sur ce HEAD `7e3f196`. Le Lot 1 a ensuite été exécuté sur le HEAD `13bb79b` (`docs(audit): reconcile reports with current HEAD`), sans commit de correction à ce stade.
@@ -83,6 +83,7 @@ Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond a
 10. **Exécution du Lot 5** : scan QR tenant-scoped et enrichi, journal `qr_scan`, code immuable, cache d'image, étiquettes HTML, migration `21_lot5_qr.sql`.
 11. **Exécution du Lot 6** : instantané des attendus, périmètre et cloisonnement, clôture idempotente et non vide, annulation, pagination des lignes, ajustements journalisés, migration `22_lot6_inventory_counts.sql`.
 12. **Exécution du Lot 7** : routes `/api/v1` et alias déprécié, Problem Details, `PageResponse`, `Location`, 204, dates UTC, historique article paginé/filtré, OpenAPI aligné. Aucune migration SQL.
+13. **Exécution du Lot 9** : documentation de préparation frontend (`docs/frontend/`), spec OpenAPI des soldes ajoutée et validée, jeu de démonstration maintenu mono-entreprise. Aucun changement de code, SQL ou donnée ; aucune migration.
 
 L'audit initial n'a effectué aucun test destructif, aucune migration, aucune insertion, aucune modification de données. Le Lot 1 a appliqué la migration `18_lot1_security.sql` à la base de démonstration (colonnes, backfill, index, tables de jetons, permissions) et exécuté les tests ; aucun reset ni suppression de données n'a été effectué. Le Lot 2 n'a appliqué **aucune migration** : il réutilise le schéma courant et n'a supprimé aucune donnée. Les Lots 3 à 6 ont appliqué des migrations **strictement additives** (`19_lot3_stock.sql`, `20_lot4_assignments.sql`, `21_lot5_qr.sql`, `22_lot6_inventory_counts.sql`), rejouées pour vérifier leur idempotence ; aucune suppression, aucun `TRUNCATE` et aucun reset n'ont été effectués. Le Lot 7 n'a appliqué **aucune migration**.
 
@@ -102,7 +103,7 @@ L'audit initial n'a effectué aucun test destructif, aucune migration, aucune in
 | [`07-audit-mouvements-stock.md`](07-audit-mouvements-stock.md) | Règles IN/OUT/TRANSFER/RETURN/DESTRUCTION/ADJUSTMENT, journal, erreurs | Statique + tests |
 | [`08-audit-affectations-employes.md`](08-audit-affectations-employes.md) | Cycle de vie des affectations, contrat canonique et façade dépréciée, restitution, archivage — état après le Lot 4 | Statique + tests |
 | [`09-audit-authentification-securite.md`](09-audit-authentification-securite.md) | Inscription, JWT, refresh, RBAC, CORS, fuites d'erreurs — état initial et corrections du Lot 1 | Statique + tests |
-| [`10-audit-architecture-api-frontend.md`](10-audit-architecture-api-frontend.md) | Adéquation de l'API aux frontends web/mobile, conventions, performance | Statique |
+| [`10-audit-architecture-api-frontend.md`](10-audit-architecture-api-frontend.md) | Adéquation de l'API aux frontends web/mobile, conventions, performance — état initial et note Lot 9 | Statique |
 | [`11-audit-tests-fiabilite.md`](11-audit-tests-fiabilite.md) | Couverture réelle, limites, tests qui figent des comportements douteux | Rapports + code |
 | [`12-anomalies-risques-priorites.md`](12-anomalies-risques-priorites.md) | Registre priorisé des anomalies et matrice de risque | Consolidation |
 | [`13-endpoints-manquants-proposes.md`](13-endpoints-manquants-proposes.md) | Contrats proposés, non implémentés, pour combler les manques | Proposition |
@@ -141,16 +142,16 @@ Les priorités utilisées dans le registre sont :
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
 - **Les secrets réels n'ont pas été lus.** Les conclusions portent sur la présence de valeurs par défaut et sur la configuration, pas sur la divulgation d'un secret d'exploitation.
-- **OpenAPI** a été vérifié structurellement au Lot 7 : 27 fichiers, 0 erreur de parsing ruamel et 0 `$ref` orphelin ; `scripts/validate_specs.py` rapporte 0 problème sur 13 fichiers / 75 opérations. Le schéma `Problem` est unique et conforme RFC 9457 ; `ItemError` ne subsiste que pour les erreurs par ligne des créations en lot, et `Location` est documenté sur tous les 201. Le lint Redocly du Lot 6 (**173 avertissements, 0 erreur**) n'a pas été rejoué ; ses avertissements (license, localhost, operationId, exemples) restent a priori.
+- **OpenAPI** a été vérifié structurellement au Lot 9 : **28 fichiers**, 0 erreur de parsing ruamel, 0 `$ref` orphelin, `servers`/`security`/`tags` à la racine ; `scripts/validate_specs.py` rapporte 0 problème sur 14 fichiers / 76 opérations. Le schéma `Problem` est unique et conforme RFC 9457 ; `ItemError` ne subsiste que pour les erreurs par ligne des créations en lot, et `Location` est documenté sur tous les 201. Le lint Redocly a été rejoué au Lot 9 : **0 erreur, 175 avertissements** (license, localhost, operationId, exemples).
 - **Les propositions** des fichiers 13 à 15 sont des spécifications. Elles ne constituent ni du code livré, ni un engagement de délai.
 
 ---
 
 ## 9. Verdict en une phrase
 
-**Le backend n'est pas prêt pour la production.** Il est partiellement utilisable pour un prototype mono-entreprise, en lecture et CRUD encadré. Le Lot 1 a fermé l'inscription publique, ajouté le RBAC sur l'inventaire et l'administration, et durci les jetons (refresh rotatif, révocation, logout). Le Lot 2 a rétabli un pool Spring/HikariCP, des transactions effectives pour les cas d'usage existants, des erreurs SQL maîtrisées et des créations relues depuis la base. Le Lot 3 a posé un stock calculé, un journal immuable et des comptages réconciliés ; le Lot 4 a unifié le contrat d'affectation, fiabilisé son cycle de vie et rendu l'archivage logique effectif. Il ne permet pas encore de garantir une isolation multi-entreprise complète, la concurrence et l'idempotence, ni un RBAC sur tous les modules métier.
+**Le backend n'est pas prêt pour la production.** Il est partiellement utilisable pour un prototype mono-entreprise, en lecture et CRUD encadré. Le Lot 1 a fermé l'inscription publique, ajouté le RBAC sur l'inventaire et l'administration, et durci les jetons (refresh rotatif, révocation, logout). Le Lot 2 a rétabli un pool Spring/HikariCP, des transactions effectives pour les cas d'usage existants, des erreurs SQL maîtrisées et des créations relues depuis la base. Le Lot 3 a posé un stock calculé, un journal immuable et des comptages réconciliés ; le Lot 4 a unifié le contrat d'affectation, fiabilisé son cycle de vie et rendu l'archivage logique effectif ; le Lot 5 a rendu le scan QR tenant-scoped, enrichi et journalisé ; le Lot 6 a figé les attendus de comptage et fiabilisé leur clôture ; le Lot 7 a stabilisé le contrat HTTP (`/api/v1`, Problem Details, pagination, `Location`, dates UTC). Le Lot 9 fournit la préparation frontend et la spec OpenAPI des soldes, sans modifier le verdict. Il ne permet pas encore de garantir une isolation multi-entreprise complète, la concurrence et l'idempotence, ni un RBAC sur tous les modules métier.
 
-Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout frontend sont dans [`00-resume-executif.md`](00-resume-executif.md). Les preuves sont dans les rapports 01 à 11, la revue de cohérence dans le rapport 16, et les corrections proposées dans les rapports 12 à 15.
+Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout frontend sont dans [`00-resume-executif.md`](00-resume-executif.md). Les preuves sont dans les rapports 01 à 11, la revue de cohérence dans le rapport 16, les corrections proposées dans les rapports 12 à 15, et la préparation frontend dans [`docs/frontend/`](../frontend/).
 
 ---
 
@@ -164,6 +165,7 @@ Le détail de ce verdict, ses nuances et les cinq actions à mener avant tout fr
 6. Rapports 10 et 11 — adéquation frontend et fiabilité.
 7. Rapports 12 à 15 — risques, propositions, plan, critères d'acceptation.
 8. [`16-revue-coherence.md`](16-revue-coherence.md) — vérification croisée, contradictions, tableau final et ordre corrigé.
+9. [`docs/frontend/README.md`](../frontend/README.md) — préparation frontend, verdict et critères d'acceptation.
 
 ---
 
@@ -215,4 +217,43 @@ Le **Lot 4**, exécuté le 22 octobre 2026, a modifié :
 
 La suite complète était verte à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** (suite depuis réduite à 20 tests de conformité schéma). La migration a été appliquée puis rejouée, sans suppression de ligne ni de colonne. Aucune dépendance n'a été ajoutée. `P0-06`, `P1-05` et `P1-11` sont corrigés dans le périmètre documenté ; `P0-01` (tenancy) et `P1-14` (concurrence et idempotence) restent ouverts, ainsi qu'une affectation active antérieure de la base de démonstration incohérente avec le statut de son article, laissée en l'état.
 
-Le Lot 8 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.
+Le **Lot 5**, exécuté le 22 octobre 2026, a modifié :
+
+- la migration additive `21_lot5_qr.sql` et l'orchestrateur `sssm_schema2_v01.sql` ;
+- le module `qr_scan` (résolution tenant-scoped, réponse enrichie, journal, limiteur) ;
+- le module `label` (étiquette et planche HTML) ;
+- l'immuabilité du code QR et le cache de l'image PNG ;
+- les tests QR et la conformité de schéma ;
+- les spécifications OpenAPI concernées et les rapports `docs/audit/`.
+
+Aucune dépendance n'a été ajoutée, les données existantes sont inchangées et la migration a été appliquée puis rejouée sans opération destructive.
+
+Le **Lot 6**, exécuté le 23 octobre 2026, a modifié :
+
+- la migration additive `22_lot6_inventory_counts.sql` et l'orchestrateur `sssm_schema2_v01.sql` ;
+- le module `inventory_count` (instantané des attendus, périmètre, clôture idempotente et non vide, annulation, pagination, ajustements) ;
+- les tests de comptage et la conformité de schéma ;
+- la spécification OpenAPI des comptages et les rapports `docs/audit/`.
+
+Aucune dépendance n'a été ajoutée et aucune donnée existante n'a été supprimée.
+
+Le **Lot 7**, exécuté le 23 octobre 2026, a modifié :
+
+- les 28 contrôleurs et le filtre de version `ApiVersionFilter` pour `/api/v1` et l'alias déprécié ;
+- la pagination commune (`PageQuery`, `PageResponse`) et les listes d'inventaire ;
+- les Problem Details RFC 9457 (`ProblemDetails`, `ProblemResponseWriter`, `GlobalExceptionHandler`) et `CreatedLocationAdvice` ;
+- l'historique article (DTO, lectures SQL, filtres) ;
+- les tests de contrat HTTP ;
+- 27 spécifications OpenAPI et les rapports `docs/audit/`.
+
+Aucune migration SQL n'a été appliquée, aucune dépendance ajoutée, aucune donnée modifiée.
+
+Le **Lot 9**, exécuté le 23 octobre 2026, a modifié :
+
+- `docs/frontend/` (7 documents de préparation) ;
+- `docs/api/11_inventory/stock_balance-openapi.yaml` (nouvelle spec) et `docs/api/README.md` ;
+- les rapports `docs/audit/` concernés et `docs/ci.md`.
+
+Aucun fichier Java, test, script SQL, configuration ou donnée n'a été modifié. Aucune dépendance n'a été ajoutée. Aucune migration n'a été appliquée et aucune base n'a été réinitialisée. Le jeu de démonstration reste mono-entreprise.
+
+Le Lot 8 et tout démarrage de code frontend doivent faire l'objet d'un accord explicite distinct.

@@ -50,7 +50,7 @@ base.
 - Contrôles Java existants via `bash scripts/check-before-push.sh --skip-tests`
   (packages, imports dupliqués, imports wildcard, espaces en fin de ligne,
   compilation).
-- Validation des 27 spécifications OpenAPI avec Redocly CLI.
+- Validation des 28 spécifications OpenAPI avec Redocly CLI.
 - Les avertissements Redocly attendus (`license`, `localhost`, `operationId`)
   ne bloquent pas le job ; les erreurs de structure ou de référence échouent.
 

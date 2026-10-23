@@ -1,6 +1,6 @@
 # 00 — Résumé exécutif
 
-**Date :** 21 octobre 2026, mise à jour du 23 octobre 2026 (Lots 2 à 6)  
+**Date :** 21 octobre 2026, mise à jour du 23 octobre 2026 (Lots 2 à 7 et 9)
 **Verdict global :** **NON PRÊT POUR LA PRODUCTION**  
 **Nuance :** **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, avec un stock calculé pour les flux mouvement/opération/comptage un cycle de vie des affectations unifié et des comptages réconciliés, mais sans tenancy complète ni concurrence maîtrisée.
 
@@ -13,6 +13,8 @@
 **Mise à jour du 22 octobre 2026 (Lot 4) :** cycle de vie des affectations unifié derrière le contrat canonique `/api/item-assignments` ; `/api/inventory/assignments` devient une façade dépréciée déléguant au même service, avec les mêmes DTO et les mêmes codes HTTP, plus aucun JSON libre ni soft-200. `OUT` exige `employee_id`/`post_id` et crée une affectation ; `RETURN` la clôt ; `IN`, `TRANSFER` et `DESTRUCTION` refusent un article affecté. Le retour (`POST /{id}/return`) pose date et acteur côté serveur, restaure l'entrepôt et l'article, et synchronise le solde. Articles, catégories, types et entrepôts sont archivés logiquement et restaurables ; les affectations sont archivées par un void motivé et audité, et une affectation active ne peut pas être supprimée. **P0-06, P1-05 et P1-11 sont corrigés** dans le périmètre documenté. La migration additive `20_lot4_assignments.sql` a été appliquée, rejouée et vérifiée idempotente. Suite complète à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** (suite depuis réduite, voir § 6). `P0-01` et `P1-14` restent ouverts ; une affectation active antérieure de la base de démonstration pointe encore vers un article `AVAILABLE` et n'a pas été corrigée automatiquement.
 
 **Mise à jour du 23 octobre 2026 (Lots 5 et 6) :** le scan QR est **strictement limité à l'entreprise**, journalisé dans `qr_scan` et limité en débit ; le code QR est **immuable** et une planche d'**étiquettes HTML** est produite (`21_lot5_qr.sql`). Les comptages figent désormais leurs **attendus à l'ouverture** (`22_lot6_inventory_counts.sql`), refusent un article hors périmètre, sont **cloisonnés par entreprise**, se clôturent de façon **idempotente et non vide**, s'annulent, paginent leurs lignes et **journalisent un mouvement `ADJUSTMENT`** par écart non nul. **P1-04 et P1-07 sont corrigés** dans leur périmètre documenté ; **P2-05 est partiel** (HTML sans PDF serveur). Suite complète : **49 tests, 0 échec, 0 erreur, 0 ignoré, 7 suites**. `P0-01`, `P1-14`, la rétention du journal QR et le partage du limiteur restent ouverts.
+
+**Mise à jour du 23 octobre 2026 (Lot 9) :** la préparation frontend est documentée dans `docs/frontend/` : environnements et URLs, stockage des jetons (access en mémoire, refresh dans `localStorage`), refresh/logout, catalogue d'erreurs, pagination et filtres, maquettes de scan et d'étiquettes, critères d'acceptation et données de démonstration. La spécification OpenAPI des soldes est ajoutée et corrigée : **28 fichiers / 149 opérations**, 0 erreur de parsing, 0 `$ref` orphelin, 0 problème sur 14 fichiers / 76 opérations d'inventaire. Le jeu de démonstration reste **mono-entreprise** : le multi-entreprise est reporté tant que `P0-01` n'est pas corrigé. Verdict : **No-Go production, Go démonstration mono-entreprise**. Aucun changement de code, de schéma, de donnée ou de dépendance ; aucune migration.
 
 **Mise à jour du 23 octobre 2026 (Lot 7) :** les 28 contrôleurs exposent `/api/v1` ; l'alias `/api` reste accepté et porte `Deprecation`/`Link`. Les erreurs sont des **Problem Details RFC 9457** (`application/problem+json`) avec `code`, `traceId` et `timestamp` ; les validations ajoutent `errors[]`. Les listes d'inventaire renvoient **`PageResponse`** avec `total` et `pageSize` plafonné à 500. Les créations renvoient **201 + `Location`**, toutes les suppressions **204**, les dates sont **ISO-8601 UTC**. L'historique article renvoie 404 s'il est inconnu, est paginé et filtré : **P1-12 est corrigé**. **P2-02 est corrigé pour l'inventaire** et **P2-03 est corrigé** (versionnement, dates ; libellés d'enums partiels). Suite complète : **58 tests, 0 échec, 0 erreur, 0 ignoré, 8 suites**. Aucune migration SQL. `API-10` (`Idempotency-Key`) et `API-11` (`If-Match`/ETag) restent différés ; `P1-08` (N+1), `API-02` hors inventaire et `API-15` (filtres) restent partiels.
 
@@ -50,7 +52,7 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Contrat API | **CORRIGÉ — LOT 7** | Élevé | `/api/v1` et alias déprécié, Problem Details, `PageResponse` sur l'inventaire, `Location`, 204, dates UTC, historique 404/paginé. Restent l'idempotence/ETag et la pagination hors inventaire. |
 | Performance | **PARTIEL** | Élevé | Pool HikariCP utilisé par les DAO ; plafond `pageSize` et pagination en place sur l'inventaire ; chaîne N+1 sur chaque article toujours ouverte. |
 | Tests | **PARTIEL — RECONSTRUIT** | Élevé | 58 tests dans 8 suites au 23 octobre 2026 (schéma, QR, comptages, contrat HTTP) ; les comportements métier non couverts restent vérifiés par lecture de code. |
-| Documentation OpenAPI | **PARTIEL** | Moyen | 27 fichiers alignés sur `/api/v1`, `Problem` RFC 9457 unique et `Page*` ; `ItemError` retiré des erreurs globales et `Location` documenté sur les 201. Validation 0 erreur de parsing / 0 `$ref` orphelin. Restent la spec des soldes, les exemples et les `license`. |
+| Documentation OpenAPI | **PARTIEL** | Moyen | 28 fichiers alignés sur `/api/v1`, dont la spec des soldes ajoutée au Lot 9 ; `Problem` RFC 9457 unique et `Page*` ; `ItemError` retiré des erreurs globales et `Location` documenté sur les 201. Validation 0 erreur de parsing / 0 `$ref` orphelin ; lint Redocly 0 erreur, 175 avertissements. Restent les exemples et les `license`. |
 
 ---
 
@@ -63,18 +65,20 @@ Un frontend de démonstration peut consommer le catalogue, les articles, les QR 
 
 ### 3.2. Peut-on démarrer l'application mobile maintenant ?
 
-**Non.** Le scan QR existe, mais il ne renvoie qu'une ligne d'article brute, sans type lisible, sans entrepôt lisible, sans affectation active, sans détenteur et sans action possible. Il n'existe pas de endpoint de scan tracé, d'action mobile idempotente ni de contrat de synchronisation hors ligne. Le mobile ne peut pas construire un parcours fiable avec l'API actuelle.
+**Pas pour la production, mais un prototype mono-entreprise est possible.** Le scan QR est enrichi (type, catégorie, entrepôt, affectation active, détenteur, poste), tenant-scoped, journalisé et limité en débit. Il reste bloqué par la tenancy générale (`P0-01`), l'absence d'idempotence (`P1-14`) et l'absence de contrat de synchronisation hors ligne. Le parcours de scan et d'étiquette est décrit dans `docs/frontend/04-parcours-scan-etiquettes.md`.
 
 ### 3.3. La génération et la lecture des QR Codes sont-elles prêtes ?
 
-**La génération et l'image sont prêtes ; le reste est partiel.**
+**Oui pour la génération, la lecture et l'impression HTML ; partiellement pour l'industrialisation.**
 
 - Génération automatique d'un code `QR-XXXXXXXX` à la création d'un article, ou code fourni par le client.
-- Image PNG 300 × 300 générée à la demande avec ZXing.
+- Image PNG générée à la demande avec ZXing, mise en cache (`ETag`, 304) et taille configurable.
 - Unicité en base par `(company_id, qr_code)`.
-- Lecture d'un article par identifiant, et résolution d'un code par `POST /api/inventory/scans/resolve`.
+- Résolution par `POST /api/v1/inventory/scans/resolve`, strictement limitée à l'entreprise de l'appelant, avec 404 sur un code inconnu et journal `qr_scan`.
+- Code QR immuable après création (décision D-05).
+- Étiquette et planche HTML de 100 articles, imprimables depuis le navigateur.
 
-Limites : le code est modifiable par `PATCH`, aucune étiquette PDF n'est produite, l'image n'est pas stockée, le scan est global à toutes les entreprises, renvoie une liste et n'inclut ni type, ni entrepôt, ni affectation, ni détenteur.
+Limites : pas de PDF généré par le serveur, pas de file d'impression, pas de politique de rétention du journal, limiteur en mémoire non partagé entre instances et contrôle `company_id` non généralisé aux autres modules (`P0-01`).
 
 ### 3.4. Les mouvements de stock sont-ils fiables ?
 
@@ -103,7 +107,7 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 
 ### 3.7. Quelles sont les cinq actions à mener avant toute nouvelle phase ?
 
-**État après Lot 7 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés). `P0-01` (tenancy générale) et `P1-14` (concurrence, ETag/idempotence) restent ouverts. Le Lot 8 ne doit pas démarrer sans autorisation.
+**État après Lot 9 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés). `P0-01` (tenancy générale) et `P1-14` (concurrence, ETag/idempotence) restent ouverts. Le Lot 9 ne corrige aucun de ces points : il documente le contrat et les critères d'acceptation. Le Lot 8 ne doit pas démarrer sans autorisation, et le Lot 9 ne débloque pas la production.
 
 1. **Trancher le modèle de tenancy et le contrôle d'accès.**  
    Décider si l'entreprise est un tenant strict, comment elle est portée par le jeton, et quelles permissions sont réellement appliquées. Fermer ou encadrer l'inscription publique. Tant que ce point n'est pas décidé, tout développement frontend reposera sur un contrat faux.

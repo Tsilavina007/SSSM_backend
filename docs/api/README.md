@@ -4,7 +4,7 @@ Spécifications OpenAPI 3.0.3 générées à partir des contrôleurs Spring du p
 module par module. Chaque fichier est autonome et peut être importé directement
 dans Swagger Editor, Postman, Insomnia ou Redoc.
 
-**État au 23 octobre 2026 (Lot 7) :** les chemins sont canoniquement préfixés
+**État au 23 octobre 2026 (Lots 7 et 9) :** les chemins sont canoniquement préfixés
 `/api/v1`. L'alias historique `/api` reste accepté par le backend et renvoie
 `Deprecation: true` et `Link` vers `/api/v1`, mais il n'est plus documenté.
 Les erreurs utilisent `application/problem+json` (RFC 9457).
@@ -18,8 +18,8 @@ Les erreurs utilisent `application/problem+json` (RFC 9457).
 | `a04_personnel` | [`04_personnel/`](04_personnel/) | 2 | 10 |
 | `a05_clients` | [`05_clients/`](05_clients/) | 2 | 10 |
 | `a06_sites` | [`06_sites/`](06_sites/) | 3 | 15 |
-| `a11_inventory` | [`11_inventory/`](11_inventory/) | 13 | 75 |
-| **Total** | | **27** | **148** |
+| `a11_inventory` | [`11_inventory/`](11_inventory/) | 14 | 76 |
+| **Total** | | **28** | **149** |
 
 ### Détail des fichiers
 
@@ -46,13 +46,11 @@ Les erreurs utilisent `application/problem+json` (RFC 9457).
   - `assignment-openapi.yaml`, `dashboard-openapi.yaml`, `inventory_count-openapi.yaml`,
     `item-openapi.yaml`, `item_assignment-openapi.yaml`, `item_category-openapi.yaml`,
     `item_type-openapi.yaml`, `label-openapi.yaml`, `operation-openapi.yaml`,
-    `qr_scan-openapi.yaml`, `report-openapi.yaml`, `stock_movement-openapi.yaml`,
-    `warehouse-openapi.yaml`
+    `qr_scan-openapi.yaml`, `report-openapi.yaml`, `stock_balance-openapi.yaml`,
+    `stock_movement-openapi.yaml`, `warehouse-openapi.yaml`
 
 Aucune spécification n'est fournie pour `a00_infrastructure`, `a01_common` et
-`controller_test` : ces packages n'exposent pas d'API métier. La route
-`GET /api/v1/inventory/stock-balances` n'a pas encore de fichier dédié ; c'est
-l'écart connu entre les 148 opérations documentées et les 150 routes métier.
+`controller_test` : ces packages n'exposent pas d'API métier.
 
 ## Conventions communes
 
@@ -160,23 +158,23 @@ produits par ses routes.
   insertion et jamais renvoyé ; `id`, `password_hash`, `company_id` (en mise à
   jour) et les horodatages ne sont pas modifiables par le client.
 - **Inventory** : les corps sont typés par des DTO dédiés ; les erreurs métier
-  sont des exceptions HTTP (`404`, `409`, `422`), plus des soft-200.
+  sont des exceptions HTTP (`404`, `409`, `422`), plus de soft-200.
 - **Stubs `item-types`** : les routes `low-stock`, `items/{typeId}` et
   `stocks/{typeId}` ne sont pas encore implémentées et renvoient un tableau JSON
   vide `[]`.
-- **Limites** : la spec des soldes manque ; les listes hors inventaire ne sont
-  pas paginées avec total ; les filtres d'écran restent partiels ; les libellés
-  d'enums ne sont pas tous documentés. L'idempotence (`Idempotency-Key`) et les
+- **Limites** : les listes hors inventaire ne sont pas paginées avec total ;
+  les filtres d'écran restent partiels ; les libellés d'enums ne sont pas tous
+  documentés. L'idempotence (`Idempotency-Key`) et les
   ETag/`If-Match` ne sont pas encore implémentés.
 
 ## Vérification
 
-Les 27 fichiers ont été validés au Lot 7 (parsing YAML ruamel, résolution des
-`$ref`, chemins `/api/v1`) : **0 erreur de parsing, 0 `$ref` orphelin**.
-`scripts/validate_specs.py` rapporte **0 problème sur 13 fichiers / 75
-opérations** d'inventaire. Le lint Redocly n'a pas été rejoué ; les
-avertissements du Lot 6 (`operationId` absents, licence, `localhost`, exemples)
-restent a priori.
+Les 28 fichiers ont été validés au Lot 9 (parsing YAML ruamel, résolution des
+`$ref`, chemins `/api/v1`, emplacement racine de `servers`/`security`/`tags`) :
+**0 erreur de parsing, 0 `$ref` orphelin**. `scripts/validate_specs.py`
+rapporte **0 problème sur 14 fichiers / 76 opérations** d'inventaire. Le lint
+Redocly rejoué au Lot 9 sur les 28 fichiers donne **0 erreur et 175
+avertissements** (`operationId` absents, licence, `localhost`, exemples).
 
 Pour linter ou prévisualiser les spécifications :
 
