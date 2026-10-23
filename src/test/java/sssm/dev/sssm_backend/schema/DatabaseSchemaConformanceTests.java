@@ -38,6 +38,7 @@ import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.item_category.dto.rest.ItemCategoryRest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.dto.rest.ItemTypeRest;
+import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.rest.InventoryCountRest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.rest.StockMovementRest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.rest.WarehouseRest;
 
@@ -68,7 +69,8 @@ class DatabaseSchemaConformanceTests {
           StockMovementRest.class, "stock_movement",
           ItemCategoryRest.class, "item_category",
           ItemTypeRest.class, "item_type",
-          WarehouseRest.class, "warehouse");
+          WarehouseRest.class, "warehouse",
+          InventoryCountRest.class, "inventory_count");
 
   /** Champs des DTO agrégés : ils portent des objets, pas des colonnes. */
   private static final Set<String> NESTED_FIELDS = Set.of("company", "branch", "category");
@@ -325,6 +327,47 @@ class DatabaseSchemaConformanceTests {
                   "idx_qr_scan_item",
                   "idx_qr_scan_code")),
           () -> "index manquants sur qr_scan : " + indexes);
+    }
+  }
+
+  @Test
+  @DisplayName("L'instantané des attendus de comptage existe avec ses clés et ses index")
+  void inventoryCountSnapshotMatchesTheContract() throws Exception {
+    try (Connection connection = openDatabase()) {
+      Set<String> columns = columns(connection, "inventory_count_expected");
+      assertTrue(
+          columns.containsAll(
+              List.of(
+                  "inventory_count_id",
+                  "item_id",
+                  "company_id",
+                  "expected_warehouse_id",
+                  "expected_quantity",
+                  "item_status_at_open",
+                  "snapshot_at")),
+          () -> "colonnes manquantes sur inventory_count_expected : " + columns);
+
+      assertEquals(
+          "uuid NOT NULL",
+          columnDefinition(connection, "inventory_count_expected", "inventory_count_id"));
+      assertEquals(
+          "uuid NOT NULL", columnDefinition(connection, "inventory_count_expected", "item_id"));
+      assertEquals(
+          "numeric NOT NULL",
+          columnDefinition(connection, "inventory_count_expected", "expected_quantity"));
+
+      Set<String> targets = foreignKeyTargets(connection, "inventory_count_expected");
+      assertTrue(
+          targets.containsAll(List.of("inventory_count", "item", "company", "warehouse")),
+          () -> "clés étrangères manquantes sur inventory_count_expected : " + targets);
+
+      Set<String> indexes = indexNames(connection, "inventory_count_expected");
+      assertTrue(
+          indexes.containsAll(
+              List.of(
+                  "idx_inventory_count_expected_item",
+                  "idx_inventory_count_expected_company")),
+          () -> "index manquants sur inventory_count_expected : " + indexes);
     }
   }
 

@@ -6,6 +6,8 @@
 
 La suite exécutée le 22 octobre 2026 après le Lot 4 comptait **150 tests dans 28 suites** ; cette suite a ensuite été remplacée par la suite de conformité (20 tests, 4 suites).
 
+**Mise à jour du 23 octobre 2026 (Lots 5 et 6) :** la suite compte désormais **7 classes et 49 tests**. Deux contrats métier s'y ajoutent : le scan QR (13 tests et 4 tests de limiteur, Lot 5) et les comptages (10 tests, Lot 6) — instantané figé, périmètre, cloisonnement, clôture idempotente, ajustements, annulation et pagination. Les tests de conformité de schéma passent à 20 tests. Le reste des constats (tenancy générale, concurrence, matrice RBAC, base isolée par test) reste ouvert.
+
 ---
 
 ## 1. Chiffres disponibles
@@ -450,7 +452,7 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 
 La suite qui précédait la réduction était **nombreuse pour un prototype** et **utile pour les parcours nominaux** : elle couvrait l'identité et le RBAC (Lot 1), le pool, le rollback transactionnel et le mapping SQL (Lot 2), les soldes calculés, le journal immuable et les comptages (Lot 3), le cycle de vie des affectations et l'archivage (Lot 4). Elle totalisait **150 tests dans 28 suites**.
 
-**La suite actuelle (20 tests, 4 suites) ne teste plus aucun comportement métier.** Elle contrôle la conformité du schéma à l'application. C'est un filet de sécurité sur les migrations, pas une preuve de bon fonctionnement : le rapport 15 doit être relu en conséquence, et `P1-13` reste ouvert avec un niveau de gravité plus élevé qu'avant.
+**La suite actuelle (49 tests, 7 suites) ne couvre que des périmètres ciblés.** Elle contrôle la conformité du schéma à l'application, le contrat du scan QR et le contrat des comptages ; elle ne couvre ni la tenancy générale, ni la concurrence, ni la matrice RBAC, ni l'archivage. C'est un filet de sécurité sur les migrations et deux contrats, pas une preuve de bon fonctionnement : le rapport 15 doit être relu en conséquence, et `P1-13` reste ouvert avec un niveau de gravité plus élevé qu'avant.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 

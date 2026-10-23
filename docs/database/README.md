@@ -184,6 +184,33 @@ cd sssm_backend
 psql -d sssm_db -f docs/database/schema/21_lot5_qr.sql -U your_user
 ```
 
+## Migration Lot 6
+
+`22_lot6_inventory_counts.sql` est une migration **additive** appliquée après
+`21_lot5_qr.sql` :
+
+- table `security.inventory_count_expected` : instantané des attendus figé à
+  l'ouverture d'un comptage (`inventory_count_id`, `item_id`, `company_id`,
+  `expected_warehouse_id`, `expected_quantity`, `item_status_at_open`,
+  `snapshot_at`) ;
+- clé primaire `(inventory_count_id, item_id)` et clés étrangères vers
+  `inventory_count`, `item`, `company` et `warehouse` (RESTRICT) ;
+- contrainte `expected_quantity >= 0` ;
+- index sur `item_id` et sur `company_id`.
+
+La table est vide à la migration : les comptages antérieurs conservent leurs
+lignes de scan, mais n'ont pas d'instantané rétroactif. Un scan sur un comptage
+encore ouvert est donc refusé (`409 ITEM_OUT_OF_SCOPE`) ; il faut le clôturer ou
+l'annuler, puis ouvrir un nouveau comptage. Les données existantes (articles,
+mouvements, comptages, affectations) sont inchangées. Le script ne
+contient ni `DROP`, ni `DELETE`, ni `TRUNCATE`, ni ajout de `NOT NULL` sur une
+colonne historique.
+
+```bash
+cd sssm_backend
+psql -d sssm_db -f docs/database/schema/22_lot6_inventory_counts.sql -U your_user
+```
+
 ## Exécution complète
 
 Les scripts SQL sont exécutés depuis la racine du projet `sssm_backend` :
@@ -196,10 +223,10 @@ psql -d sssm_db -f docs/database/sssm_schema2_v01.sql -U your_user
 Les fichiers sont exécutés dans l'ordre numérique afin de respecter les
 dépendances entre les types enum, les tables, les index, les triggers et
 les données initiales. Le fichier principal inclut les migrations
-`18_lot1_security.sql`, `19_lot3_stock.sql`, `20_lot4_assignments.sql` et
-`21_lot5_qr.sql` ; une installation neuve dispose donc directement de
-`stock_balance`, des colonnes de cycle de vie des affectations et du journal
-des scans.
+`18_lot1_security.sql`, `19_lot3_stock.sql`, `20_lot4_assignments.sql`,
+`21_lot5_qr.sql` et `22_lot6_inventory_counts.sql` ; une installation neuve
+dispose donc directement de `stock_balance`, des colonnes de cycle de vie des
+affectations, du journal des scans et de l'instantané des comptages.
 
 ## Exécution d'une section
 

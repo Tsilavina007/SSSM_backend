@@ -202,6 +202,17 @@ Une opération est un en-tête vide. Elle ne prouve pas qu'un article a été re
 
 La colonne `item.last_inventory_at` n'est écrite par aucun code. Même après un comptage clôturé, l'article n'a aucune trace de sa dernière vérification physique. La valeur est nulle pour les 10 articles de la base de démonstration.
 
+### 6.5. Mise à jour du 23 octobre 2026 (Lots 3 et 6)
+
+Les constats de la section 6.3 sont périmés :
+
+- `inventory_count_scan` porte `expected_quantity`, `counted_quantity`, `difference` et `discrepancy_type`, tous calculés par le serveur ;
+- l'ouverture crée un instantané `inventory_count_expected` pour tous les articles non archivés de l'entreprise ; le scan lit cet attendu figé et refuse un article hors périmètre (`409 ITEM_OUT_OF_SCOPE`) ;
+- `GET /{id}` et `GET /{id}/results` renvoient `404` pour un comptage inconnu ; les lignes sont paginées (`page`, `pageSize`, `X-Total-Count`) ;
+- la clôture est idempotente, refuse un comptage vide (`409 COUNT_EMPTY`), renseigne `completed_at`/`completed_by`, réconcilie l'article et le solde, écrit `last_inventory_at` et journalise un mouvement `ADJUSTMENT` par écart non nul ;
+- `POST /{id}/cancel` annule un comptage en cours sans ajustement ;
+- création, liste, lecture et écritures sont cloisonnées par l'entreprise du jeton.
+
 ---
 
 ## 7. Tableau de bord
@@ -285,10 +296,10 @@ Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, le
 
 **Mise à jour du 22 octobre 2026 (Lot 3) :** `stock_balance` est la source du stock disponible ; les mouvements, opérations, créations/modifications/suppressions d'articles et clôtures de comptage mettent à jour le solde. Les opérations multi-lignes sont implémentées et atomiques, et la clôture de comptage réconcilie statut, emplacement et solde avec `last_inventory_at`.
 
-**Mise à jour du 22 octobre 2026 (Lot 4) :** les affectations sont raccordées au solde. La création d'une affectation, le retour (`POST /{id}/return`) et le void d'une affectation active synchronisent `stock_balance` dans la même transaction que le changement d'état de l'article. L'archivage d'un article retire son stock disponible et sa restauration le réintègre. Les limites restantes sont :
+**Mise à jour du 23 octobre 2026 (Lots 4 et 6) :** les affectations sont raccordées au solde. La création d'une affectation, le retour (`POST /{id}/return`) et le void d'une affectation active synchronisent `stock_balance` dans la même transaction que le changement d'état de l'article. L'archivage d'un article retire son stock disponible et sa restauration le réintègre. Les limites restantes sont :
 
-- les ajustements de clôture de comptage ne créent pas de mouvement compensatoire ;
-- un comptage vide peut encore être clôturé comme complet ;
+- les ajustements de clôture sont journalisés depuis le Lot 6, mais le solde est corrigé depuis l'état courant de l'article tandis que le mouvement suit l'écart figé à l'ouverture ;
+- un article attendu mais jamais scanné n'est pas marqué manquant ;
 - la concurrence entre deux écritures n'est pas contrôlée par version (`P1-14`) ;
 - les mouvements historiques n'ont pas de source/destination/acteur rétroactifs ;
 - une affectation active antérieure au Lot 4 pointe vers un article `AVAILABLE` dans la base de démonstration et n'a pas été corrigée.
@@ -320,12 +331,14 @@ Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, le
 - `Lot3StockModelTests` : 8 tests sur les soldes, l'API, l'acteur, le stock négatif, l'immuabilité, le rollback multi-lignes, le comptage/écart/clôture et les erreurs 404.
 - `AssignmentApiTests` : 14 tests sur le cycle de vie des affectations et la synchronisation du solde.
 - Suite complète après le Lot 4 : 150 tests, 0 échec, 28 suites (suite depuis réduite, voir le rapport 11).
+- `InventoryCountApiTests` (Lot 6) : 10 tests sur l'instantané figé, le périmètre, le cloisonnement, la clôture idempotente et non vide, les ajustements journalisés, l'annulation et la pagination. Suite complète après le Lot 6 : 49 tests, 0 échec, 7 suites.
 
 ### 10.3. Ce que les tests ne couvrent pas encore
 
 - concurrence, `If-Match` et idempotence (`P1-14`) ;
 - scénario réel à deux entreprises (`P0-01`) ;
-- journalisation des ajustements de clôture de comptage ;
+- marquage automatique des articles attendus non scannés ;
+- filtres des lignes de comptage par statut ou par type d'écart ;
 - réconciliation complète des mouvements historiques sans source/destination/acteur ;
 - la course réelle sur `uq_item_assignment_active` (le conflit est traduit en 409, mais n'est pas testé en concurrence).
 
@@ -333,15 +346,10 @@ Les opérations de stock sont annotées `@Transactional` et, depuis le Lot 2, le
 
 ## 11. Verdict
 
-Le stock est **déclaratif et partiellement tracé**, pas **calculé et réconcilié**. Le backend peut servir à enregistrer des événements unitaires et à changer l'état d'un article. Il ne peut pas servir à piloter un stock, à décider d'une rupture ou à justifier une valeur d'inventaire.
+**Mise à jour du 23 octobre 2026 (Lot 6) :** le stock disponible est calculé depuis le Lot 3 ; les comptages sont figés à l'ouverture, cloisonnés par entreprise, clôturés de manière idempotente et journalisés en mouvements `ADJUSTMENT`.
 
-Les priorités sont :
+**Constat initial :** le stock était **déclaratif et partiellement tracé**, pas **calculé et réconcilié** ; le backend ne pouvait ni piloter un stock, ni décider d'une rupture, ni justifier une valeur d'inventaire.
 
-1. choisir le modèle de stock (journal + solde calculé, ou stock déclaratif assumé) ;
-2. exposer `quantity`, `source_warehouse_id`, `destination_warehouse_id`, `operation_id`, `performed_by` ;
-3. rendre les mouvements immuables ou compensatoires ;
-4. alimenter les opérations avec des lignes et des mouvements ;
-5. réconcilier les comptages et mettre à jour `last_inventory_at` ;
-6. rendre le dashboard et les alertes dépendants du stock réel.
+**Après le Lot 6 :** les six priorités ci-dessous sont réalisées dans leur périmètre documenté — le modèle journal + solde calculé est retenu (`D-01`), les champs de mouvement sont exposés, le journal est immuable, les opérations portent des lignes et des mouvements, les comptages sont réconciliés avec `last_inventory_at` et leurs ajustements journalisés, et le dashboard basse stock lit `stock_balance`. Les limites restantes sont la tenancy générale (`P0-01`), la concurrence (`P1-14`), le marquage des attendus non scannés et la reconstitution des mouvements historiques.
 
 Le plan de correction est dans le rapport 14 ; les critères de validation dans le rapport 15.

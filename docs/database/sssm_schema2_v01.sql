@@ -30,3 +30,5 @@ COMMIT;
 \i docs/database/schema/20_lot4_assignments.sql
 
 \i docs/database/schema/21_lot5_qr.sql
+
+\i docs/database/schema/22_lot6_inventory_counts.sql

@@ -15,7 +15,7 @@ Client HTTP
 Spring Security (JwtAuthenticationFilter)
    |
    v
-@RestController  (28 contrôleurs, 149 routes après le Lot 5)
+@RestController  (28 contrôleurs, 150 routes après le Lot 6)
    |
    v
 @Service         (règles métier, parfois @Transactional)
@@ -75,7 +75,7 @@ Le code est rangé sous `sssm.dev.sssm_backend`, avec une convention de préfixe
 | `a11_inventory` | inventaire, stock, QR, affectations, étiquettes, comptages, dashboard, rapports | 14 |
 | `controller_test` | contrôleurs de test (`Hello`, `Ping`) | 2 |
 
-Total : **28 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **149 routes applicatives après le Lot 5** (130 à l'audit initial, 131 après le Lot 1, 133 après le Lot 3, 147 après le Lot 4 ; 151 annotations de mapping en incluant `Hello` et `Ping`).
+Total : **28 contrôleurs REST métier**, plus deux contrôleurs de test et un contrôleur technique sans route métier (`ItemErrorController`), et **150 routes applicatives après le Lot 6** (130 à l'audit initial, 131 après le Lot 1, 133 après le Lot 3, 147 après le Lot 4, 149 après le Lot 5 ; 152 annotations de mapping en incluant `Hello` et `Ping`).
 
 ### 3.1. Détail du module inventaire
 

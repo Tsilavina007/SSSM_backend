@@ -1,18 +1,20 @@
 openapi: 3.0.3
 info:
   title: SSSM Inventory — Inventory Counts API
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     API des inventaires (module a11_inventory/inventory_count), dérivée du
     contrôleur InventoryCountController. Toutes les routes exigent un JWT
-    (Authorization: Bearer …). Les corps utilisent des DTO typés
-    (InventoryCountCreateRequest, InventoryCountScanRequest,
-    InventoryCountCloseRequest) ; les scans appliquent en plus une liste blanche
-    stricte (champ inconnu → 400). Réponses en 200 possibles : ligne sérialisée
-    en InventoryCountRest, ou enveloppe {"errors": ItemError} (corps vide /
-    aucune colonne writable / inventaire introuvable) — les opérations de
-    sauvegarde conservent ce comportement doux et ne renvoient pas 404.
-    Pagination : page=1, pageSize=50 (max 500).
+    (Authorization: Bearer …) et sont cloisonnées par entreprise : l'entreprise
+    est lue dans le jeton, jamais dans le corps. Un inventaire d'une autre
+    entreprise est traité comme inexistant (404).
+
+    À l'ouverture, le serveur fige un instantané des quantités attendues pour
+    tous les articles non archivés de l'entreprise ; un article d'une autre
+    entreprise, archivé ou créé après l'ouverture est hors périmètre (409
+    ITEM_OUT_OF_SCOPE). L'écart est toujours calculé par le serveur. La clôture
+    est idempotente, refuse un inventaire vide et journalise un mouvement
+    ADJUSTMENT par écart non nul. Pagination : page=1, pageSize=50 (max 500).
 servers:
   - url: http://localhost:8080
 security:
@@ -24,137 +26,262 @@ paths:
   /api/inventory/inventory-counts:
     get:
       tags: [ Inventory Counts ]
-      summary: Lister les inventaires
+      operationId: listInventoryCounts
+      summary: Lister les inventaires de l'entreprise
       parameters:
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
-          description: Liste paginée des inventaires
+          description: Liste paginée des inventaires de l'entreprise du jeton
           content:
             application/json:
               schema: { type: array, items: { $ref: '#/components/schemas/InventoryCount' } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
     post:
       tags: [ Inventory Counts ]
-      summary: Créer un inventaire
+      operationId: createInventoryCount
+      summary: Ouvrir un inventaire
       description: >-
-        (company_id, reference) est unique : un doublon provoque une erreur 500
-        (SQLState 23505).
+        L'entreprise, le statut IN_PROGRESS, l'auteur et l'horodatage de départ
+        sont pilotés par le serveur. Le corps ne porte que l'entrepôt compté, la
+        référence et une note libre ; tout autre champ est ignoré. L'ouverture
+        fige l'instantané des attendus (table inventory_count_expected).
+        La référence est unique par entreprise : un doublon renvoie 409.
       requestBody:
         required: true
         content:
-          application/json: { schema: { $ref: '#/components/schemas/InventoryCountUpsert' } }
+          application/json: { schema: { $ref: '#/components/schemas/InventoryCountCreate' } }
       responses:
         '200':
-          description: 'Inventaire créé, ou enveloppe {"errors": ItemError} si le corps
-            est vide ou sans colonne writable'
+          description: Inventaire ouvert, avec son instantané d'attendus figé
           content:
             application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/InventoryCount' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
+              schema: { $ref: '#/components/schemas/InventoryCount' }
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Entrepôt introuvable dans l'entreprise (enveloppe ItemError)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: Référence déjà utilisée par un inventaire de l'entreprise
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '500':
           $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/inventory-counts/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/InventoryCountId' }
+    get:
+      tags: [ Inventory Counts ]
+      operationId: getInventoryCount
+      summary: Consulter un inventaire
+      responses:
+        '200':
+          description: Inventaire de l'entreprise du jeton
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryCount' }
+        '404':
+          description: Inventaire inconnu ou appartenant à une autre entreprise
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
   /api/inventory/inventory-counts/{id}/scans:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     post:
       tags: [ Inventory Counts ]
+      operationId: scanInventoryCount
       summary: Enregistrer un scan (écart d'inventaire)
       description: >-
-        Le scan est inséré dans inventory_count_scan (jamais dans la table
-        inventaire). Colonnes acceptées : inventory_count_id (accepté puis
-        ignoré — la route fait foi), item_id, scanned_by, scanned_at,
-        expected_warehouse_id, actual_warehouse_id, discrepancy_type, notes.
-        Tout autre champ → 400 « unknown field ».
+        L'attendu (expected_quantity, expected_warehouse_id) est lu dans
+        l'instantané figé à l'ouverture. Un article absent de cet instantané
+        (autre entreprise, archivé, créé après l'ouverture) est refusé en 409
+        ITEM_OUT_OF_SCOPE. L'écart, le type d'écart et l'emplacement attendu ne
+        sont jamais fournis par le client : si les champs correspondants sont
+        envoyés, ils sont ignorés. counted_quantity vaut 1 par défaut.
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/InventoryCountScanCreate' } }
       responses:
         '200':
-          description: Scan enregistré (scanned_at absent → défaut base now())
+          description: Scan enregistré avec écart calculé par le serveur
           content:
             application/json:
               schema: { $ref: '#/components/schemas/InventoryCountScan' }
         '400':
           description: >-
-            Erreur client structurée (enveloppe {"errors": …}) — item_id
-            manquant/vides, UUID invalide, scanned_at invalide, discrepancy_type
-            hors CHECK, champ inconnu, doublon (inventory_count_id, item_id) ou
-            FK inexistante (SQLState 23505/23503).
+            Erreur client structurée (enveloppe ItemError) — item_id
+            manquant/vide, UUID invalide, quantité négative, scanned_at
+            invalide, champ inconnu, entrepôt constaté d'une autre entreprise,
+            doublon (inventory_count_id, item_id) ou FK inexistante.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: 'Inventaire introuvable (enveloppe {"errors": …})'
+          description: Inventaire inconnu ou d'une autre entreprise
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: >-
+            Inventaire non IN_PROGRESS (COUNT_NOT_OPEN) ou article hors
+            périmètre (ITEM_OUT_OF_SCOPE).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '500':
           $ref: '#/components/responses/ServerError'
-        "401":
-          $ref: "#/components/responses/Unauthorized"
   /api/inventory/inventory-counts/{id}/results:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     get:
       tags: [ Inventory Counts ]
-      summary: Lister les scans (résultats) d un inventaire
+      operationId: listInventoryCountLines
+      summary: Lister les lignes paginées d'un inventaire
+      description: >-
+        Les lignes sont paginées. Le total est exposé dans l'en-tête
+        X-Total-Count (ainsi que X-Page et X-Page-Size) pour rester compatible
+        avec la réponse tableau.
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
       responses:
         '200':
-          description: Liste des scans — vide si l'inventaire n'existe pas (pas de 404)
+          description: Lignes du comptage pour la page demandée
+          headers:
+            X-Total-Count:
+              description: Nombre total de lignes du comptage
+              schema: { type: integer, minimum: 0 }
+            X-Page:
+              description: Page renvoyée
+              schema: { type: integer, minimum: 1 }
+            X-Page-Size:
+              description: Taille de page appliquée (max 500)
+              schema: { type: integer, minimum: 1, maximum: 500 }
           content:
             application/json:
               schema: { type: array, items: { $ref: '#/components/schemas/InventoryCountScan' } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Inventaire inconnu ou d'une autre entreprise
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
   /api/inventory/inventory-counts/{id}/close:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     post:
       tags: [ Inventory Counts ]
-      summary: Clôturer un inventaire
+      operationId: closeInventoryCount
+      summary: Clôturer un inventaire (idempotent)
       description: >-
-        Sans corps → {"status": "COMPLETED"} appliqué (seule valeur de fermeture
-        valide du CHECK). Un corps {} vide → 200 enveloppe {"errors":
-        ItemError}. Un statut hors CHECK (ex. "CLOSED") provoque une erreur 500.
-        completed_at n'est pas renseigné par cette route (dette préexistante
-        conservée).
+        Un inventaire déjà COMPLETED est renvoyé tel quel (200) sans nouvelle
+        écriture. Un inventaire sans aucune ligne est refusé (409 COUNT_EMPTY).
+        Un inventaire CANCELLED ne peut pas être clôturé (409 COUNT_CANCELLED).
+        La clôture est transactionnelle : elle réconcilie les articles et les
+        soldes, renseigne item.last_inventory_at, completed_at et completed_by
+        (porteur du jeton), puis journalise un mouvement ADJUSTMENT par ligne
+        dont l'écart figé est non nul (quantité |écart|, source = entrepôt
+        attendu pour une diminution, destination = entrepôt constaté pour une
+        augmentation).
       requestBody:
         required: false
         content:
           application/json: { schema: { $ref: '#/components/schemas/InventoryCountClose' } }
       responses:
         '200':
-          description: 'Inventaire clôturé, ou enveloppe {"errors": ItemError} (corps {})'
+          description: Inventaire clôturé (ou déjà clôturé)
           content:
             application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/InventoryCount' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
+              schema: { $ref: '#/components/schemas/InventoryCount' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Inventaire inconnu ou d'une autre entreprise
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: >-
+            Inventaire vide (COUNT_EMPTY) ou annulé (COUNT_CANCELLED), ou
+            transition concurrente perdue.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '500':
           $ref: '#/components/responses/ServerError'
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+  /api/inventory/inventory-counts/{id}/cancel:
+    parameters:
+      - { $ref: '#/components/parameters/InventoryCountId' }
+    post:
+      tags: [ Inventory Counts ]
+      operationId: cancelInventoryCount
+      summary: Annuler un inventaire (idempotent)
+      description: >-
+        Passe un inventaire IN_PROGRESS à CANCELLED sans appliquer d'ajustement
+        ni toucher aux soldes ou aux articles. Un inventaire déjà CANCELLED est
+        renvoyé tel quel (200). Un inventaire COMPLETED ne peut pas être annulé
+        (409 COUNT_COMPLETED).
+      responses:
+        '200':
+          description: Inventaire annulé (ou déjà annulé)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InventoryCount' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Inventaire inconnu ou d'une autre entreprise
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: Inventaire déjà clôturé (COUNT_COMPLETED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '500':
+          $ref: '#/components/responses/ServerError'
 components:
   securitySchemes:
     bearerAuth:
@@ -189,6 +316,11 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Compte sans entreprise ou sans permission d'inventaire (403).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     ServerError:
       description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
         code).
@@ -213,17 +345,10 @@ components:
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
-            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
-            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
-    FamilyCError:
-      type: object
-      description: >-
-        Erreur douce renvoyée en 200 par les opérations de cette famille
-        (enveloppe ItemError, code NOT_FOUND ou BAD_REQUEST).
-      properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
+            Code applicatif (BAD_REQUEST, VALIDATION_ERROR, INVALID_REQUEST_BODY,
+            NOT_FOUND, CLIENT_ERROR, SERVER_ERROR, COUNT_EMPTY, COUNT_NOT_OPEN,
+            COUNT_CANCELLED, COUNT_COMPLETED, ITEM_OUT_OF_SCOPE, UNAUTHORIZED,
+            FORBIDDEN, INTERNAL_ERROR) ou SQLState PostgreSQL.
     InventoryCountStatus:
       type: string
       enum: [ IN_PROGRESS, COMPLETED, CANCELLED ]
@@ -243,35 +368,30 @@ components:
         started_at: { type: string, format: date-time, nullable: true }
         completed_at: { type: string, format: date-time, nullable: true }
         notes: { type: string, nullable: true }
-    InventoryCountUpsert:
+    InventoryCountCreate:
       type: object
       description: >-
-        Corps typé (InventoryCountCreateRequest). Les champs absents ne sont pas
-        transmis au SQL. Colonnes NOT NULL sans défaut : company_id,
-        warehouse_id, reference — leur omission provoque une erreur 500 (et non
-        400). status a pour défaut IN_PROGRESS, started_at pour défaut now().
-      required: [ company_id, warehouse_id, reference ]
-      additionalProperties: false
+        Corps de création (InventoryCountCreateRequest). L'entreprise, le statut,
+        l'auteur et les horodatages sont pilotés par le serveur ; tout champ
+        supplémentaire est ignoré.
+      required: [ warehouse_id, reference ]
       properties:
+        warehouse_id:
+          type: string
+          format: uuid
+          description: Entrepôt compté, actif et appartenant à l'entreprise du jeton.
+        reference:
+          type: string
+          description: Référence unique par entreprise.
         notes: { type: string, nullable: true }
-        completed_at: { type: string, format: date-time, nullable: true }
-        completed_by: { type: string, format: uuid, nullable: true }
-        started_at: { type: string, format: date-time, nullable: true }
-        started_by: { type: string, format: uuid, nullable: true }
-        status: { $ref: '#/components/schemas/InventoryCountStatus' }
-        reference: { type: string }
-        warehouse_id: { type: string, format: uuid }
-        company_id: { type: string, format: uuid }
     InventoryCountClose:
       type: object
       description: >-
-        Corps facultatif de clôture (InventoryCountCloseRequest). Sans corps,
-        le service applique le statut COMPLETED.
-      additionalProperties: false
+        Corps facultatif de clôture (InventoryCountCloseRequest). Le statut et
+        completed_at sont pilotés par le serveur ; completed_by ne sert que de
+        repli hors contexte authentifié.
       properties:
-        status: { $ref: '#/components/schemas/InventoryCountStatus' }
         completed_by: { type: string, format: uuid, nullable: true }
-        completed_at: { type: string, format: date-time, nullable: true }
         notes: { type: string, nullable: true }
     InventoryCountScanCreate:
       type: object
@@ -279,29 +399,44 @@ components:
         Corps strict (liste blanche) : un champ inconnu → 400. item_id est
         requis. scanned_at accepte une chaîne ISO-8601 (Instant ou
         LocalDateTime) ou un horodatage epoch ; une valeur invalide → 400.
-        inventory_count_id, s présent, est ignoré (la route fait foi).
+        counted_quantity vaut 1 par défaut ; négatif → 400.
       required: [ item_id ]
       additionalProperties: false
       properties:
         item_id: { type: string, format: uuid }
+        counted_quantity:
+          type: number
+          minimum: 0
+          default: 1
+          description: Quantité physiquement constatée (2 décimales maximum).
         scanned_by: { type: string, format: uuid, nullable: true }
         scanned_at:
           oneOf:
             - { type: string, format: date-time }
             - { type: number }
-          description: ISO-8601 ou epoch (secondes/millisecondes) — défaut base now() si
-            absent.
-        expected_warehouse_id: { type: string, format: uuid, nullable: true }
-        actual_warehouse_id: { type: string, format: uuid, nullable: true }
-        discrepancy_type: { $ref: '#/components/schemas/DiscrepancyType' }
+          description: ISO-8601 ou epoch — défaut base now() si absent.
+        actual_warehouse_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            Emplacement constaté ; défaut = entrepôt du comptage. Doit
+            appartenir à l'entreprise du jeton (400 sinon).
+        expected_warehouse_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Ignoré — l'attendu est lu dans l'instantané figé.
+        discrepancy_type:
+          allOf:
+            - { $ref: '#/components/schemas/DiscrepancyType' }
+          description: Ignoré — le type d'écart est calculé par le serveur.
         notes: { type: string, nullable: true }
         inventory_count_id:
-          {
-            type: string,
-            format: uuid,
-            nullable: true,
-            description: Accepté puis ignoré.
-          }
+          type: string
+          format: uuid
+          nullable: true
+          description: Accepté puis ignoré (la route fait foi).
     InventoryCountScan:
       type: object
       properties:
@@ -312,6 +447,9 @@ components:
         scanned_at: { type: string, format: date-time, nullable: true }
         expected_warehouse_id: { type: string, format: uuid, nullable: true }
         actual_warehouse_id: { type: string, format: uuid, nullable: true }
+        expected_quantity: { type: number, minimum: 0 }
+        counted_quantity: { type: number, minimum: 0 }
+        difference: { type: number }
         discrepancy_type: { $ref: '#/components/schemas/DiscrepancyType' }
         notes: { type: string, nullable: true }
         qr_code: { type: string, nullable: true }

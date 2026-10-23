@@ -1,22 +1,23 @@
 package sssm.dev.sssm_backend.a11_inventory.inventory_count.dto;
 
-import java.sql.Timestamp;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.Data;
 
+/**
+ * Corps de clôture d'un comptage d'inventaire.
+ *
+ * <p>Le statut et l'horodatage de clôture sont pilotés par le serveur ; l'auteur est le porteur du
+ * jeton, et {@code completed_by} ne sert que de repli hors contexte authentifié.
+ */
 @Data
 public class InventoryCountCloseRequest {
-  private String status;
   private String completed_by;
-  private Timestamp completed_at;
   private String notes;
 
   public Map<String, Object> toMap() {
     Map<String, Object> values = new LinkedHashMap<>();
-    put(values, "status", status);
     put(values, "completed_by", completed_by);
-    put(values, "completed_at", completed_at);
     put(values, "notes", notes);
     return values;
   }

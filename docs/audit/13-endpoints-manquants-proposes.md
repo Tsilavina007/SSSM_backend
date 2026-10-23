@@ -692,6 +692,8 @@ POST /api/v1/labels/batch
 
 ### E-23 — Créer un comptage avec attendu figé
 
+**Statut (Lot 6) :** exécuté sous `POST /api/inventory/inventory-counts` (entreprise issue du jeton, entrepôt validé, statut `IN_PROGRESS`, instantané `inventory_count_expected`). Le `scope` par type ou catégorie et le `201 + Location` restent hors périmètre (Lot 7).
+
 ```http
 POST /api/v1/inventory-counts
 Idempotency-Key: ...
@@ -719,6 +721,8 @@ Idempotency-Key: ...
 
 ### E-24 — Détail d'un comptage
 
+**Statut (Lot 6) :** exécuté sous `GET /api/inventory/inventory-counts/{id}`, cloisonné par entreprise (`404` si inconnu ou étranger).
+
 ```http
 GET /api/v1/inventory-counts/{id}
 ```
@@ -726,6 +730,8 @@ GET /api/v1/inventory-counts/{id}
 **Réponse 200 :** en-tête, statut, dates, créateur, clôturant, totaux d'écart.
 
 ### E-25 — Lignes d'un comptage
+
+**Statut (Lot 6) :** exécuté sous `GET /api/inventory/inventory-counts/{id}/results?page=&pageSize=` (le nom `lines` n'a pas été ajouté) avec `X-Total-Count`, `X-Page` et `X-Page-Size`. Les filtres par statut ou type d'écart restent absents.
 
 ```http
 GET /api/v1/inventory-counts/{id}/lines?status=...&page=1&pageSize=50
@@ -742,6 +748,8 @@ GET /api/v1/inventory-counts/{id}/lines?status=...&page=1&pageSize=50
 **Erreurs :** **404** si le comptage n'existe pas dans l'entreprise.
 
 ### E-26 — Scanner une ligne
+
+**Statut (Lot 6) :** exécuté sous `POST /api/inventory/inventory-counts/{id}/scans` : attendu lu dans l'instantané, écart calculé serveur, article hors périmètre refusé en `409 ITEM_OUT_OF_SCOPE`, doublon refusé en `400`.
 
 ```http
 POST /api/v1/inventory-counts/{id}/scans
@@ -771,6 +779,8 @@ Idempotency-Key: ...
 
 ### E-27 — Clôturer et réconcilier
 
+**Statut (Lot 6) :** exécuté sous `POST /api/inventory/inventory-counts/{id}/close` : clôture idempotente (200), comptage vide refusé (`409 COUNT_EMPTY`), `completed_at` serveur, mouvements `ADJUSTMENT`, soldes et `last_inventory_at` dans une transaction. `applyAdjustments` n'existe pas : les ajustements sont toujours appliqués.
+
 ```http
 POST /api/v1/inventory-counts/{id}/close
 Idempotency-Key: ...
@@ -797,6 +807,8 @@ Idempotency-Key: ...
 - **422** si des lignes sont incomplètes.
 
 ### E-28 — Annuler un comptage
+
+**Statut (Lot 6) :** exécuté sous `POST /api/inventory/inventory-counts/{id}/cancel` : idempotent, sans ajustement, `409 COUNT_COMPLETED` après clôture. Le motif libre n'est pas stocké.
 
 ```http
 POST /api/v1/inventory-counts/{id}/cancel
@@ -908,7 +920,7 @@ GET /api/v1/alerts/low-stock?warehouseId=...
 2. **E-06 à E-10** : rendre le stock calculable et auditable.
 3. **E-13 à E-17** : unifier les affectations.
 4. **E-18 à E-22** : rendre le mobile utilisable.
-5. **E-23 à E-28** : réconcilier les comptages.
+5. **E-23 à E-28** : réconcilier les comptages. *Exécuté au Lot 6.*
 6. **E-29 à E-33** : contrats de lecture et pilotage.
 
 Les endpoints E-01 à E-18 sont des prérequis au frontend de production. Les autres peuvent suivre.

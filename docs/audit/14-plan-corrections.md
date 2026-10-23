@@ -488,6 +488,19 @@ Aucune colonne, table ou ligne existante n'est modifiée ou supprimée ; aucun `
 - un comptage inconnu renvoie 404 ;
 - un comptage d'une autre entreprise est inaccessible.
 
+### Exécution (23 octobre 2026)
+
+- **Instantané figé à l'ouverture** : migration additive `22_lot6_inventory_counts.sql`, table `security.inventory_count_expected` (clé `(inventory_count_id, item_id)`, clés étrangères `inventory_count`/`item`/`company`/`warehouse`, `expected_quantity NUMERIC(12,2) >= 0`, `item_status_at_open`, `snapshot_at`, deux index). L'ouverture insère un attendu par article non archivé de l'entreprise (1 si `AVAILABLE` dans l'entrepôt compté, 0 sinon) et conserve l'emplacement théorique.
+- **Périmètre** : le scan lit exclusivement cet instantané ; un article d'une autre entreprise, archivé ou créé après l'ouverture est refusé en `409 ITEM_OUT_OF_SCOPE`. Les écarts `UNEXPECTED` et `WRONG_LOCATION` restent possibles pour un article attendu ailleurs.
+- **Contrat de création** : `company_id`, `status`, `started_by` et `started_at` ne viennent plus du client ; l'entreprise et l'auteur sont lus dans le jeton, l'entrepôt est validé dans l'entreprise, le statut est forcé à `IN_PROGRESS`.
+- **Cloisonnement** : création, liste, lecture, lignes, scan, clôture et annulation filtrent par `company_id` du jeton ; un comptage étranger est un `404`.
+- **Clôture** : idempotente (COMPLETED renvoie 200 sans réécriture), revendication atomique `IN_PROGRESS -> COMPLETED`, refus d'un comptage vide (`409 COUNT_EMPTY`), `completed_at`/`completed_by` serveur, réconciliation transactionnelle des articles et des soldes, `item.last_inventory_at`.
+- **Journalisation** : un mouvement `ADJUSTMENT` par ligne d'écart figé non nul (quantité `|écart|`, source = entrepôt attendu pour une diminution, destination = entrepôt constaté pour une augmentation, référence du comptage).
+- **Annulation** : `POST /{id}/cancel` idempotent, statut `CANCELLED` sans ajustement ; un comptage clôturé ne peut pas être annulé (`409 COUNT_COMPLETED`).
+- **Lignes paginées** : `GET /{id}/results?page=&pageSize=` (défaut 50, maximum 500) avec `X-Total-Count`, `X-Page` et `X-Page-Size`.
+- **Tests** : `InventoryCountApiTests` (10 tests) sur base isolée avec nettoyage ; conformité de schéma complétée. Suite complète : **49 tests, 0 échec, 0 erreur, 7 suites** sur une base neuve.
+- **Limites documentées** : un article attendu mais jamais scanné n'est pas marqué manquant ; le solde est corrigé depuis l'état courant de l'article alors que le journal d'ajustement suit l'écart figé (divergence possible si l'article bouge entre l'ouverture et la clôture) ; les filtres des lignes restent absents ; `P0-01` (tenancy générale) et `P1-14` (concurrence) restent ouverts.
+
 ---
 
 ## 10. Lot 7 — Contrat HTTP
