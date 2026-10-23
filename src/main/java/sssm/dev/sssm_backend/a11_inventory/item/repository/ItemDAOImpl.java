@@ -162,6 +162,40 @@ public class ItemDAOImpl implements ItemDAO {
   }
 
   @Override
+  public long countItems(String search, String warehouseId, String status) {
+    StringBuilder sql =
+        new StringBuilder("SELECT count(*) FROM security.item WHERE archived_at IS NULL");
+    List<Object> parameters = new ArrayList<>();
+
+    if (search != null && !search.isBlank()) {
+      sql.append(" AND (qr_code ILIKE ? OR description ILIKE ?)");
+      String pattern = "%" + search + "%";
+      parameters.add(pattern);
+      parameters.add(pattern);
+    }
+    if (warehouseId != null) {
+      sql.append(" AND current_warehouse_id = ?");
+      parameters.add(UUID.fromString(warehouseId));
+    }
+    if (status != null) {
+      sql.append(" AND status = CAST(? AS security.item_status)");
+      parameters.add(status);
+    }
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+      for (int index = 0; index < parameters.size(); index++) {
+        stmt.setObject(index + 1, parameters.get(index));
+      }
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getLong(1) : 0L;
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
   public Optional<ItemResponse> getItemById(String id) {
     String sql = "SELECT * FROM security.item WHERE id = ?";
     UUID uuid = UUID.fromString(id);

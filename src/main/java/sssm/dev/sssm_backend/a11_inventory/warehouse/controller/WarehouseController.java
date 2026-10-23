@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a11_inventory.warehouse.dto.rest.WarehouseRest;
 import sssm.dev.sssm_backend.a11_inventory.warehouse.service.WarehouseService;
 
 @RestController
-@RequestMapping("/api/inventory/warehouses")
+@RequestMapping("/api/v1/inventory/warehouses")
 public class WarehouseController {
   private final WarehouseService warehouseService;
 

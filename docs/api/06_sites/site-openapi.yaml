@@ -4,10 +4,9 @@ info:
   version: 1.0.0
   description: >-
     API des sites (module a06_sites/site), dérivée du contrôleur SiteController.
-    Toutes les routes exigent un JWT. Toutes les erreurs renvoient l'enveloppe
-    {"errors": {message, detail, code}} : 400 (requête invalide, JSON illisible,
+    Toutes les routes exigent un JWT. Toutes les erreurs renvoient un Problem Details RFC 9457 (`application/problem+json`) : 400 (requête invalide, JSON illisible,
     UUID malformé ou validation), 401 (JWT absent, invalide ou expiré), 404 (site
-    introuvable en lecture ou mise à jour), 500 (erreur serveur ou SQL).
+    introuvable en lecture ou mise à jour), 500 (erreur serveur inattendue ; erreurs SQL traduites en 400/409/422/503).
     Pagination : page=1, pageSize=10 par défaut. Le statut est facultatif à la
     création : le DAO applique ACTIVE si null. La validation Jakarta (`@Valid`)
     s'applique aux corps de création et de mise à jour.
@@ -19,7 +18,7 @@ tags:
   - name: Sites
     description: Sites surveillés
 paths:
-  /api/sites:
+  /api/v1/sites:
     get:
       tags: [ Sites ]
       summary: Lister les sites
@@ -44,14 +43,18 @@ paths:
       tags: [ Sites ]
       summary: Créer un site
       description: >-
-        Une erreur SQL (contrainte, UUID invalide côté SQL) renvoie 500 avec une
-        enveloppe ItemError.
+        Une violation de contrainte renvoie 409/422 et un UUID invalide 400, avec
+        un Problem Details RFC 9457.
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/Site' } }
       responses:
         '201':
+          headers:
+            Location:
+              description: URI de la ressource créée.
+              schema: { type: string, format: uri }
           description: Site créé
           content:
             application/json:
@@ -62,14 +65,14 @@ paths:
           $ref: '#/components/responses/ServerError'
         "400":
           $ref: "#/components/responses/BadRequest"
-  /api/sites/{id}:
+  /api/v1/sites/{id}:
     parameters:
       - { $ref: '#/components/parameters/SiteId' }
     get:
       tags: [ Sites ]
       summary: Récupérer un site par identifiant
       description: >-
-        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
+        Un identifiant inexistant renvoie 404 avec l'Problem Details RFC 9457.
       responses:
         '200':
           description: Site trouvé
@@ -89,8 +92,7 @@ paths:
       summary: Mettre à jour partiellement un site
       description: >-
         Seuls les champs non null sont écrits (impossible de remettre un champ à
-        null). Un identifiant inconnu lève NotFoundException → 404 (enveloppe
-        ItemError). La réponse est l'objet envoyé complété de l'id.
+        null). Un identifiant inconnu lève NotFoundException → 404 (Problem Details RFC 9457). La réponse est l'objet envoyé complété de l'id.
       requestBody:
         required: true
         content:
@@ -153,48 +155,57 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: Ressource introuvable (404) — enveloppe ItemError.
+      description: Ressource introuvable (404) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
             UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     SiteStatus:
       type: string
       enum: [ ACTIVE, INACTIVE ]

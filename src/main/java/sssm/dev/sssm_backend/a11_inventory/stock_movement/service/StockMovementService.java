@@ -15,6 +15,8 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
+import sssm.dev.sssm_backend.a01_common.pagination.PageQuery;
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.CurrentUser;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
@@ -37,24 +39,52 @@ public class StockMovementService {
   private final ItemAssignmentService itemAssignmentService;
   private final CurrentUser currentUser;
 
-  public List<StockMovementRest> getStockMovements(
+  public PageResponse<StockMovementRest> getStockMovements(
       Optional<String> search, Optional<Integer> page, Optional<Integer> pageSize) {
-    int pageNumber = page.orElse(1);
-    int pageSizeNumber = pageSize.orElse(10);
+    PageQuery query = PageQuery.of(page.orElse(null), pageSize.orElse(null), 10);
+    String searchValue = search.orElse(null);
     List<StockMovementResponse> movements =
-        search
-            .map(
-                value ->
-                    stockMovementDAO.searchStockMovementsByName(value, pageNumber, pageSizeNumber))
-            .orElseGet(() -> stockMovementDAO.getAllStockMovements(pageNumber, pageSizeNumber));
-    return movements.stream().map(stockMovementRestMapper::toRest).toList();
+        searchValue == null
+            ? stockMovementDAO.getAllStockMovements(query.page(), query.pageSize())
+            : stockMovementDAO.searchStockMovementsByName(
+                searchValue, query.page(), query.pageSize());
+    long total = stockMovementDAO.countStockMovements(searchValue);
+    return PageResponse.of(
+        movements.stream().map(stockMovementRestMapper::toRest).toList(), query, total);
   }
 
-  public List<StockMovementRest> getStockMovementsByItem(
+  public PageResponse<StockMovementRest> getStockMovementsByItem(
       String itemId, int page, int pageSize) {
-    return stockMovementDAO.getStockMovementsByItem(itemId, page, pageSize).stream()
-        .map(stockMovementRestMapper::toRest)
-        .toList();
+    return getStockMovementsByItem(itemId, null, page, pageSize);
+  }
+
+  public PageResponse<StockMovementRest> getStockMovementsByItem(
+      String itemId, String movementType, int page, int pageSize) {
+    String type = normalizeMovementType(movementType);
+    PageQuery query = PageQuery.of(page, pageSize, 10);
+    List<StockMovementResponse> movements =
+        type == null
+            ? stockMovementDAO.getStockMovementsByItem(
+                itemId, query.page(), query.pageSize())
+            : stockMovementDAO.getStockMovementsByItem(
+                itemId, type, query.page(), query.pageSize());
+    long total = stockMovementDAO.countStockMovementsByItem(itemId, type);
+    return PageResponse.of(
+        movements.stream().map(stockMovementRestMapper::toRest).toList(), query, total);
+  }
+
+  private static String normalizeMovementType(String movementType) {
+    if (movementType == null || movementType.isBlank()) {
+      return null;
+    }
+    try {
+      return MovementType.valueOf(movementType.trim().toUpperCase()).name();
+    } catch (IllegalArgumentException e) {
+      throw new ClientException(
+          "Type de mouvement invalide",
+          "Le filtre 'movementType' doit valoir IN, OUT, TRANSFER, RETURN, ADJUSTMENT ou DESTRUCTION.",
+          "CLIENT_ERROR");
+    }
   }
 
   public StockMovementRest getStockMovementById(String stockMovementId) {

@@ -1,5 +1,7 @@
 # 01 — Cartographie du backend
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** décrire l'architecture réelle du backend, ses couches, ses modules, ses dépendances et le chemin d'une requête HTTP, afin de situer les anomalies dans le code.
 
 ---

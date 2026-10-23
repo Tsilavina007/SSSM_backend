@@ -14,18 +14,20 @@
 
 **Mise à jour du 23 octobre 2026 (Lots 5 et 6) :** le scan QR est **strictement limité à l'entreprise**, journalisé dans `qr_scan` et limité en débit ; le code QR est **immuable** et une planche d'**étiquettes HTML** est produite (`21_lot5_qr.sql`). Les comptages figent désormais leurs **attendus à l'ouverture** (`22_lot6_inventory_counts.sql`), refusent un article hors périmètre, sont **cloisonnés par entreprise**, se clôturent de façon **idempotente et non vide**, s'annulent, paginent leurs lignes et **journalisent un mouvement `ADJUSTMENT`** par écart non nul. **P1-04 et P1-07 sont corrigés** dans leur périmètre documenté ; **P2-05 est partiel** (HTML sans PDF serveur). Suite complète : **49 tests, 0 échec, 0 erreur, 0 ignoré, 7 suites**. `P0-01`, `P1-14`, la rétention du journal QR et le partage du limiteur restent ouverts.
 
+**Mise à jour du 23 octobre 2026 (Lot 7) :** les 28 contrôleurs exposent `/api/v1` ; l'alias `/api` reste accepté et porte `Deprecation`/`Link`. Les erreurs sont des **Problem Details RFC 9457** (`application/problem+json`) avec `code`, `traceId` et `timestamp` ; les validations ajoutent `errors[]`. Les listes d'inventaire renvoient **`PageResponse`** avec `total` et `pageSize` plafonné à 500. Les créations renvoient **201 + `Location`**, toutes les suppressions **204**, les dates sont **ISO-8601 UTC**. L'historique article renvoie 404 s'il est inconnu, est paginé et filtré : **P1-12 est corrigé**. **P2-02 est corrigé pour l'inventaire** et **P2-03 est corrigé** (versionnement, dates ; libellés d'enums partiels). Suite complète : **58 tests, 0 échec, 0 erreur, 0 ignoré, 8 suites**. Aucune migration SQL. `API-10` (`Idempotency-Key`) et `API-11` (`If-Match`/ETag) restent différés ; `P1-08` (N+1), `API-02` hors inventaire et `API-15` (filtres) restent partiels.
+
 ---
 
 ## 1. Décision
 
-Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète comptait **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; elle a depuis été réduite à 20 tests de conformité schéma (voir § 6). Les comportements métier décrits dans ce rapport restent vérifiés par lecture de code, mais ne sont plus couverts par un test automatisé.
+Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète comptait **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; elle a depuis été réduite puis reconstruite autour des contrats clés : **58 tests dans 8 suites au 23 octobre 2026** (schéma, QR, comptages, contrat HTTP). Les comportements métier non couverts restent vérifiés par lecture de code, mais ne sont plus tous prouvés automatiquement.
 
 En revanche, quatre garanties fondamentales restent incomplètes :
 
 1. **Isolation mono-entreprise seulement.** Les colonnes `company_id` ont été ajoutées et backfillées, mais les requêtes d'inventaire ne filtrent pas encore par entreprise ; l'entreprise est fournie dans le corps de la requête ou déduite d'un objet chargé globalement. Aucune seconde entreprise ne doit être exposée tant que ce filtrage n'est pas fait.
 2. **RBAC partiel.** L'inscription publique est fermée et l'inventaire, les utilisateurs, les rôles et le catalogue des permissions sont protégés. Les modules organisation, personnel, clients et sites restent seulement `authenticated`, sans permission métier.
 3. **Transactions rétablies, concurrence non traitée.** Les DAO utilisent une connexion transactionnelle issue du pool Spring/HikariCP ; les annotations `@Transactional` couvrent les écritures des services existants, y compris les opérations multi-lignes du Lot 3 et les affectations du Lot 4. Il reste à traiter la concurrence (version/`If-Match`, idempotence).
-4. **Stock calculé, mais pas encore universel.** `stock_balance` est la source du stock disponible et le dashboard low-stock lit ce solde. `item_type.quantity_total` existe encore pour compatibilité mais n'est plus le critère. Les affectations sont désormais synchronisées avec le solde ; en revanche, les ajustements de clôture de comptage ne créent pas de mouvement compensatoire et les lignes de mouvement antérieures au Lot 3 restent incomplètes.
+4. **Stock calculé, mais pas encore universel.** `stock_balance` est la source du stock disponible et le dashboard low-stock lit ce solde. `item_type.quantity_total` existe encore pour compatibilité mais n'est plus le critère. Les affectations sont désormais synchronisées avec le solde ; depuis le Lot 6, chaque écart de comptage non nul produit un mouvement `ADJUSTMENT`, mais les lignes de mouvement antérieures au Lot 3 restent incomplètes.
 
 Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, avec des données contrôlées et un utilisateur de confiance. Il ne peut pas être exposé à plusieurs entreprises, à des utilisateurs non administrés ou à des décisions de stock sans corrections préalables.
 
@@ -39,16 +41,16 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Autorisations / RBAC | **PARTIEL** | Élevé | RBAC sur inventaire, utilisateurs, rôles et permissions ; modules organisation/personnel/clients/sites encore seulement authentifiés. |
 | Isolation multi-entreprise | **PARTIEL — MONO-ENTREPRISE** | Critique | Colonnes et index ajoutés, scope entreprise sur utilisateurs/rôles ; DAO d'inventaire non filtrés. |
 | Catalogue matériel | **PARTIEL** | Élevé | CRUD présent, création de type corrigée (défauts PostgreSQL), archivage logique et restauration des articles, catégories, types et entrepôts ; intégrité inter-entreprises non contrôlée. |
-| Stock / quantités | **CORRIGÉ — LOT 3** | Critique | `stock_balance` calculé et exposé ; dashboard low-stock sur le solde réel. Dette historique sur les lignes antérieures ; ajustements de clôture non journalisés. |
+| Stock / quantités | **CORRIGÉ — LOT 3** | Critique | `stock_balance` calculé et exposé ; dashboard low-stock sur le solde réel. Dette historique sur les lignes antérieures ; ajustements de comptage journalisés depuis le Lot 6. |
 | Mouvements | **CORRIGÉ — LOT 3** | Critique | Quantités, source/destination, opération et acteur exposés ; journal append-only ; stock négatif refusé. |
 | Opérations | **CORRIGÉ — LOT 3** | Critique | Type imposé par la route, lignes et mouvements créés atomiquement, statut `COMPLETED`. |
 | Affectations | **CORRIGÉ — LOT 4** | Critique | Contrat canonique unique (façade dépréciée) ; création, retour, void, archivage et restauration audités ; `OUT`/`RETURN` raccordés au stock. Restent la cohérence entreprise et l'idempotence. |
 | QR Code | **CORRIGÉ — LOT 5** | Moyen | Scan enrichi, tenant-scoped, 404, journalisé et limité en débit ; code immuable ; image mise en cache ; planche d'étiquettes HTML. Restent la rétention du journal, le limiteur non partagé et l'absence de PDF serveur. |
-| Comptages d'inventaire | **CORRIGÉ — LOT 3** | Élevé | Quantité attendue figée, écart calculé serveur, clôture réconciliée avec `last_inventory_at`. Ajustements non journalisés. |
-| Contrat API | **PARTIEL** | Élevé | Erreurs SQL corrigées (400/409/422/503) ; le contrat d'affectation est unifié et sans erreur douce ; restent les erreurs douces des autres modules et une pagination non bornée. |
-| Performance | **PARTIEL** | Élevé | Pool HikariCP désormais utilisé par les DAO ; chaîne N+1 sur chaque article et pagination non bornée restent ouvertes. |
-| Tests | **PARTIEL — RÉDUIT** | Élevé | La suite fonctionnelle a été supprimée le 22 octobre 2026 : il ne reste que 20 tests de conformité schéma/application et 2 tests techniques. Les comportements métier ne sont plus prouvés automatiquement. |
-| Documentation OpenAPI | **PARTIEL** | Moyen | 27 fichiers cohérents avec les routes ; lint Redocly rejoué au Lot 6 : **173 avertissements, 0 erreur** (contre 183 à l'audit initial). Restent les exemples, les `license` et les réponses d'erreur incomplètes. |
+| Comptages d'inventaire | **CORRIGÉ — LOT 3** | Élevé | Quantité attendue figée, écart calculé serveur, clôture réconciliée avec `last_inventory_at`. Ajustements journalisés en mouvements `ADJUSTMENT` depuis le Lot 6. |
+| Contrat API | **CORRIGÉ — LOT 7** | Élevé | `/api/v1` et alias déprécié, Problem Details, `PageResponse` sur l'inventaire, `Location`, 204, dates UTC, historique 404/paginé. Restent l'idempotence/ETag et la pagination hors inventaire. |
+| Performance | **PARTIEL** | Élevé | Pool HikariCP utilisé par les DAO ; plafond `pageSize` et pagination en place sur l'inventaire ; chaîne N+1 sur chaque article toujours ouverte. |
+| Tests | **PARTIEL — RECONSTRUIT** | Élevé | 58 tests dans 8 suites au 23 octobre 2026 (schéma, QR, comptages, contrat HTTP) ; les comportements métier non couverts restent vérifiés par lecture de code. |
+| Documentation OpenAPI | **PARTIEL** | Moyen | 27 fichiers alignés sur `/api/v1`, `Problem` RFC 9457 unique et `Page*` ; `ItemError` retiré des erreurs globales et `Location` documenté sur les 201. Validation 0 erreur de parsing / 0 `$ref` orphelin. Restent la spec des soldes, les exemples et les `license`. |
 
 ---
 
@@ -88,7 +90,7 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 
 ### 3.6. Quelles sont les anomalies les plus critiques ?
 
-| Rang | Anomalie | Référence | Statut après Lots 1 à 4 |
+| Rang | Anomalie | Référence | Statut après Lots 1 à 7 |
 |---|---|---|---|
 | 1 | Isolation multi-entreprise incomplète | 09, 12 | Partiel — mono-entreprise assumée ; filtres DAO ouverts (`P0-01`) |
 | 2 | Inscription publique + RBAC inopérant | 09, 12 | Inscription corrigée ; RBAC partiel |
@@ -96,12 +98,12 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 | 4 | Stock non dérivé des mouvements, quantités fixes | 05, 07, 12 | Corrigé dans le périmètre du Lot 3 (`P0-05`), avec dette historique |
 | 5 | Machines à états des affectations et retours incohérentes | 08, 12 | Corrigé dans le périmètre du Lot 4 (`P0-06`) |
 | 6 | Opérations d'inventaire creuses | 05, 07, 12 | Corrigé (`P1-06`) |
-| 7 | QR Code global et modifiable | 06, 12 | Ouvert |
+| 7 | QR Code global et modifiable | 06, 12 | Corrigé (`P1-04`, `P2-05` partiel) |
 | 8 | Fuite de SQLSTATE et de messages PostgreSQL | 02, 09, 12 | Corrigé (`P1-01`) |
 
 ### 3.7. Quelles sont les cinq actions à mener avant toute nouvelle phase ?
 
-**État après Lot 6 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés). `P0-01` (tenancy générale) et `P1-14` (concurrence) restent ouverts. Le Lot 7 ne doit pas démarrer sans autorisation.
+**État après Lot 7 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés). `P0-01` (tenancy générale) et `P1-14` (concurrence, ETag/idempotence) restent ouverts. Le Lot 8 ne doit pas démarrer sans autorisation.
 
 1. **Trancher le modèle de tenancy et le contrôle d'accès.**  
    Décider si l'entreprise est un tenant strict, comment elle est portée par le jeton, et quelles permissions sont réellement appliquées. Fermer ou encadrer l'inscription publique. Tant que ce point n'est pas décidé, tout développement frontend reposera sur un contrat faux.
@@ -132,8 +134,8 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 - Comptage : création d'en-tête, scan d'article, clôture de statut.
 - Authentification JWT, BCrypt, `whoami`, refresh rotatif, logout et révocation.
 - Inscription fermée aux administrateurs, scope entreprise sur les utilisateurs et rôles, RBAC sur l'inventaire et l'administration.
-- Enveloppe d'erreur homogène `{"errors": {...}}` pour les exceptions.
-- 20 tests exécutés après la réduction de la suite : 20 succès, 0 échec, 0 erreur, 0 ignoré, 4 suites de conformité schéma/application.
+- Enveloppe d'erreur homogène **Problem Details RFC 9457** (`application/problem+json`) avec `code` et `traceId`, et pagination `PageResponse` sur l'inventaire.
+- **58 tests** exécutés : 58 succès, 0 échec, 0 erreur, 0 ignoré, 8 suites (conformité schéma, QR, comptages, contrat HTTP, démarrage).
 
 Ces acquis sont réels, mais ils ne compensent pas les garanties encore incomplètes : tenancy d'inventaire, RBAC métier hors inventaire et concurrence.
 
@@ -156,12 +158,12 @@ Ces acquis sont réels, mais ils ne compensent pas les garanties encore incompl�
 | Indicateur | Valeur |
 |---|---|
 | Contrôleurs REST | 28 contrôleurs métier (+ 2 contrôleurs de test) |
-| Routes applicatives | 150 après le Lot 6 (130 à l'audit initial, plus logout, soldes, lecture d'un comptage, le cycle de vie des affectations et les étiquettes) |
-| Routes d'inventaire | 75 sur 14 contrôleurs |
+| Routes applicatives | 150, inchangé au Lot 7 (130 à l'audit initial, plus logout, soldes, lecture d'un comptage, le cycle de vie des affectations et les étiquettes) |
+| Routes d'inventaire | 76 sur 14 contrôleurs |
 | Fichiers OpenAPI | 27 |
 | Fichiers OpenAPI inventaire | 13 |
-| Scripts SQL | 22 (dont `18_lot1_security.sql`, `19_lot3_stock.sql`, `20_lot4_assignments.sql` et `21_lot5_qr.sql`) |
-| Tests | 49 après le Lot 6 (7 suites : 20 de conformité schéma, 17 QR, 10 comptages, 1 démarrage, 1 ping) |
+| Scripts SQL | 23 fichiers (00→22), dont `18_lot1_security.sql`, `19_lot3_stock.sql`, `20_lot4_assignments.sql`, `21_lot5_qr.sql` et `22_lot6_inventory_counts.sql` ; aucun script ajouté au Lot 7 |
+| Tests | 58 après le Lot 7 (8 suites : 20 de conformité schéma, 17 QR, 10 comptages, 9 contrat HTTP, 1 démarrage, 1 ping) |
 | Échecs de tests | 0 |
 | Pool de connexions | HikariCP via le `DataSource` Spring |
 | Entreprises en base de démonstration | 1 |
@@ -205,4 +207,4 @@ Trois orientations ont été tranchées pour le Lot 1 :
 2. **Accès :** RBAC par permission, inscription fermée, admin entreprise séparé de l'admin plateforme.
 3. **Stock :** journal de mouvements avec solde calculé (`D-01`), implémenté au Lot 3. Les affectations sont raccordées au solde depuis le Lot 4 et les ajustements de comptage sont journalisés depuis le Lot 6.
 
-Le Lot 2 est exécuté pour le `DataSource`, les transactions, le mapping SQL, les défauts de création et les réponses de création. Le Lot 3 est exécuté pour le stock, les opérations et les comptages. Les filtres `company_id` des DAO d'inventaire relèvent de `P0-01` et n'ont pas été inclus. Les Lots 4 à 6 sont exécutés dans leur périmètre documenté. Le Lot 7 (contrat HTTP) et les décisions de concurrence (`version`/`If-Match`, `Idempotency-Key`) ne doivent pas démarrer sans validation explicite.
+Le Lot 2 est exécuté pour le `DataSource`, les transactions, le mapping SQL, les défauts de création et les réponses de création. Le Lot 3 est exécuté pour le stock, les opérations et les comptages. Les filtres `company_id` des DAO d'inventaire relèvent de `P0-01` et n'ont pas été inclus. Les Lots 4 à 7 sont exécutés dans leur périmètre documenté. Le Lot 8 et les décisions de concurrence (`version`/`If-Match`, `Idempotency-Key`) ne doivent pas démarrer sans validation explicite.

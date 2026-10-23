@@ -77,6 +77,29 @@ public class ReportDAOImpl implements ReportDAO {
     return o;
   }
 
+  @Override
+  public long countList(String search, String where, Object... args) {
+    String q =
+        "SELECT count(*) FROM "
+            + stock_movement
+            + " WHERE "
+            + (where == null ? "1=1" : where)
+            + (search == null || search.isBlank()
+                ? ""
+                : " AND CAST(row_to_json(stock_movement) AS text) ILIKE ?");
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement z = c.prepareStatement(q)) {
+      int n = 1;
+      for (Object x : args) z.setObject(n++, id(x));
+      if (search != null && !search.isBlank()) z.setString(n, "%" + search + "%");
+      try (ResultSet r = z.executeQuery()) {
+        return r.next() ? r.getLong(1) : 0L;
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
   public Map<String, Object> one(String v) {
     try (Connection c = DatabaseConnection.getConnection();
         PreparedStatement p =

@@ -11,7 +11,7 @@ import sssm.dev.sssm_backend.a06_sites.security_post.dto.SecurityPostUpdateReque
 import sssm.dev.sssm_backend.a06_sites.security_post.service.SecurityPostService;
 
 @RestController
-@RequestMapping("/api/security-posts")
+@RequestMapping("/api/v1/security-posts")
 public class SecurityPostController {
   private final SecurityPostService service;
 

@@ -5,13 +5,12 @@ info:
   description: >-
     API des articles (module a11_inventory/item), dérivée du contrôleur
     ItemController. Toutes les routes exigent un JWT (Authorization: Bearer …).
-    Erreurs : enveloppe {"errors": {message, detail, code}} pour les exceptions
-    métier du module ; une requête malformée (JSON/UUID invalide) renvoie
-    l'erreur enveloppe ItemError. Pagination : page=1, pageSize=10 par défaut.
-    La validation Jakarta (`@Valid`) s'applique aux corps de création et de mise à
-    jour : les champs obligatoires et les tailles maximales sont contrôlés avant
-    l'accès à la base. Les relations facultatives absentes sont sérialisées à
-    null.
+    Erreurs : Problem Details RFC 9457 en application/problem+json, avec code
+    applicatif stable, traceId et timestamp. Pagination : page=1, pageSize=10
+    par défaut, plafonnée à 500. La validation Jakarta (`@Valid`) s'applique aux
+    corps de création et de mise à jour : les champs obligatoires et les tailles
+    maximales sont contrôlés avant l'accès à la base. Les relations facultatives
+    absentes sont sérialisées à null.
 servers:
   - url: http://localhost:8080
 security:
@@ -20,7 +19,7 @@ tags:
   - name: Items
     description: Articles (équipements)
 paths:
-  /api/inventory/items:
+  /api/v1/inventory/items:
     get:
       tags: [ Items ]
       summary: Lister les articles
@@ -43,7 +42,7 @@ paths:
           description: Liste paginée des articles
           content:
             application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/Item' } }
+              schema: { $ref: '#/components/schemas/PageItem' }
         '500':
           $ref: '#/components/responses/ServerError'
         "400":
@@ -60,6 +59,10 @@ paths:
       responses:
         '201':
           description: Article créé
+          headers:
+            Location:
+              description: URI de l'article créé.
+              schema: { type: string, format: uri }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Item' }
@@ -69,7 +72,7 @@ paths:
           $ref: '#/components/responses/ServerError'
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/items/bulk:
+  /api/v1/inventory/items/bulk:
     post:
       tags: [ Items ]
       summary: Créer plusieurs articles (partiellement atomique)
@@ -93,7 +96,7 @@ paths:
           $ref: '#/components/responses/ServerError'
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/items/{itemId}:
+  /api/v1/inventory/items/{itemId}:
     parameters:
       - { $ref: '#/components/parameters/ItemId' }
     get:
@@ -154,17 +157,17 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Affectation active ou état incompatible — enveloppe ItemError.
+          description: Affectation active ou état incompatible — Problem Details RFC 9457.
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
           $ref: '#/components/responses/ServerError'
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/items/{itemId}/restore:
+  /api/v1/inventory/items/{itemId}/restore:
     parameters:
       - { $ref: '#/components/parameters/ItemId' }
     post:
@@ -184,15 +187,15 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: Article déjà actif — enveloppe ItemError.
+          description: Article déjà actif — Problem Details RFC 9457.
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/items/{itemId}/qr-code:
+  /api/v1/inventory/items/{itemId}/qr-code:
     parameters:
       - { $ref: '#/components/parameters/ItemId' }
     get:
@@ -212,7 +215,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/items/{itemId}/qr-code/image:
+  /api/v1/inventory/items/{itemId}/qr-code/image:
     parameters:
       - { $ref: '#/components/parameters/ItemId' }
     get:
@@ -221,8 +224,8 @@ paths:
       summary: Générer l'image PNG du QR code d'un article
       description: >-
         En cas de succès le corps est toujours une image PNG
-        (Content-Type image/png). En cas d'erreur l'enveloppe ItemError
-        {"errors": {message, detail, code}} est renvoyée en application/json :
+        (Content-Type image/png). En cas d'erreur un Problem Details (RFC 9457) est renvoyé en
+        application/problem+json :
 
         * 400 (code BAD_REQUEST) : itemId n'est pas un UUID valide
         (ex. "1", détail : "La valeur '1' n'est pas un UUID valide.") ;
@@ -241,8 +244,8 @@ paths:
         corps.
 
         Négociation de contenu : les erreurs sont gérées localement et
-        sérialisées en application/json avec un Content-Type explicite, de
-        sorte que l'enveloppe reste lisible même si le client n'accepte que
+        sérialisées en application/problem+json avec un Content-Type explicite, de
+        sorte que l'erreur reste lisible même si le client n'accepte que
         Accept: image/png (sinon le GlobalExceptionHandler échouerait avec une
         HttpMediaTypeNotAcceptableException). L'attribut Accept doit néanmoins
         contenir image/png pour que la route elle-même soit sélectionnée.
@@ -275,7 +278,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/items/{itemId}/history:
+  /api/v1/inventory/items/{itemId}/history:
     parameters:
       - { $ref: '#/components/parameters/ItemId' }
     get:
@@ -283,18 +286,29 @@ paths:
       summary: Consulter l'historique d'un article
       description: >-
         Retourne les mouvements de stock et les affectations associés à
-        l'article.
+        l'article. Un article inconnu renvoie 404. Les deux collections sont
+        paginées et filtrées côté base : `movementType` restreint les mouvements,
+        `active=true` restreint les affectations encore actives. Le total est
+        fourni dans chaque réponse.
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - name: movementType
+          in: query
+          required: false
+          schema: { type: string, enum: [ IN, OUT, TRANSFER, RETURN, ADJUSTMENT, DESTRUCTION ] }
+          description: Filtrer les mouvements par type.
+        - name: active
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+          description: Ne conserver que les affectations non retournées.
       responses:
         '200':
-          description: Historique de l'article
+          description: Historique paginé de l'article
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  item_id: { type: string, format: uuid }
-                  movements: { type: array, items: { type: object } }
-                  assignments: { type: array, items: { type: object } }
+              schema: { $ref: '#/components/schemas/ItemHistory' }
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -334,31 +348,92 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: Ressource introuvable (404) — enveloppe ItemError.
+      description: Ressource introuvable (404) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    PageItem:
       type: object
+      description: Réponse de pagination normalisée (page 1-based, taille plafonnée).
+      required: [ items, page, pageSize, total, totalPages ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Item' }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 500 }
+        total: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    ItemHistory:
+      type: object
+      required: [ item_id, movements, assignments ]
+      properties:
+        item_id: { type: string, format: uuid }
+        movements:
+          type: object
+          required: [ items, page, pageSize, total, totalPages ]
+          properties:
+            items: { type: array, items: { type: object } }
+            page: { type: integer, minimum: 1 }
+            pageSize: { type: integer, minimum: 1, maximum: 500 }
+            total: { type: integer, format: int64, minimum: 0 }
+            totalPages: { type: integer, minimum: 0 }
+        assignments:
+          type: object
+          required: [ items, page, pageSize, total, totalPages ]
+          properties:
+            items: { type: array, items: { type: object } }
+            page: { type: integer, minimum: 1 }
+            pageSize: { type: integer, minimum: 1, maximum: 500 }
+            total: { type: integer, format: int64, minimum: 0 }
+            totalPages: { type: integer, minimum: 0 }
+    Problem:
+      type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
+      properties:
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
+        code:
+          type: string
+          description: >-
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     ItemError:
       type: object
       required: [message, detail, code]
@@ -375,7 +450,7 @@ components:
             Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
             UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
+            INTERNAL_ERROR).
     ItemStatus:
       type: string
       enum: [ AVAILABLE, ASSIGNED, DAMAGED, LOST, REPAIR, RETIRED ]

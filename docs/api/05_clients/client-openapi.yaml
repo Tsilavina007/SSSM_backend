@@ -5,10 +5,10 @@ info:
   description: >-
     API des clients (module a05_clients/client), dérivée du contrôleur
     ClientController. Toutes les routes exigent un JWT. Toutes les erreurs
-    renvoient l'enveloppe {"errors": {message, detail, code}} : 400 (requête
+    renvoient un Problem Details RFC 9457 (`application/problem+json`) : 400 (requête
     invalide, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
     expiré), 404 (client introuvable lors d'une mise à jour), 500 (erreur
-    serveur ou SQL). La lecture d'un identifiant absent renvoie 404 avec l'enveloppe ItemError.
+    serveur ou SQL). La lecture d'un identifiant absent renvoie 404 avec l'Problem Details RFC 9457.
     Pagination : page=1, pageSize=10 par défaut. Le DAO envoie
     payment_terms_days et active explicitement : null viole les contraintes NOT
     NULL, ces champs sont donc requis en pratique.
@@ -20,7 +20,7 @@ tags:
   - name: Clients
     description: Clients
 paths:
-  /api/clients:
+  /api/v1/clients:
     get:
       tags: [ Clients ]
       summary: Lister les clients
@@ -45,14 +45,18 @@ paths:
       tags: [ Clients ]
       summary: Créer un client
       description: >-
-        Une erreur SQL (contrainte, UUID invalide côté SQL) renvoie 500 avec une
-        enveloppe ItemError.
+        Une violation de contrainte renvoie 409/422 et un UUID invalide 400, avec
+        un Problem Details RFC 9457.
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/Client' } }
       responses:
         '201':
+          headers:
+            Location:
+              description: URI de la ressource créée.
+              schema: { type: string, format: uri }
           description: Client créé
           content:
             application/json:
@@ -63,14 +67,14 @@ paths:
           $ref: '#/components/responses/ServerError'
         "400":
           $ref: "#/components/responses/BadRequest"
-  /api/clients/{id}:
+  /api/v1/clients/{id}:
     parameters:
       - { $ref: '#/components/parameters/ClientId' }
     get:
       tags: [ Clients ]
       summary: Récupérer un client par identifiant
       description: >-
-        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
+        Un identifiant inexistant renvoie 404 avec l'Problem Details RFC 9457.
       responses:
         '200':
           description: Client trouvé
@@ -90,7 +94,7 @@ paths:
       summary: Mettre à jour partiellement un client
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        NotFoundException → 404 (Problem Details RFC 9457). La réponse est l'objet
         envoyé complété de l'id.
       requestBody:
         required: true
@@ -154,48 +158,57 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: Ressource introuvable (404) — enveloppe ItemError.
+      description: Ressource introuvable (404) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
             UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     Client:
       type: object
       required: [ company_id, code, name, payment_terms_days, active ]

@@ -11,7 +11,7 @@ import sssm.dev.sssm_backend.a05_clients.client_contact.dto.ClientContactUpdateR
 import sssm.dev.sssm_backend.a05_clients.client_contact.service.ClientContactService;
 
 @RestController
-@RequestMapping("/api/client-contacts")
+@RequestMapping("/api/v1/client-contacts")
 public class ClientContactController {
   private final ClientContactService service;
 

@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a02_organisation.branch.dto.rest.BranchRest;
 import sssm.dev.sssm_backend.a02_organisation.branch.service.BranchService;
 
 @RestController
-@RequestMapping("/api/branch")
+@RequestMapping("/api/v1/branch")
 public class BranchController {
   private final BranchService branchService;
 

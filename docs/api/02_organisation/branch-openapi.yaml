@@ -5,10 +5,9 @@ info:
   description: >-
     API des succursales (module a02_organisation/branch), dérivée du contrôleur
     BranchController. Toutes les routes exigent un JWT (Authorization: Bearer
-    …). Toutes les erreurs renvoient l'enveloppe {"errors": {message, detail,
-    code}} : 400 (requête invalide, JSON illisible, UUID malformé ou validation),
+    …). Toutes les erreurs renvoient un Problem Details RFC 9457 (`application/problem+json`) : 400 (requête invalide, JSON illisible, UUID malformé ou validation),
     401 (JWT absent, invalide ou expiré), 404 (branche ou agence introuvable),
-    500 (erreur serveur ou SQL). Pagination : page=1, pageSize=10 par défaut. La
+    500 (erreur serveur inattendue ; erreurs SQL traduites en 400/409/422/503). Pagination : page=1, pageSize=10 par défaut. La
     validation Jakarta (`@Valid`) s'applique aux corps de création et de mise à
     jour ; company_id, agence_id et name sont obligatoires à la création.
 servers:
@@ -19,7 +18,7 @@ tags:
   - name: Branches
     description: Succursales
 paths:
-  /api/branch:
+  /api/v1/branch:
     get:
       tags: [ Branches ]
       summary: Lister les succursales
@@ -49,6 +48,10 @@ paths:
           application/json: { schema: { $ref: '#/components/schemas/BranchCreate' } }
       responses:
         '201':
+          headers:
+            Location:
+              description: URI de la ressource créée.
+              schema: { type: string, format: uri }
           description: Succursale créée
           content:
             application/json:
@@ -59,7 +62,7 @@ paths:
           $ref: '#/components/responses/ServerError'
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/branch/{branchId}:
+  /api/v1/branch/{branchId}:
     parameters:
       - { $ref: '#/components/parameters/BranchId' }
     get:
@@ -67,7 +70,7 @@ paths:
       summary: Récupérer une succursale par identifiant
       description: >-
         Un identifiant inexistant provoque une NoSuchElementException → 404
-        (enveloppe ItemError). La réponse inclut l'agence complète dans le champ
+        (Problem Details RFC 9457). La réponse inclut l'agence complète dans le champ
         agence.
       responses:
         '200':
@@ -88,7 +91,7 @@ paths:
       summary: Mettre à jour partiellement une succursale
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu renvoie
-        404 avec l'enveloppe d'erreur.
+        404 avec l'Problem Details.
       requestBody:
         required: true
         content:
@@ -152,48 +155,57 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: Ressource introuvable (404) — enveloppe ItemError.
+      description: Ressource introuvable (404) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
             UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     SiteStatus:
       type: string
       enum: [ ACTIVE, INACTIVE ]

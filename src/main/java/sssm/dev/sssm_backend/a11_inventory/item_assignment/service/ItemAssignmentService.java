@@ -13,6 +13,8 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
+import sssm.dev.sssm_backend.a01_common.pagination.PageQuery;
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.CurrentUser;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
@@ -35,44 +37,69 @@ public class ItemAssignmentService {
   private final StockBalanceService stockBalanceService;
   private final CurrentUser currentUser;
 
-  public List<ItemAssignmentRest> getItemAssignments(
+  public PageResponse<ItemAssignmentRest> getItemAssignments(
       Optional<String> search,
       Optional<Integer> page,
       Optional<Integer> pageSize,
       boolean activeOnly) {
-    int pageNumber = Math.max(1, page.orElse(1));
-    int pageSizeNumber = Math.min(500, Math.max(1, pageSize.orElse(10)));
+    PageQuery query = PageQuery.of(page.orElse(null), pageSize.orElse(null), 10);
+    String searchValue =
+        search.filter(value -> value != null && !value.isBlank()).orElse(null);
     List<ItemAssignmentResponse> values =
-        search
-            .filter(value -> value != null && !value.isBlank())
-            .map(
-                value ->
-                    itemAssignmentDAO.searchItemAssignmentsByName(
-                        value, pageNumber, pageSizeNumber, activeOnly))
-            .orElseGet(
-                () ->
-                    itemAssignmentDAO.getAllItemAssignments(
-                        pageNumber, pageSizeNumber, activeOnly));
-    return values.stream().map(itemAssignmentRestMapper::toRest).toList();
+        searchValue == null
+            ? itemAssignmentDAO.getAllItemAssignments(
+                query.page(), query.pageSize(), activeOnly)
+            : itemAssignmentDAO.searchItemAssignmentsByName(
+                searchValue, query.page(), query.pageSize(), activeOnly);
+    long total = itemAssignmentDAO.countItemAssignments(searchValue, activeOnly);
+    return PageResponse.of(
+        values.stream().map(itemAssignmentRestMapper::toRest).toList(), query, total);
   }
 
-  public List<ItemAssignmentRest> getItemAssignmentsByItem(String itemId, int page, int pageSize) {
-    return itemAssignmentDAO.getItemAssignmentsByItem(itemId, page, pageSize).stream()
-        .map(itemAssignmentRestMapper::toRest)
-        .toList();
+  public PageResponse<ItemAssignmentRest> getItemAssignmentsByItem(
+      String itemId, int page, int pageSize) {
+    PageQuery query = PageQuery.of(page, pageSize, 10);
+    List<ItemAssignmentResponse> values =
+        itemAssignmentDAO.getItemAssignmentsByItem(itemId, query.page(), query.pageSize());
+    return PageResponse.of(
+        values.stream().map(itemAssignmentRestMapper::toRest).toList(),
+        query,
+        itemAssignmentDAO.countItemAssignmentsByItem(itemId));
   }
 
-  public List<ItemAssignmentRest> getItemAssignmentsByEmployee(
+  public PageResponse<ItemAssignmentRest> getItemAssignmentsByItem(
+      String itemId, int page, int pageSize, boolean activeOnly) {
+    PageQuery query = PageQuery.of(page, pageSize, 10);
+    List<ItemAssignmentResponse> values =
+        itemAssignmentDAO.getItemAssignmentsByItem(
+            itemId, query.page(), query.pageSize(), activeOnly);
+    return PageResponse.of(
+        values.stream().map(itemAssignmentRestMapper::toRest).toList(),
+        query,
+        itemAssignmentDAO.countItemAssignmentsByItem(itemId, activeOnly));
+  }
+
+  public PageResponse<ItemAssignmentRest> getItemAssignmentsByEmployee(
       String employeeId, int page, int pageSize) {
-    return itemAssignmentDAO.getItemAssignmentsByEmployee(employeeId, page, pageSize).stream()
-        .map(itemAssignmentRestMapper::toRest)
-        .toList();
+    PageQuery query = PageQuery.of(page, pageSize, 10);
+    List<ItemAssignmentResponse> values =
+        itemAssignmentDAO.getItemAssignmentsByEmployee(
+            employeeId, query.page(), query.pageSize());
+    return PageResponse.of(
+        values.stream().map(itemAssignmentRestMapper::toRest).toList(),
+        query,
+        itemAssignmentDAO.countItemAssignmentsByEmployee(employeeId));
   }
 
-  public List<ItemAssignmentRest> getItemAssignmentsByPost(String postId, int page, int pageSize) {
-    return itemAssignmentDAO.getItemAssignmentsByPost(postId, page, pageSize).stream()
-        .map(itemAssignmentRestMapper::toRest)
-        .toList();
+  public PageResponse<ItemAssignmentRest> getItemAssignmentsByPost(
+      String postId, int page, int pageSize) {
+    PageQuery query = PageQuery.of(page, pageSize, 10);
+    List<ItemAssignmentResponse> values =
+        itemAssignmentDAO.getItemAssignmentsByPost(postId, query.page(), query.pageSize());
+    return PageResponse.of(
+        values.stream().map(itemAssignmentRestMapper::toRest).toList(),
+        query,
+        itemAssignmentDAO.countItemAssignmentsByPost(postId));
   }
 
   public ItemAssignmentRest getItemAssignmentById(String itemAssignmentId) {

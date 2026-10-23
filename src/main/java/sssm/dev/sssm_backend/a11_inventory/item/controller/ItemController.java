@@ -5,7 +5,6 @@ import jakarta.validation.Valid;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.CacheControl;
@@ -20,21 +19,21 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemBulkCreateResult;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemUpdateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item.dto.rest.ItemHistoryRest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.rest.ItemQrCodeRest;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.rest.ItemRest;
 import sssm.dev.sssm_backend.a11_inventory.item.service.ItemService;
 import sssm.dev.sssm_backend.a11_inventory.item.service.QrCodeService;
-import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
-import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.rest.StockMovementRest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.service.StockMovementService;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/inventory/items")
+@RequestMapping("/api/v1/inventory/items")
 public class ItemController {
   private final ItemService itemService;
   private final QrCodeService qrCodeService;
@@ -56,7 +55,7 @@ public class ItemController {
   }
 
   @GetMapping
-  public List<ItemRest> getItems(
+  public PageResponse<ItemRest> getItems(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search,
@@ -76,16 +75,22 @@ public class ItemController {
   }
 
   @GetMapping("/{itemId}/history")
-  public Map<String, Object> getItemHistory(@PathVariable String itemId) {
-    List<StockMovementRest> itemMovements =
-        stockMovementService.getStockMovementsByItem(itemId, 1, 500);
-    List<ItemAssignmentRest> itemAssignments =
-        itemAssignmentService.getItemAssignmentsByItem(itemId, 1, 500);
-    Map<String, Object> history = new java.util.LinkedHashMap<>();
-    history.put("item_id", itemId);
-    history.put("movements", itemMovements);
-    history.put("assignments", itemAssignments);
-    return history;
+  public ItemHistoryRest getItemHistory(
+      @PathVariable String itemId,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer pageSize,
+      @RequestParam(required = false) String movementType,
+      @RequestParam(required = false) Boolean active) {
+    // Un article inconnu renvoie 404, même sans mouvement ni affectation.
+    itemService.getItemById(itemId);
+    int safePage = page == null ? 1 : page;
+    int safeSize = pageSize == null ? 20 : pageSize;
+    return new ItemHistoryRest(
+        itemId,
+        stockMovementService.getStockMovementsByItem(
+            itemId, movementType, safePage, safeSize),
+        itemAssignmentService.getItemAssignmentsByItem(
+            itemId, safePage, safeSize, Boolean.TRUE.equals(active)));
   }
 
   /**
@@ -100,7 +105,8 @@ public class ItemController {
   public ResponseEntity<byte[]> getQrCodeImage(
       @PathVariable String itemId,
       @RequestParam(defaultValue = "300") int size,
-      @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+      @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch,
+      jakarta.servlet.http.HttpServletRequest request) {
     int requestedSize = Math.min(1000, Math.max(100, size));
     try {
       ItemQrCodeRest qrCodeRest = itemService.getQrCodeByItemId(itemId);
@@ -144,15 +150,15 @@ public class ItemController {
       }
     } catch (NotFoundException e) {
       // itemId inconnu : enveloppe ItemError 404.
-      return errorResponse(HttpStatus.NOT_FOUND, ErrorMapper.toItemError(e));
+      return errorResponse(HttpStatus.NOT_FOUND, ErrorMapper.toItemError(e), request);
     } catch (IllegalArgumentException e) {
       // itemId non UUID (ex. "1") : 400 "Paramètre invalide", et non une
       // erreur QR code trompeuse.
-      return errorResponse(HttpStatus.BAD_REQUEST, ErrorMapper.toItemError(e));
+      return errorResponse(HttpStatus.BAD_REQUEST, ErrorMapper.toItemError(e), request);
     } catch (ServerException e) {
       // Erreurs QR_* ou erreur SQL déjà enveloppée par la couche DAO.
       log.error("Échec de la requête d'image QR code pour l'article {}", itemId, e);
-      return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ErrorMapper.toItemError(e));
+      return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ErrorMapper.toItemError(e), request);
     }
   }
 
@@ -167,11 +173,15 @@ public class ItemController {
    * Construit une réponse d'erreur application/json en byte[] avec un Content-Type explicite pour
    * garantir la livraison de l'enveloppe ItemError même avec un Accept: image/png strict.
    */
-  private ResponseEntity<byte[]> errorResponse(HttpStatus status, ItemError error) {
+  private ResponseEntity<byte[]> errorResponse(
+      HttpStatus status, ItemError error, jakarta.servlet.http.HttpServletRequest request) {
     try {
       return ResponseEntity.status(status)
-          .contentType(MediaType.APPLICATION_JSON)
-          .body(objectMapper.writeValueAsBytes(Map.of("errors", error)));
+          .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+          .body(
+              objectMapper.writeValueAsBytes(
+                  sssm.dev.sssm_backend.a01_common.errors.handler.ProblemDetails.of(
+                      status, error, request)));
     } catch (JacksonException e) {
       // Jackson 3 : JacksonException est runtime, l'échec de sérialisation ne
       // doit jamais masquer le statut HTTP voulu.

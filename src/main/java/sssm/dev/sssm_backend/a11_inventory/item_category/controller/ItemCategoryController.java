@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a11_inventory.item_category.dto.rest.ItemCategoryRe
 import sssm.dev.sssm_backend.a11_inventory.item_category.service.ItemCategoryService;
 
 @RestController
-@RequestMapping("/api/inventory/item-categories")
+@RequestMapping("/api/v1/inventory/item-categories")
 public class ItemCategoryController {
   private final ItemCategoryService itemCategoryService;
 

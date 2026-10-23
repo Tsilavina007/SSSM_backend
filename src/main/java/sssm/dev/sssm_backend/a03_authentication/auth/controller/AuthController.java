@@ -1,8 +1,10 @@
 package sssm.dev.sssm_backend.a03_authentication.auth.controller;
 
 import jakarta.validation.Valid;
+import java.net.URI;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,7 +12,7 @@ import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.AuthService;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
   private final AuthService service;
 
@@ -19,9 +21,10 @@ public class AuthController {
   }
 
   @PostMapping("/register")
-  @ResponseStatus(HttpStatus.CREATED)
-  public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
-    return service.register(request);
+  public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+    AuthResponse response = service.register(request);
+    return ResponseEntity.created(URI.create("/api/v1/users/" + response.user().id()))
+        .body(response);
   }
 
   @PostMapping("/login")

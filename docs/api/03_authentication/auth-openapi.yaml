@@ -6,7 +6,7 @@ info:
     API d'inscription, de connexion et d'identité courante (module
     a03_authentication/auth), dérivée du contrôleur AuthController. Les routes
     register et login sont publiques ; whoami exige un JWT valide. Toutes les
-    erreurs renvoient l'enveloppe {"errors": {message, detail, code}} : 400
+    erreurs renvoient un Problem Details RFC 9457 (`application/problem+json`) : 400
     (validation Jakarta, corps illisible, identifiants invalides ou compte
     inactif), 401 (JWT absent, invalide ou expiré pour whoami), 404 (utilisateur
     du jeton introuvable ou ressource liée), 500 (erreur serveur). Les erreurs
@@ -18,7 +18,7 @@ tags:
   - name: Auth
     description: Inscription et connexion
 paths:
-  /api/auth/register:
+  /api/v1/auth/register:
     post:
       tags: [Auth]
       summary: Créer un compte utilisateur
@@ -35,28 +35,32 @@ paths:
           application/json: {schema: {$ref: '#/components/schemas/RegisterRequest'}}
       responses:
         '201':
+          headers:
+            Location:
+              description: URI de la ressource créée.
+              schema: { type: string, format: uri }
           description: Compte créé
           content:
             application/json:
               schema: {$ref: '#/components/schemas/AuthResponse'}
         '400':
           description: >-
-            Validation en échec (detail liste les champs), doublon username/email ou champ requis absent côté service ; enveloppe ItemError.
+            Validation en échec (detail liste les champs), doublon username/email ou champ requis absent côté service ; Problem Details RFC 9457.
           content:
-            application/json:
+            application/problem+json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
+                $ref: '#/components/schemas/Problem'
         '404':
-          description: Ressource liée introuvable (enveloppe d'erreur).
+          description: Ressource liée introuvable (Problem Details).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
-          description: Erreur serveur (enveloppe d'erreur).
+          description: Erreur serveur (Problem Details).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
-  /api/auth/login:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /api/v1/auth/login:
     post:
       tags: [Auth]
       summary: Se connecter
@@ -78,22 +82,22 @@ paths:
               schema: {$ref: '#/components/schemas/AuthResponse'}
         '400':
           description: >-
-            Identifiants invalides ou compte inactif (enveloppe), ou validation
-            Jakarta en échec (enveloppe ItemError, detail liste les champs).
+            Identifiants invalides ou compte inactif (Problem Details RFC 9457), ou validation
+            Jakarta en échec (Problem Details RFC 9457, detail liste les champs).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '404':
-          description: Ressource liée introuvable (enveloppe d'erreur).
+          description: Ressource liée introuvable (Problem Details).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
-          description: Erreur serveur (enveloppe d'erreur).
+          description: Erreur serveur (Problem Details).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
-  /api/auth/whoami:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /api/v1/auth/whoami:
     get:
       tags: [Auth]
       summary: Obtenir l'utilisateur connecté
@@ -111,23 +115,23 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AuthUser'}
         '401':
-          description: JWT absent, invalide ou expiré — enveloppe ItemError.
+          description: JWT absent, invalide ou expiré — Problem Details RFC 9457.
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '404':
           description: >-
-            Utilisateur du jeton introuvable — enveloppe ItemError avec un
+            Utilisateur du jeton introuvable — Problem Details RFC 9457 avec un
             message explicite.
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
-          description: Erreur serveur ou SQL (enveloppe d'erreur).
+          description: Erreur serveur inattendue — Problem Details RFC 9457.
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
-  /api/auth/refresh:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+  /api/v1/auth/refresh:
     post:
       tags: [Auth]
       summary: Renouveler un jeton JWT
@@ -153,48 +157,57 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AuthResponse'}
         '400':
-          description: Requête invalide (enveloppe ItemError).
+          description: Requête invalide (Problem Details RFC 9457).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '401':
-          description: JWT absent, invalide ou expiré (enveloppe ItemError).
+          description: JWT absent, invalide ou expiré (Problem Details RFC 9457).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '404':
-          description: Utilisateur introuvable (enveloppe ItemError).
+          description: Utilisateur introuvable (Problem Details RFC 9457).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
-          description: Erreur serveur (enveloppe d'erreur).
+          description: Erreur serveur (Problem Details).
           content:
-            application/json:
-              schema: {$ref: '#/components/schemas/ErrorEnvelope'}
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
 components:
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: {$ref: '#/components/schemas/ItemError'}
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR, INVALID_REQUEST_BODY,
-            NOT_FOUND, CLIENT_ERROR, SERVER_ERROR, UNAUTHORIZED, FORBIDDEN,
-            METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE, INTERNAL_ERROR) ou
-            SQLState PostgreSQL (ex. 23505).
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     RegisterRequest:
       type: object
       required: [username, password]

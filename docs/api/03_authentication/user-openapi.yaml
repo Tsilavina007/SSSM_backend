@@ -5,15 +5,14 @@ info:
   description: >-
     API des utilisateurs (module a03_authentication/user), dérivée du contrôleur
     AppUserController. Toutes les routes exigent le rôle ADMIN
-    (hasRole("ADMIN")), en plus du JWT. Toutes les erreurs renvoient l'enveloppe
-    {"errors": {message, detail, code}} : 400 (validation, doublon de username
+    (hasRole("ADMIN")), en plus du JWT. Toutes les erreurs renvoient un Problem Details RFC 9457 (`application/problem+json`) : 400 (validation, doublon de username
     ou d'email, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
     expiré), 403 (rôle ADMIN manquant), 404 (utilisateur introuvable), 500
     (erreur serveur ou SQL).
     Pagination : page=1, pageSize=10 par défaut. Les corps de POST et PATCH
     utilisent des DTO dédiés : id, password_hash et les horodatages ne peuvent
     pas être fournis par le client. Le mot de passe est haché avant insertion
-    et n'est jamais renvoyé. POST /api/users est réservé aux administrateurs ;
+    et n'est jamais renvoyé. POST /api/v1/users est réservé aux administrateurs ;
     les doublons de username ou d'email renvoient 400.
 servers:
   - url: http://localhost:8080
@@ -23,7 +22,7 @@ tags:
   - name: Users
     description: Utilisateurs (ADMIN)
 paths:
-  /api/users:
+  /api/v1/users:
     get:
       tags: [ Users ]
       summary: Lister les utilisateurs
@@ -61,6 +60,10 @@ paths:
             schema: { $ref: '#/components/schemas/AppUserCreateRequest' }
       responses:
         '201':
+          headers:
+            Location:
+              description: URI de la ressource créée.
+              schema: { type: string, format: uri }
           description: Utilisateur créé
           content:
             application/json:
@@ -73,13 +76,13 @@ paths:
           $ref: '#/components/responses/ServerError'
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/users/{id}:
+  /api/v1/users/{id}:
     parameters:
       - { $ref: '#/components/parameters/UserId' }
     get:
       tags: [ Users ]
       summary: Récupérer un utilisateur par identifiant
-      description: Un identifiant inconnu renvoie 404 avec l'enveloppe d'erreur.
+      description: Un identifiant inconnu renvoie 404 avec l'Problem Details.
       responses:
         '200':
           description: Utilisateur trouvé
@@ -143,7 +146,7 @@ paths:
           $ref: '#/components/responses/ServerError'
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/users/{userId}/roles/{roleId}:
+  /api/v1/users/{userId}/roles/{roleId}:
     parameters:
       - { $ref: '#/components/parameters/UserIdPath' }
       - { $ref: '#/components/parameters/RoleId' }
@@ -214,53 +217,62 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Forbidden:
-      description: Rôle ADMIN manquant (403) — enveloppe ItemError.
+      description: Rôle ADMIN manquant (403) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: Ressource introuvable (404) — enveloppe ItemError.
+      description: Ressource introuvable (404) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
             UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     UserStatus:
       type: string
       enum: [ ACTIVE, INACTIVE, LOCKED ]

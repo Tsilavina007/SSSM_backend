@@ -1,5 +1,7 @@
 ﻿# 07 — Audit des mouvements de stock
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** décrire les règles réellement appliquées par les mouvements `IN`, `OUT`, `TRANSFER`, `RETURN`, `DESTRUCTION`, `ADJUSTMENT`, leurs effets sur l'article, et les lacunes du journal. Le stock global est traité dans le rapport 05 ; les affectations dans le rapport 08.
 
 ---

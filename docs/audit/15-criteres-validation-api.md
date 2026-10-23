@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** la suite complète exécutée après le Lot 4 comptait **150 tests dans 28 suites**. Elle a été réduite le 22 octobre 2026 à **20 tests dans 4 suites**, puis complétée par les contrats QR (Lot 5) et comptage (Lot 6). Au 23 octobre 2026, elle compte **49 tests dans 7 suites** : conformité du schéma SQL à l'application, contrat QR et contrat des comptages. Un `PASS` signifie « cohérent avec le code, vérifié par la suite courante ou par lecture statique » ; les critères de tenancy générale A/B et de concurrence restent non vérifiés. Le détail historique reste disponible dans les rapports 11 et 16.
+**Important :** la suite complète exécutée après le Lot 4 comptait **150 tests dans 28 suites**. Elle a été réduite le 22 octobre 2026 à **20 tests dans 4 suites**, puis complétée par les contrats QR (Lot 5), comptage (Lot 6) et HTTP (Lot 7). Au 23 octobre 2026, elle compte **58 tests dans 8 suites** : conformité du schéma SQL à l'application, contrat QR, contrat des comptages et contrat HTTP (versionnement, erreurs, pagination, `Location`, dates). Un `PASS` signifie « cohérent avec le code, vérifié par la suite courante ou par lecture statique » ; les critères de tenancy générale A/B et de concurrence restent non vérifiés. Le détail historique reste disponible dans les rapports 11 et 16.
 
 ### 1.2. Règle de décision
 
@@ -81,11 +81,11 @@ Une capture d'écran ne remplace pas un test de contrat.
 ```text
 Étant donné l'entreprise A et l'entreprise B, chacune avec un article
 Et un utilisateur de A authentifié
-Quand il appelle GET /api/v1/items
+Quand il appelle GET /api/v1/inventory/items
 Alors la réponse ne contient que les articles de A
-Et GET /api/v1/items/{id_de_B} renvoie 404
-Et PATCH /api/v1/items/{id_de_B} renvoie 404
-Et POST /api/v1/items avec company_id=B crée l'article dans A ou renvoie 422
+Et GET /api/v1/inventory/items/{id_de_B} renvoie 404
+Et PATCH /api/v1/inventory/items/{id_de_B} renvoie 404
+Et POST /api/v1/inventory/items avec company_id=B crée l'article dans A ou renvoie 422
 ```
 
 ---
@@ -138,16 +138,16 @@ Et l'accès à /api/v1/users renvoie 403
 | CAT-03 | Créer un employé sans `status` applique `ACTIVE` | **PASS** | Test `EmployeeDefaultsTests.createWithoutStatusAppliesDatabaseDefault`. |
 | CAT-04 | Un doublon de QR/code/nom renvoie 409 | **PASS** | Mapping `23505` → 409 ; test doublon de catégorie. |
 | CAT-05 | Un article ne peut pas référencer une relation d'une autre entreprise | **FAIL** | Aucun contrôle |
-| CAT-06 | `GET /items` retourne `total`, `page`, `pageSize`, `totalPages` | **FAIL** | Tableau brut |
-| CAT-07 | `page=0` renvoie 400, pas 500 | **FAIL** | `OFFSET` négatif possible |
-| CAT-08 | `pageSize` est plafonné | **FAIL** | Aucun plafond typé |
+| CAT-06 | `GET /items` retourne `total`, `page`, `pageSize`, `totalPages` | **PASS** | `PageResponse<ItemRest>` ; test `HttpContractApiTests`. |
+| CAT-07 | `page=0` renvoie 400, pas 500 | **PARTIEL** | `PageQuery` normalise `page=0` à 1 et renvoie 200 ; aucune erreur 500, mais le critère attend 400. |
+| CAT-08 | `pageSize` est plafonné | **PASS** | Plafond `PageQuery.MAX_PAGE_SIZE = 500`, testé avec `pageSize=500`. |
 | CAT-09 | Les transitions de statut d'article sont contrôlées | **FAIL** | `PATCH` libre |
 | CAT-10 | On peut retirer une relation nullable par `PATCH` | **FAIL** | Convention « non nul seulement » |
 | CAT-11 | Une suppression référencée renvoie 409, pas 500 | **PARTIEL** | `23503` → 422 (plus de 500), mais le critère attend 409. |
 | CAT-12 | Une suppression inconnue renvoie 404, pas 204 | **PASS** | `DELETE` d'un article, type, catégorie ou entrepôt inconnu renvoie 404 ; tests dédiés Lot 4. |
 | CAT-13 | Les éléments archivés ne figurent pas dans les listes | **PASS** | Filtres `archived_at IS NULL` sur articles, catégories, types et entrepôts ; tests de suppression/restauration. |
-| CAT-14 | `GET /items/{id}/history` renvoie 404 pour un article inconnu | **FAIL** | Toujours 200 + listes vides ; l'historique a seulement été filtré par article. |
-| CAT-15 | L'historique est filtré et paginé côté SQL | **PASS** | Lectures `by item` des mouvements et affectations, plafonnées à 500 lignes chacune ; pas encore de pagination complète. |
+| CAT-14 | `GET /items/{id}/history` renvoie 404 pour un article inconnu | **PASS** | Lecture préalable de l'article ; test `HttpContractApiTests`. |
+| CAT-15 | L'historique est filtré et paginé côté SQL | **PASS** | `getStockMovementsByItem` et `getItemAssignmentsByItem` avec `page`/`pageSize`, counts SQL, filtre `movementType` et `active`. |
 | CAT-16 | Le bulk est atomique ou retourne des échecs indexés | **FAIL** | Partiel, sans index, sans `@Valid` |
 | CAT-17 | Les filtres article couvrent type, catégorie, entrepôt, statut, dates | **FAIL** | Filtres limités |
 | CAT-18 | Un article supprimé conserve son historique | **PASS** | Archivage logique ; la ligne, les affectations et les mouvements sont conservés. |
@@ -304,24 +304,24 @@ Et un article hors de l'instantané est refusé en 409
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| API-01 | Les routes métier sont versionnées `/api/v1` | **FAIL** | `/api` |
-| API-02 | Les listes renvoient un `PageResponse` avec total | **FAIL** | Tableaux bruts |
-| API-03 | Aucun endpoint ne renvoie 200 avec `errors` | **FAIL** | Plusieurs modules |
-| API-04 | Une erreur de saisie ne renvoie pas 500 | **PASS** | Doublons 409, FK/CHECK 422, NOT NULL/format 400, base indisponible 503. |
+| API-01 | Les routes métier sont versionnées `/api/v1` | **PASS** | Les 28 contrôleurs sont préfixés `/api/v1` ; l'alias `/api` est réécrit avec `Deprecation` et `Link` (Lot 7). |
+| API-02 | Les listes renvoient un `PageResponse` avec total | **PARTIEL** | `PageResponse` appliqué à l'inventaire (articles, mouvements, affectations, comptages et lignes, soldes, rapports) ; les modules organisation/personnel/clients/sites et les référentiels types/catégories/entrepôts restent des tableaux bruts. |
+| API-03 | Aucun endpoint ne renvoie 200 avec `errors` | **PASS** | Plus aucun endpoint atteignable ne renvoie ce format ; les occurrences restantes sont du code mort non exposé (Lot 7). |
+| API-04 | Une erreur de saisie ne renvoie pas 500 | **PASS** | Doublons 409, FK/CHECK 422, NOT NULL/format/UUID 400, base indisponible 503. |
 | API-05 | Aucun SQLSTATE ni message PostgreSQL en production | **PASS** | `ErrorMapper` et `SqlErrorMappingTests`. |
-| API-06 | Une création renvoie 201 et `Location` | **PARTIEL** | 201 sans `Location` ; génériques en 200 |
-| API-07 | Une suppression réussie renvoie 204 | **PARTIEL** | Souvent 204, parfois 200 |
+| API-06 | Une création renvoie 201 et `Location` | **PASS** | 201 + `Location` centralisés par `CreatedLocationAdvice` (`id()`/`getId()`), y compris `POST /inventory-counts` ; `POST /auth/register` fournit `Location: /api/v1/users/{id}` ; les créations en lot et les actions restent 200 (pas d'identifiant unique ou pas de ressource adressable). |
+| API-07 | Une suppression réussie renvoie 204 | **PASS** | Tous les `DELETE` des contrôleurs renvoient 204, y compris les façades d'affectation. |
 | API-08 | Une réponse de création ne contient pas de date nulle due au défaut | **PASS** | Relecture persistée ; tests timestamp mouvement/affectation. |
-| API-09 | Les dates sont ISO-8601 UTC | **NON VÉRIFIÉ** | Format non contractuel |
-| API-10 | Les créations sensibles acceptent `Idempotency-Key` | **FAIL** | Absent |
-| API-11 | Les `PATCH` sensibles utilisent `If-Match`/ETag | **FAIL** | Absent |
-| API-12 | Les erreurs ont un `code` stable et documenté | **PASS** | Codes applicatifs (`CONFLICT`, `BAD_REQUEST`, `UNPROCESSABLE_ENTITY`, etc.) documentés dans `ItemError`. |
-| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 27 fichiers ; lint Redocly rejoué au Lot 6 : 173 avertissements, 0 erreur (183 à l'audit initial). Les exemples et les `license` manquent encore. |
-| API-14 | Le CORS est restreint par environnement | **FAIL** | `*` |
-| API-15 | Les filtres couvrent les besoins des écrans | **FAIL** | Voir rapports 02 et 10 |
-| API-16 | Chaque réponse d'erreur contient un `traceId` | **FAIL** | Absent |
-| API-17 | Les enums sont documentés avec leurs libellés | **FAIL** | Absent |
-| API-18 | Un UUID invalide renvoie 400, pas 500 | **PARTIEL** | `IllegalArgumentException` → 400, `id()` générique non vérifié |
+| API-09 | Les dates sont ISO-8601 UTC | **PASS** | `spring.jackson.time-zone=UTC` + sérialisation ISO-8601 de Jackson 3 ; test de contrat sur `created_at` et `timestamp`. |
+| API-10 | Les créations sensibles acceptent `Idempotency-Key` | **FAIL** | Toujours absent ; décision de stockage requise (mémoire vs table) avant implémentation. |
+| API-11 | Les `PATCH` sensibles utilisent `If-Match`/ETag | **FAIL** | Toujours absent ; décision requise sur une colonne `version`/`updated_at` ou un ETag faible calculé. |
+| API-12 | Les erreurs ont un `code` stable et documenté | **PASS** | `Problem.code` stable (`BAD_REQUEST`, `VALIDATION_ERROR`, `NOT_FOUND`, `CLIENT_ERROR`, `SERVER_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, etc.) et documenté. |
+| API-13 | L'OpenAPI décrit tous les endpoints, erreurs et exemples | **PARTIEL** | 27 fichiers alignés sur `/api/v1` ; schéma `Problem` unique conforme RFC 9457, `ItemError` supprimé des erreurs globales et `Location` documenté sur tous les 201 ; validation 0 erreur / 0 `$ref` orphelin. Manquent encore une spec pour `/inventory/stock-balances`, des exemples et les `license`. |
+| API-14 | Le CORS est restreint par environnement | **PASS** | `CORS_ALLOWED_ORIGINS` avec défauts locaux (`localhost:3000/5173/4200`) ; plus de `*`. |
+| API-15 | Les filtres couvrent les besoins des écrans | **FAIL** | L'historique article est filtrable (type de mouvement, actif) ; les filtres des listes articles et des autres modules restent partiels. |
+| API-16 | Chaque réponse d'erreur contient un `traceId` | **PASS** | `Problem.traceId` renseigné par le handler global, les erreurs de sécurité et le filtre JWT ; vérifié par `HttpContractApiTests`. |
+| API-17 | Les enums sont documentés avec leurs libellés | **FAIL** | Les valeurs sont listées dans certaines specs, sans libellés métier complets. |
+| API-18 | Un UUID invalide renvoie 400, pas 500 | **PASS** | Test `HttpContractApiTests.invalidUuidReturnsBadRequest` : 400 `BAD_REQUEST` en problem+json avec `traceId`. |
 
 ---
 
@@ -333,13 +333,13 @@ Et un article hors de l'instantané est refusé en 409
 | NFR-02 | Les DAO utilisent le `DataSource` et la configuration de production (pool, timeouts) | **PASS** | `spring.datasource.hikari.*` surchargé par l'environnement. |
 | NFR-03 | Une liste de 1 000 articles reste sous un seuil défini | **NON VÉRIFIÉ** | Aucun test de charge |
 | NFR-04 | Le N+1 est éliminé ou borné | **FAIL** | Mapper relationnel |
-| NFR-05 | Les listes sont plafonnées | **FAIL** | `pageSize` libre |
-| NFR-06 | Les images QR sont mises en cache | **FAIL** | Aucun cache |
+| NFR-05 | Les listes sont plafonnées | **PARTIEL** | `pageSize` plafonné à 500 et pagination appliquée à l'inventaire ; les listes hors inventaire restent non plafonnées. |
+| NFR-06 | Les images QR sont mises en cache | **PASS** | `Cache-Control: public, max-age=300`, `ETag` et 304 (Lot 5, QR-11). |
 | NFR-07 | Aucun secret n'apparaît dans une réponse ou un log | **PARTIEL** | Hash absent ; SQLSTATE retiré des réponses, mais logs et secrets non audités |
 | NFR-08 | HTTPS est obligatoire en production | **FAIL** | Aucune règle |
 | NFR-09 | Les migrations sont sauvegardées et réversibles | **NON VÉRIFIÉ** | Hors audit |
-| NFR-10 | Les erreurs 500 sont corrélées par `traceId` | **FAIL** | Absent |
-| NFR-11 | Les routes sensibles sont limitées en débit | **FAIL** | Absent |
+| NFR-10 | Les erreurs 500 sont corrélées par `traceId` | **PASS** | `traceId` présent dans toutes les réponses Problem Details ; vérifié par tests. |
+| NFR-11 | Les routes sensibles sont limitées en débit | **PARTIEL** | Le scan QR et le résolveur sont limités (429) ; login/refresh ne le sont pas encore. |
 | NFR-12 | Les conflits concurrents renvoient 409 | **FAIL** | Conflits SQL traduits en 409, mais aucune détection d'écrasement par version |
 | NFR-13 | Les journaux d'audit couvrent les actions sensibles | **FAIL** | Absent |
 
@@ -357,12 +357,12 @@ Et un article hors de l'instantané est refusé en 409
 | TST-06 | Le rollback transactionnel est testé | **PASS** | `DatabaseTransactionRollbackTests`, `StockMovementTransactionTests`. |
 | TST-07 | La concurrence est testée | **FAIL** | Aucun test |
 | TST-08 | Le stock et la réconciliation sont testés | **PASS** | `InventoryCountApiTests` vérifie le solde, les ajustements, `last_inventory_at` et l'idempotence de la clôture. |
-| TST-09 | Les contrats d'erreur et de pagination sont testés | **PARTIEL** | Enveloppes d'erreur et pagination des lignes testées ; pagination générale (`PageResponse`) et `Location` restent au Lot 7. |
-| TST-10 | Le code et les tests sont synchronisés | **PARTIEL** | Ancien test 404 retiré ; l'historique reste sans test négatif (`P1-12`). |
+| TST-09 | Les contrats d'erreur et de pagination sont testés | **PASS** | `HttpContractApiTests` couvre Problem Details, `errors[]`, `PageResponse`, `page=0`, `Location`, dates UTC, alias `/api` et 204. |
+| TST-10 | Le code et les tests sont synchronisés | **PASS** | L'historique 404, la pagination et les filtres sont testés ; le test obsolète a été remplacé. |
 | TST-11 | Un pipeline CI bloque les régressions | **PARTIEL** | Workflow GitHub Actions présent ; tests RBAC et transaction locaux, pas de tenancy A/B ni de concurrence |
 | TST-12 | Les performances critiques sont mesurées | **FAIL** | Aucun test |
-| TST-13 | La suite actuelle est verte sur l'état courant | **PASS** | 49 tests exécutés sur base neuve ; 0 échec, 0 erreur, 0 ignoré, 7 suites (23 octobre 2026). |
-| TST-14 | Les tests n'écrivent pas dans la base de démonstration partagée | **FAIL** | Nettoyage SQL sur base réelle |
+| TST-13 | La suite actuelle est verte sur l'état courant | **PASS** | 58 tests exécutés sur base isolée ; 0 échec, 0 erreur, 0 ignoré, 8 suites (23 octobre 2026). |
+| TST-14 | Les tests n'écrivent pas dans la base de démonstration partagée | **PARTIEL** | La suite est exécutée sur `sssm_ci_lot6` avec nettoyage SQL ; aucun garde-fou automatique n'empêche de pointer la base de démonstration. |
 
 ---
 
@@ -370,11 +370,11 @@ Et un article hors de l'instantané est refusé en 409
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| FE-01 | Le catalogue peut être listé, filtré et paginé sans total manquant | **PARTIEL** | Liste et filtres partiels |
+| FE-01 | Le catalogue peut être listé, filtré et paginé sans total manquant | **PARTIEL** | Articles paginés avec `total` ; les filtres restent limités et les listes hors inventaire ne sont pas paginées. |
 | FE-02 | Le détail d'un article peut afficher type, catégorie, entrepôt et statut | **PARTIEL** | Réponses imbriquées, relations nulles |
 | FE-03 | La création d'un type ne casse pas si les champs facultatifs sont omis | **PASS** | Défauts PostgreSQL appliqués et relus. |
-| FE-04 | Les erreurs peuvent être mappées sur des messages utilisateur | **PARTIEL** | Statuts et codes stables ; certaines routes renvoient encore des erreurs douces en 200. |
-| FE-05 | L'historique d'un article est complet et paginé | **FAIL** | 100 globales |
+| FE-04 | Les erreurs peuvent être mappées sur des messages utilisateur | **PASS** | Problem Details homogènes avec `code` stable, `detail` et `errors[]` ; plus de soft-200 atteignable. |
+| FE-05 | L'historique d'un article est complet et paginé | **PASS** | `/api/v1/inventory/items/{id}/history` paginé et filtré, avec 404 sur article inconnu. |
 | FE-06 | Un mouvement peut être créé avec quantité et acteur | **FAIL** | Champs absents |
 | FE-07 | Une affectation peut être créée, retournée et auditée | **FAIL** | Cycle incohérent |
 | FE-08 | Un scan QR fournit assez d'informations pour agir | **FAIL** | Réponse brute |
@@ -391,23 +391,23 @@ Et un article hors de l'instantané est refusé en 409
 
 | Domaine | PASS | PARTIEL | FAIL | NON VÉRIFIÉ |
 |---|---:|---:|---:|---:|
-| Portes Go/No-Go | 4 | 1 | 3 | 0 |
-| Tenancy | 2 | 2 | 11 | 0 |
+| Portes Go/No-Go | 5 | 1 | 2 | 0 |
+| Tenancy | 3 | 1 | 11 | 0 |
 | Authentification | 15 | 3 | 4 | 0 |
-| Catalogue | 4 | 2 | 12 | 0 |
-| Stock | 11 | 4 | 3 | 0 |
-| Affectations | 1 | 2 | 15 | 0 |
-| QR | 3 | 0 | 12 | 0 |
+| Catalogue | 10 | 3 | 5 | 0 |
+| Stock | 14 | 3 | 1 | 0 |
+| Affectations | 10 | 4 | 4 | 0 |
+| QR | 10 | 2 | 3 | 0 |
 | Comptages / opérations | 16 | 1 | 2 | 0 |
-| Contrat HTTP | 4 | 4 | 9 | 1 |
-| Performance / sécurité | 2 | 1 | 8 | 2 |
-| Tests / CI | 4 | 5 | 5 | 0 |
-| Frontend | 2 | 4 | 8 | 0 |
-| **Total** | **68** | **29** | **92** | **3** |
+| Contrat HTTP | 12 | 2 | 4 | 0 |
+| Performance / sécurité | 4 | 3 | 4 | 2 |
+| Tests / CI | 6 | 4 | 4 | 0 |
+| Frontend | 4 | 3 | 7 | 0 |
+| **Total** | **109** | **30** | **51** | **2** |
 
-**Total : 192 critères** (68 `PASS`, 29 `PARTIEL`, 92 `FAIL`, 3 `NON VÉRIFIÉ`) après le Lot 6. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
+**Total : 192 critères** (109 `PASS`, 30 `PARTIEL`, 51 `FAIL`, 2 `NON VÉRIFIÉ`) après le Lot 7. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
-**Lecture :** les `PASS` supplémentaires portent sur l'identité, le RBAC inventaire/administration, le scope entreprise des utilisateurs/rôles, le refresh rotatif, le logout, la révocation, le pool, les transactions, les erreurs SQL, les défauts de création, le solde calculé, l'immuabilité du journal, les opérations multi-lignes et la réconciliation des comptages, l'instantané figé à l'ouverture, la clôture idempotente et l'annulation. Les portes de tenancy complète et de concurrence restent bloquantes.
+**Lecture :** le Lot 7 fait passer le contrat HTTP de 4 à 12 `PASS` : versionnement `/api/v1`, Problem Details, `traceId`, dates UTC, `Location`, 204, UUID invalide, CORS restreint. Les `PASS` supplémentaires portent aussi sur l'historique article (404, pagination, filtres), la pagination des listes d'inventaire et la mise en cache QR. Restent bloquants : la tenancy complète (`G0-1`, `G0-2`), la concurrence sans ETag/idempotence (`API-10`, `API-11`), les filtres d'écran (`API-15`) et le RBAC des modules hors inventaire.
 
 ---
 

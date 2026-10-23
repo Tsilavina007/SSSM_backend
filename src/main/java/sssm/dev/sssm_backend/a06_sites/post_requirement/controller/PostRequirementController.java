@@ -11,7 +11,7 @@ import sssm.dev.sssm_backend.a06_sites.post_requirement.dto.PostRequirementUpdat
 import sssm.dev.sssm_backend.a06_sites.post_requirement.service.PostRequirementService;
 
 @RestController
-@RequestMapping("/api/post-requirements")
+@RequestMapping("/api/v1/post-requirements")
 public class PostRequirementController {
   private final PostRequirementService service;
 

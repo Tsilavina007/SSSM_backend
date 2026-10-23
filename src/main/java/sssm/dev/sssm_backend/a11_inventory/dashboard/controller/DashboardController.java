@@ -10,7 +10,7 @@ import sssm.dev.sssm_backend.a11_inventory.dashboard.dto.rest.DashboardSummaryRe
 import sssm.dev.sssm_backend.a11_inventory.dashboard.service.DashboardService;
 
 @RestController
-@RequestMapping("/api/inventory")
+@RequestMapping("/api/v1/inventory")
 public class DashboardController {
   private final DashboardService dashboardService;
 

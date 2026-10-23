@@ -29,14 +29,14 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Domaine | Éléments examinés |
 |---|---|
 | Cartographie | packages, contrôleurs, services, DAO, DTO, mappers, configuration, dépendances |
-| API | 28 contrôleurs REST, 150 routes applicatives après le Lot 6 (130 à l'audit initial, 131 après le Lot 1, 149 après le Lot 5), codes HTTP, validation, erreurs, pagination |
-| Base de données | schéma `security`, scripts `00_init.sql` à `21_lot5_qr.sql`, contraintes, index, triggers |
+| API | 28 contrôleurs REST, 150 routes applicatives (inchangé au Lot 7), codes HTTP, validation, erreurs, pagination |
+| Base de données | schéma `security`, scripts `00_init.sql` à `22_lot6_inventory_counts.sql`, contraintes, index, triggers |
 | Catalogue | catégories, types de matériel, entrepôts, articles |
 | Stock | mouvements, opérations, comptages, tableau de bord, rapports |
 | QR Code | génération, image PNG, résolution, scan |
 | Affectations | un contrat canonique (`item_assignment`) et une façade dépréciée (`assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 7 suites / 49 tests après le Lot 6 : conformité schéma ↔ application, contrat QR et comptages |
+| Tests | 8 suites / 58 tests après le Lot 7 : conformité schéma ↔ application, contrat QR, comptages et contrat HTTP |
 | OpenAPI | 27 fichiers YAML, dont 13 pour l'inventaire |
 
 ## 3. Périmètre exclu
@@ -60,8 +60,8 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | Sécurité | Spring Security, JJWT `0.12.6`, BCrypt |
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
-| Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations Lots 1, 3 et 4 appliquées ensuite, tests des Lots 2 à 4 avec nettoyage des marqueurs |
-| Rapports de tests | Exécution du 23 octobre 2026 après le Lot 6 : 49 tests, 49 succès, 0 échec, 7 suites. La suite fonctionnelle de 150 tests a été supprimée au profit de tests de conformité, du contrat QR et du contrat de comptage. |
+| Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations additives des Lots 1, 3, 4, 5 et 6 appliquées ensuite, tests des Lots 2 à 7 avec nettoyage des marqueurs |
+| Rapports de tests | Exécution du 23 octobre 2026 après le Lot 7 : 58 tests, 58 succès, 0 échec, 8 suites. La suite historique de 150 tests a été remplacée par des tests de conformité, du contrat QR, du contrat de comptage et du contrat HTTP. |
 | Documentation API | `docs/api/**/*.yaml` — 27 fichiers |
 | Scripts SQL | `docs/database/schema/00_init.sql` à `22_lot6_inventory_counts.sql` — 23 fichiers |
 
@@ -82,8 +82,9 @@ Le dépôt est initialisé en tant que dépôt Git. L'audit initial correspond a
 9. **Exécution du Lot 4** : cycle de vie des affectations, contrat canonique et façade dépréciée, archivage logique, migration `20_lot4_assignments.sql` et mise à jour des rapports.
 10. **Exécution du Lot 5** : scan QR tenant-scoped et enrichi, journal `qr_scan`, code immuable, cache d'image, étiquettes HTML, migration `21_lot5_qr.sql`.
 11. **Exécution du Lot 6** : instantané des attendus, périmètre et cloisonnement, clôture idempotente et non vide, annulation, pagination des lignes, ajustements journalisés, migration `22_lot6_inventory_counts.sql`.
+12. **Exécution du Lot 7** : routes `/api/v1` et alias déprécié, Problem Details, `PageResponse`, `Location`, 204, dates UTC, historique article paginé/filtré, OpenAPI aligné. Aucune migration SQL.
 
-L'audit initial n'a effectué aucun test destructif, aucune migration, aucune insertion, aucune modification de données. Le Lot 1 a appliqué la migration `18_lot1_security.sql` à la base de démonstration (colonnes, backfill, index, tables de jetons, permissions) et exécuté les tests ; aucun reset ni suppression de données n'a été effectué. Le Lot 2 n'a appliqué **aucune migration** : il réutilise le schéma courant et n'a supprimé aucune donnée. Les Lots 3 à 6 ont appliqué des migrations **strictement additives** (`19_lot3_stock.sql`, `20_lot4_assignments.sql`, `21_lot5_qr.sql`, `22_lot6_inventory_counts.sql`), rejouées pour vérifier leur idempotence ; aucune suppression, aucun `TRUNCATE` et aucun reset n'ont été effectués.
+L'audit initial n'a effectué aucun test destructif, aucune migration, aucune insertion, aucune modification de données. Le Lot 1 a appliqué la migration `18_lot1_security.sql` à la base de démonstration (colonnes, backfill, index, tables de jetons, permissions) et exécuté les tests ; aucun reset ni suppression de données n'a été effectué. Le Lot 2 n'a appliqué **aucune migration** : il réutilise le schéma courant et n'a supprimé aucune donnée. Les Lots 3 à 6 ont appliqué des migrations **strictement additives** (`19_lot3_stock.sql`, `20_lot4_assignments.sql`, `21_lot5_qr.sql`, `22_lot6_inventory_counts.sql`), rejouées pour vérifier leur idempotence ; aucune suppression, aucun `TRUNCATE` et aucun reset n'ont été effectués. Le Lot 7 n'a appliqué **aucune migration**.
 
 ---
 
@@ -135,12 +136,12 @@ Les priorités utilisées dans le registre sont :
 
 ## 8. Limites de l'audit
 
-- **La suite complète a été exécutée après le Lot 4** : 150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites ; elle a depuis été réduite le 22 octobre 2026 à **20 tests de conformité schéma** (4 suites). L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre ; l'anomalie fonctionnelle de l'historique reste ouverte (`P1-12`). Les résultats historiques (105 tests, puis 120 après le Lot 1, 132 après le Lot 2, 140 après le Lot 3) proviennent d'exécutions antérieures et ne décrivent plus l'état courant.
+- **La suite complète a été exécutée après le Lot 4** : 150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites ; elle a ensuite été remplacée par des tests ciblés : **20 tests de conformité schéma** (4 suites), puis **38** après le Lot 5, **49** après le Lot 6 et **58 dans 8 suites** après le Lot 7. L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus ; l'historique est désormais couvert (404, pagination, filtres, `P1-12`). Les résultats historiques (105 tests, puis 120 après le Lot 1, 132 après le Lot 2, 140 après le Lot 3) proviennent d'exécutions antérieures.
 - **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise. Le Lot 1 applique l'hypothèse mono-entreprise et ajoute le scope entreprise sur les utilisateurs et rôles, mais les DAO d'inventaire ne filtrent pas encore par `company_id`.
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
 - **Les secrets réels n'ont pas été lus.** Les conclusions portent sur la présence de valeurs par défaut et sur la configuration, pas sur la divulgation d'un secret d'exploitation.
-- **OpenAPI** a été vérifié structurellement et linté avec la version de la CI (`@redocly/cli@2.65.1`) au Lot 6 : **173 avertissements, 0 erreur** sur 27 fichiers (183 à l'audit initial). Les avertissements restants concernent les opérations antérieures et ne sont pas bloquants ; ils restent signalés comme dette de documentation.
+- **OpenAPI** a été vérifié structurellement au Lot 7 : 27 fichiers, 0 erreur de parsing ruamel et 0 `$ref` orphelin ; `scripts/validate_specs.py` rapporte 0 problème sur 13 fichiers / 75 opérations. Le schéma `Problem` est unique et conforme RFC 9457 ; `ItemError` ne subsiste que pour les erreurs par ligne des créations en lot, et `Location` est documenté sur tous les 201. Le lint Redocly du Lot 6 (**173 avertissements, 0 erreur**) n'a pas été rejoué ; ses avertissements (license, localhost, operationId, exemples) restent a priori.
 - **Les propositions** des fichiers 13 à 15 sont des spécifications. Elles ne constituent ni du code livré, ni un engagement de délai.
 
 ---
@@ -214,4 +215,4 @@ Le **Lot 4**, exécuté le 22 octobre 2026, a modifié :
 
 La suite complète était verte à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** (suite depuis réduite à 20 tests de conformité schéma). La migration a été appliquée puis rejouée, sans suppression de ligne ni de colonne. Aucune dépendance n'a été ajoutée. `P0-06`, `P1-05` et `P1-11` sont corrigés dans le périmètre documenté ; `P0-01` (tenancy) et `P1-14` (concurrence et idempotence) restent ouverts, ainsi qu'une affectation active antérieure de la base de démonstration incohérente avec le statut de son article, laissée en l'état.
 
-Le Lot 7 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.
+Le Lot 8 et tout démarrage de frontend doivent faire l'objet d'un accord explicite distinct.

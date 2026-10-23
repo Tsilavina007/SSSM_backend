@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a04_personnel.employee.dto.EmployeeUpdateRequest;
 import sssm.dev.sssm_backend.a04_personnel.employee.service.EmployeeService;
 
 @RestController
-@RequestMapping("/api/employees")
+@RequestMapping("/api/v1/employees")
 public class EmployeeController {
   private final EmployeeService service;
 

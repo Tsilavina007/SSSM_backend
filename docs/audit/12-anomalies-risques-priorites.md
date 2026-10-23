@@ -1,5 +1,7 @@
 ﻿# 12 — Anomalies, risques et priorités
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** centraliser les constats dans un registre unique, les qualifier par gravité et fournir l'ordre d'attaque du plan de correction. Les preuves détaillées restent dans les rapports 01 à 11 ; ce document ne les remplace pas.
 
 **Portée :** audit statique initial, puis exécution des Lots 1 à 4 (identité, tenancy mono-entreprise, RBAC, transactions, stock calculé, cycle de vie des affectations et archivage logique). Les constats restent la photographie de l'audit initial ; chaque P0/P1 concerné porte désormais un statut d'exécution daté.
@@ -281,7 +283,9 @@ Les opérations suivantes écrivent sur plusieurs lignes sans atomicité réelle
 
 ### P1-08 — Performance et pagination non maîtrisées
 
-**Constat :**
+**Statut au 23 octobre 2026 (Lot 7) : PARTIELLEMENT CORRIGÉ.** `pageSize` est plafonné à 500 et les listes d'inventaire renvoient `PageResponse` avec `total` ; `page=0` est normalisé à 1, sans `OFFSET` négatif. L'image QR est mise en cache (`ETag`, 304) depuis le Lot 5. Restent le N+1 de `ItemRestMapper`, les listes hors inventaire non paginées et les filtres d'écran.
+
+**Constat initial :**
 
 - `pageSize` non plafonné sur les modules typés ;
 - `page=0` peut produire un `OFFSET` négatif ;
@@ -358,6 +362,8 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 
 **Statut au 22 octobre 2026 (Lot 4) : PARTIEL.** L'historique lit désormais les mouvements et affectations filtrés par article (jusqu'à 500 lignes chacun) au lieu de charger 100 lignes globales puis filtrer en mémoire. L'existence de l'article n'est toutefois toujours pas vérifiée : un UUID inconnu renvoie encore 200 avec des listes vides.
 
+**Statut au 23 octobre 2026 (Lot 7) : CORRIGÉ.** `GET /api/v1/inventory/items/{id}/history` vérifie l'existence de l'article (`404 NOT_FOUND`), pagine chaque collection avec `PageResponse` (défaut 20, plafond 500) et accepte `movementType` (enum validé → 400) ainsi que `active=true`. Test : `HttpContractApiTests.historyIsPaginatedAndUnknownItemReturnsNotFound`.
+
 ---
 
 ### P1-13 — Tests dépendants de la base de démonstration
@@ -375,7 +381,7 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 
 **Référence :** rapport 11.
 
-**Statut au 23 octobre 2026 (Lots 5 et 6) : AGGRAVÉ, PARTIELLEMENT ATTÉNUÉ.** La suite fonctionnelle de 150 tests reste supprimée ; elle compte désormais **7 classes et 49 tests**, dont 20 de conformité du schéma SQL à l'application, 17 sur le contrat QR (Lot 5) et 10 sur le contrat des comptages (Lot 6). Les comportements métier couverts restent limités au QR et aux comptages : ni la sécurité, ni les affectations, ni la tenancy générale, ni la concurrence, ni les transactions ne sont testés. La suite reste verte, mais elle ne prouve pas le domaine. L'impact reste 5 : **score 25, niveau Critique**. Le critère de résolution (base isolée, fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction) reste à faire.
+**Statut au 23 octobre 2026 (Lots 5 à 7) : AGGRAVÉ, PARTIELLEMENT ATTÉNUÉ.** La suite fonctionnelle de 150 tests reste remplacée par des tests ciblés : **8 classes et 58 tests**, dont 20 de conformité du schéma SQL à l'application, 17 sur le contrat QR (Lot 5), 10 sur les comptages (Lot 6) et 9 sur le contrat HTTP (Lot 7). Les comportements métier couverts restent limités au QR, aux comptages et au contrat : ni la sécurité, ni les affectations, ni la tenancy générale, ni la concurrence, ni les transactions ne sont testés. La suite reste verte, mais elle ne prouve pas le domaine. L'impact reste 5 : **score 25, niveau Critique**. Le critère de résolution (base isolée, fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction) reste à faire.
 
 ---
 
@@ -397,11 +403,11 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 
 ### P2-02 — Contrat de pagination et de filtrage insuffisant
 
-Pas de total, pas de métadonnées, filtres limités, tri par `id`, pas de recherche plein texte, pas de filtre par entreprise, type, catégorie, date ou acteur. Le frontend filtrera côté client.
+**Statut au 23 octobre 2026 (Lot 7) : PARTIELLEMENT CORRIGÉ.** Les listes d'inventaire (articles, mouvements, affectations, comptages et lignes, soldes, rapports) renvoient `PageResponse` avec `total`/`totalPages` et un `pageSize` plafonné à 500. Les filtres restent limités et les listes hors inventaire ne sont pas paginées.
 
 ### P2-03 — Nommage, versionnement et dates
 
-Routes hors préfixe (`/api/item-assignments`), absence de `/api/v1`, deux contrats pour un même objet, dates `java.sql.Timestamp` sans fuseau contractuel, pas de format de date documenté, enums sans libellés.
+**Statut au 23 octobre 2026 (Lot 7) : CORRIGÉ pour le versionnement et les dates.** Les routes canoniques sont sous `/api/v1`, l'alias `/api` est déprécié (`Deprecation`/`Link`), les dates sont sérialisées en ISO-8601 UTC et les erreurs suivent RFC 9457. Les libellés d'enums restent incomplets (`API-17`).
 
 ### P2-04 — Dashboard et alertes non représentatifs
 
@@ -415,13 +421,13 @@ Le PNG est disponible, mais il n'existe ni PDF, ni planche, ni file d'impression
 
 ### P2-06 — CI, couverture et documentation de contrat
 
-Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 éphémère, initialisation du schéma et des données de démonstration, tests, lint OpenAPI et packaging. Il ne couvre cependant ni la tenancy, ni le RBAC, ni les transactions, ni la concurrence, et la couverture n'est pas mesurée. Le lint OpenAPI a été rejoué au Lot 4 avec la version de la CI (`@redocly/cli@2.65.1`) : **179 avertissements non bloquants, 0 erreur** sur 26 fichiers (183 à l'audit initial) ; les exemples ne sont toujours pas contractuels.
+Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 éphémère, initialisation du schéma et des données de démonstration, tests, lint OpenAPI et packaging. Il ne couvre cependant ni la tenancy, ni le RBAC, ni les transactions, ni la concurrence, et la couverture n'est pas mesurée. Le lint OpenAPI a été rejoué au Lot 6 avec la version de la CI (`@redocly/cli@2.65.1`) : **173 avertissements non bloquants, 0 erreur** sur 27 fichiers (183 à l'audit initial). Il n'a pas été rejoué au Lot 7, mais les 27 fichiers ont été revalidés structurellement (0 erreur de parsing, 0 `$ref` orphelin) ; les exemples ne sont toujours pas contractuels.
 
 ---
 
 ## 5. Matrice de risque
 
-La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. Après le Lot 4 : **P0-06, P1-05 et P1-11 sont corrigés dans le périmètre documenté**, et **P2-01 est corrigé** pour les articles, catégories, types, entrepôts et affectations. `P0-01`, `P1-04`, `P1-08`, `P1-12` (partiel), `P1-13` (aggravé par la réduction de la suite : 20 tests de conformité seulement, score porté à 25), la concurrence (`P1-14`) et les autres P2 restent ouverts. Après le Lot 6 : **P1-07 est complété** (attendu figé, périmètre, clôture idempotente et non vide, annulation, pagination et journal des ajustements), et les comptages sont cloisonnés par entreprise ; `P0-01` reste ouvert pour les autres modules et `P1-14` pour la concurrence.
+La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. Après le Lot 4 : **P0-06, P1-05 et P1-11 sont corrigés dans le périmètre documenté**, et **P2-01 est corrigé** pour les articles, catégories, types, entrepôts et affectations. Après le Lot 6 : **P1-07 est complété** (attendu figé, périmètre, clôture idempotente et non vide, annulation, pagination et journal des ajustements), et les comptages sont cloisonnés par entreprise. Après le Lot 7 : **P1-12 est corrigé**, **P2-02 est corrigé pour l'inventaire** et **P2-03 est corrigé** (versionnement et dates). `P0-01`, `P1-08` (N+1), `P1-13` (58 tests ciblés), la concurrence (`P1-14`, incluant `API-10`/`API-11`) et les autres P2 restent ouverts.
 
 | ID | Risque | Probabilité | Impact | Score | Niveau |
 |---|---|---:|---:|---:|---|

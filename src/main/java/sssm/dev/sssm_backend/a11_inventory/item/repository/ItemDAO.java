@@ -20,6 +20,8 @@ public interface ItemDAO {
   List<ItemResponse> getItemsFiltered(
       String search, String warehouseId, String status, int page, int pageSize);
 
+  long countItems(String search, String warehouseId, String status);
+
   Optional<ItemResponse> getItemById(String id);
 
   ItemResponse createItem(ItemCreateRequest value);

@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a03_authentication.user.dto.AppUserUpdateRequest;
 import sssm.dev.sssm_backend.a03_authentication.user.service.AppUserService;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/v1/users")
 public class AppUserController {
   private final AppUserService service;
 

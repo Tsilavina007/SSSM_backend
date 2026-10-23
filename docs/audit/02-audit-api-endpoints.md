@@ -2,22 +2,25 @@
 
 **Objectif :** dresser le contrat HTTP réel du backend, route par route, avec les statuts, les paramètres, les règles de validation et les écarts visibles. Les propositions de nouvelles routes sont dans le rapport 13 ; ce rapport ne décrit que l'existant.
 
-**Périmètre :** 26 contrôleurs REST, **131 routes applicatives après le Lot 1** (130 lors de l'audit initial, plus `POST /api/auth/logout`), dont 57 routes d'inventaire. Les deux contrôleurs de test `HelloController` et `PingController` sont exclus du décompte métier.
+**Périmètre :** 26 contrôleurs REST décrits à l'audit initial ; **28 contrôleurs et 150 routes au total après le Lot 7**, dont 76 routes d'inventaire. Les sections de routes ci-dessous conservent le périmètre de l'audit initial (131 routes) et ne décrivent pas les routes ajoutées par les Lots 3 à 7. Les deux contrôleurs de test `HelloController` et `PingController` sont exclus du décompte métier.
 
 ---
 
 ## 1. Conventions générales observées
 
+**Mise à jour du 23 octobre 2026 (Lot 7) :** les routes canoniques sont préfixées `/api/v1`. L'alias historique `/api` reste accepté par `ApiVersionFilter` et renvoie `Deprecation: true` et `Link` vers `/api/v1`. Le tableau ci-dessous décrit l'état courant ; les sections de routes détaillent les chemins sous `/api/v1`.
+
 | Sujet | Comportement réel |
 |---|---|
-| Format | JSON, `Content-Type: application/json`, sauf l'image PNG |
-| Authentification | `Authorization: Bearer <JWT>` sur toutes les routes, sauf `/api/auth/login`, `/api/auth/refresh`, `/api/auth/logout`, `/ping`, `/error`. `/api/auth/register` exige un admin. |
-| Autorisation | `/api/inventory/**` : `ROLE_ADMIN`, `ROLE_INVENTORY` ou `inventory.manage` ; `/api/users/**` et `/api/auth/register` : `ROLE_ADMIN` ou `users.manage` ; `/api/roles/**` : `ROLE_ADMIN` ou `roles.manage` ; `/api/permissions/**` : `ROLE_ADMIN` ; reste : authentification |
-| Enveloppe d'erreur | `{"errors":{"message":"...","detail":"...","code":"..."}}` |
-| Erreurs de validation | **400**, code `VALIDATION_ERROR`, détail par champ |
-| Erreurs SQL | **500**, code = SQLSTATE (`23505`, `23503`, `23502`, `23514`, etc.), détail = message PostgreSQL |
-| Erreurs douces | Certains modules renvoient **200** avec `errors` au lieu de 404/400 |
-| Pagination | `page` (1-based) et `pageSize`, sans métadonnées de total |
+| Format | JSON, `Content-Type: application/json` pour les succès ; `application/problem+json` pour les erreurs ; image PNG pour le QR |
+| Authentification | `Authorization: Bearer <JWT>` sur toutes les routes, sauf `/api/v1/auth/login`, `/api/v1/auth/refresh`, `/api/v1/auth/logout`, `/ping`, `/error`. `/api/v1/auth/register` exige un admin. |
+| Autorisation | `/api/v1/inventory/**` : `ROLE_ADMIN`, `ROLE_INVENTORY` ou `inventory.manage` ; `/api/v1/users/**` et `/api/v1/auth/register` : `ROLE_ADMIN` ou `users.manage` ; `/api/v1/roles/**` : `ROLE_ADMIN` ou `roles.manage` ; `/api/v1/permissions/**` : `ROLE_ADMIN` ; reste : authentification |
+| Enveloppe d'erreur | Problem Details RFC 9457 : `type`, `title`, `status`, `detail`, `instance`, `code`, `traceId`, `timestamp` |
+| Erreurs de validation | **400**, code `VALIDATION_ERROR`, tableau `errors[{field,message}]` |
+| Erreurs SQL | Traduites en 400/409/422/503, sans SQLSTATE ni message PostgreSQL en production |
+| Erreurs douces | Aucun endpoint atteignable ne renvoie 200 avec `errors` ; les occurrences restantes sont du code mort |
+| Pagination | `page` (1-based, `page=0` normalisé à 1) et `pageSize` plafonné à 500 ; `items`, `page`, `pageSize`, `total`, `totalPages` sur les listes d'inventaire |
+| Dates | ISO-8601 UTC (`Z` ou `+00:00`) |
 | Tri | Souvent `ORDER BY id`, rarement par date |
 | Champs | `snake_case` dans les DTO et les réponses |
 
@@ -27,7 +30,7 @@
 
 ### 2.1. Articles — `ItemController`
 
-Base : `/api/inventory/items`
+Base : `/api/v1/inventory/items`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -52,7 +55,7 @@ Base : `/api/inventory/items`
 
 ### 2.2. Types de matériel — `ItemTypeController`
 
-Base : `/api/inventory/item-types`
+Base : `/api/v1/inventory/item-types`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -74,7 +77,7 @@ Base : `/api/inventory/item-types`
 
 ### 2.3. Catégories — `ItemCategoryController`
 
-Base : `/api/inventory/item-categories`
+Base : `/api/v1/inventory/item-categories`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -86,7 +89,7 @@ Base : `/api/inventory/item-categories`
 
 ### 2.4. Entrepôts — `WarehouseController`
 
-Base : `/api/inventory/warehouses`
+Base : `/api/v1/inventory/warehouses`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -98,7 +101,7 @@ Base : `/api/inventory/warehouses`
 
 ### 2.5. Mouvements de stock — `StockMovementController`
 
-Base : `/api/inventory/movements`
+Base : `/api/v1/inventory/movements`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -119,7 +122,7 @@ Base : `/api/inventory/movements`
 
 ### 2.6. Affectations typées — `ItemAssignmentController`
 
-Base : `/api/item-assignments`
+Base : `/api/v1/item-assignments`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -138,7 +141,7 @@ Base : `/api/item-assignments`
 
 ### 2.7. Affectations génériques — `AssignmentController`
 
-Base : `/api/inventory`
+Base : `/api/v1/inventory`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -159,7 +162,7 @@ Base : `/api/inventory`
 
 ### 2.8. Comptages d'inventaire — `InventoryCountController`
 
-Base : `/api/inventory/inventory-counts`
+Base : `/api/v1/inventory/inventory-counts`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -179,7 +182,7 @@ Base : `/api/inventory/inventory-counts`
 
 ### 2.9. Opérations d'inventaire — `OperationController`
 
-Base : `/api/inventory/operations`
+Base : `/api/v1/inventory/operations`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -197,7 +200,7 @@ Base : `/api/inventory/operations`
 
 ### 2.10. QR Scan — `QrScanController`
 
-Base : `/api/inventory/scans`
+Base : `/api/v1/inventory/scans`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -213,7 +216,7 @@ Base : `/api/inventory/scans`
 
 ### 2.11. Tableau de bord — `DashboardController`
 
-Base : `/api/inventory`
+Base : `/api/v1/inventory`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -228,7 +231,7 @@ Base : `/api/inventory`
 
 ### 2.12. Rapports — `ReportController`
 
-Base : `/api/inventory/reports`
+Base : `/api/v1/inventory/reports`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -247,7 +250,7 @@ Base : `/api/inventory/reports`
 
 ### 3.1. Authentification — `AuthController`
 
-Base : `/api/auth`
+Base : `/api/v1/auth`
 
 | Méthode | Chemin | Succès | Statut | Remarques |
 |---|---|---|---|---|
@@ -259,7 +262,7 @@ Base : `/api/auth`
 
 ### 3.2. Utilisateurs — `AppUserController`
 
-Base : `/api/users`, réservé à `ROLE_ADMIN` ou `users.manage` ; scope entreprise pour un admin d'entreprise.
+Base : `/api/v1/users`, réservé à `ROLE_ADMIN` ou `users.manage` ; scope entreprise pour un admin d'entreprise.
 
 | Méthode | Chemin | Succès | Statut |
 |---|---|---|---|
@@ -273,7 +276,7 @@ Base : `/api/users`, réservé à `ROLE_ADMIN` ou `users.manage` ; scope entrepr
 
 ### 3.3. Rôles — `RoleController`
 
-Base : `/api/roles`, réservé à `ROLE_ADMIN` ou `roles.manage` ; scope entreprise pour un admin d'entreprise.
+Base : `/api/v1/roles`, réservé à `ROLE_ADMIN` ou `roles.manage` ; scope entreprise pour un admin d'entreprise.
 
 | Méthode | Chemin | Succès | Statut |
 |---|---|---|---|
@@ -287,7 +290,7 @@ Base : `/api/roles`, réservé à `ROLE_ADMIN` ou `roles.manage` ; scope entrepr
 
 ### 3.4. Permissions — `PermissionController`
 
-Base : `/api/permissions`, réservé à `ROLE_ADMIN`.
+Base : `/api/v1/permissions`, réservé à `ROLE_ADMIN`.
 
 | Méthode | Chemin | Succès | Statut |
 |---|---|---|---|
@@ -297,7 +300,7 @@ Base : `/api/permissions`, réservé à `ROLE_ADMIN`.
 | PATCH | `/{id}` | 200 / 404 | **IMPLÉMENTÉ** |
 | DELETE | `/{id}` | 204 | **IMPLÉMENTÉ** |
 
-**Constat transversal après le Lot 1 :** les permissions `inventory.manage`, `users.manage` et `roles.manage` sont consommées par `SecurityConfig`. `/api/permissions/**` reste réservé à `ROLE_ADMIN`. Les modules organisation, personnel, clients et sites restent seulement `authenticated` ; le RBAC n'y est pas encore appliqué.
+**Constat transversal après le Lot 1 :** les permissions `inventory.manage`, `users.manage` et `roles.manage` sont consommées par `SecurityConfig`. `/api/v1/permissions/**` reste réservé à `ROLE_ADMIN`. Les modules organisation, personnel, clients et sites restent seulement `authenticated` ; le RBAC n'y est pas encore appliqué.
 
 ---
 
@@ -307,10 +310,10 @@ Ces routes ne sont pas détaillées une par une dans ce rapport, car elles sorte
 
 | Module | Contrôleurs | Routes | Base |
 |---|---|---|---|
-| Organisation | `CompanyController`, `AgencyController`, `BranchController` | 15 | `/api/companies`, `/api/agencies`, `/api/branches` |
-| Personnel | `EmployeeController`, `EmployeeDocumentController` | 10 | `/api/employees`, `/api/employee-documents` |
-| Clients | `ClientController`, `ClientContactController` | 10 | `/api/clients`, `/api/client-contacts` |
-| Sites | `SiteController`, `SecurityPostController`, `PostRequirementController` | 15 | `/api/sites`, `/api/security-posts`, `/api/post-requirements` |
+| Organisation | `CompanyController`, `AgencyController`, `BranchController` | 15 | `/api/v1/companies`, `/api/v1/agencies`, `/api/v1/branches` |
+| Personnel | `EmployeeController`, `EmployeeDocumentController` | 10 | `/api/v1/employees`, `/api/v1/employee-documents` |
+| Clients | `ClientController`, `ClientContactController` | 10 | `/api/v1/clients`, `/api/v1/client-contacts` |
+| Sites | `SiteController`, `SecurityPostController`, `PostRequirementController` | 15 | `/api/v1/sites`, `/api/v1/security-posts`, `/api/v1/post-requirements` |
 
 Toutes ces routes sont accessibles à **tout utilisateur authentifié**, car `SecurityConfig` ne leur applique pas de rôle. Elles ne sont pas filtrées par entreprise dans les DAO.
 
@@ -327,7 +330,7 @@ Toutes ces routes sont accessibles à **tout utilisateur authentifié**, car `Se
 | Pas de plafond | `items`, `item-types`, `item-assignments`, etc. | Risque de réponse énorme. |
 | Champs d'audit absents | affectations typées, mouvements | Impossible d'afficher « qui a fait quoi ». |
 | Dates nulles à la création | mouvements et affectations | Le frontend doit recharger la ligne pour obtenir la date réelle. |
-| Deux contrats d'affectation | `/api/item-assignments` et `/api/inventory/assignments` | Le frontend doit choisir un module, sans garantie d'équivalence. |
+| Deux contrats d'affectation | `/api/v1/item-assignments` et `/api/v1/inventory/assignments` | Le frontend doit choisir un module, sans garantie d'équivalence. |
 | Stubs silencieux | `item-types/low-stock`, `/items/{typeId}`, `/stocks/{typeId}` | Le frontend reçoit `[]` et croit qu'il n'y a rien. |
 
 ---

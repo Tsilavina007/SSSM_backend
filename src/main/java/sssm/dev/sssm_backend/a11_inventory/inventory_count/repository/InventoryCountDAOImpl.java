@@ -542,6 +542,29 @@ public class InventoryCountDAOImpl implements InventoryCountDAO {
   }
 
   @Override
+  public long countList(String search, String where, Object... a) {
+    String q =
+        "SELECT count(*) FROM "
+            + inventory_count
+            + " WHERE "
+            + (where == null ? "1=1" : where)
+            + (search == null || search.isBlank()
+                ? ""
+                : " AND CAST(row_to_json(inventory_count) AS text) ILIKE ?");
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement z = c.prepareStatement(q)) {
+      int n = 1;
+      for (Object x : a) z.setObject(n++, id(x));
+      if (search != null && !search.isBlank()) z.setString(n, "%" + search + "%");
+      try (ResultSet r = z.executeQuery()) {
+        return r.next() ? r.getLong(1) : 0L;
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
   public Optional<InventoryCountResponse> one(String v) {
     try (Connection c = DatabaseConnection.getConnection()) {
       return one(c, v);

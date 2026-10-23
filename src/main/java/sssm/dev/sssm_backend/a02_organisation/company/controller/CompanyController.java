@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a02_organisation.company.dto.CompanyUpdateRequest;
 import sssm.dev.sssm_backend.a02_organisation.company.service.CompanyService;
 
 @RestController
-@RequestMapping("/api/company")
+@RequestMapping("/api/v1/company")
 public class CompanyController {
   private final CompanyService companyService;
 

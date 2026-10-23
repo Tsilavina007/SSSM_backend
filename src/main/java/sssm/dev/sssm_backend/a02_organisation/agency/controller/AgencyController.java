@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a02_organisation.agency.dto.AgencyUpdateRequest;
 import sssm.dev.sssm_backend.a02_organisation.agency.service.AgencyService;
 
 @RestController
-@RequestMapping("/api/agency")
+@RequestMapping("/api/v1/agency")
 public class AgencyController {
   private final AgencyService agencyService;
 

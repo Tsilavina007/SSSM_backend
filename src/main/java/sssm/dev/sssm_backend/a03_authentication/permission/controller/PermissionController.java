@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a03_authentication.permission.dto.PermissionUpdateR
 import sssm.dev.sssm_backend.a03_authentication.permission.service.PermissionService;
 
 @RestController
-@RequestMapping("/api/permissions")
+@RequestMapping("/api/v1/permissions")
 public class PermissionController {
   private final PermissionService service;
 

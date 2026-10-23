@@ -6,11 +6,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.report.dto.rest.ReportMovementRest;
 import sssm.dev.sssm_backend.a11_inventory.report.service.ReportService;
 
 @RestController
-@RequestMapping("/api/inventory/reports")
+@RequestMapping("/api/v1/inventory/reports")
 public class ReportController {
   private final ReportService reportService;
 
@@ -19,7 +20,7 @@ public class ReportController {
   }
 
   @GetMapping("/movements")
-  public List<ReportMovementRest> movements(
+  public PageResponse<ReportMovementRest> movements(
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer pageSize,
       @RequestParam(required = false) String itemId,

@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a11_inventory.item_type.dto.rest.ItemTypeRest;
 import sssm.dev.sssm_backend.a11_inventory.item_type.service.ItemTypeService;
 
 @RestController
-@RequestMapping("/api/inventory/item-types")
+@RequestMapping("/api/v1/inventory/item-types")
 public class ItemTypeController {
   private final ItemTypeService itemTypeService;
 

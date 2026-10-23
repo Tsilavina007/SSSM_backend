@@ -97,6 +97,93 @@ public class StockMovementDAOImpl implements StockMovementDAO {
   }
 
   @Override
+  public List<StockMovementResponse> getStockMovementsByItem(
+      String itemId, String movementType, int page, int pageSize) {
+    boolean filtered = movementType != null && !movementType.isBlank();
+    String sql =
+        "SELECT * FROM security.stock_movement WHERE item_id = ?"
+            + (filtered ? " AND movement_type = CAST(? AS security.movement_type)" : "")
+            + " ORDER BY id LIMIT ? OFFSET ?";
+    List<StockMovementResponse> values = new ArrayList<>();
+
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      int index = 1;
+      stmt.setObject(index++, UUID.fromString(itemId));
+      if (filtered) {
+        stmt.setString(index++, movementType);
+      }
+      stmt.setInt(index++, pageSize);
+      stmt.setInt(index, (page - 1) * pageSize);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        while (rs.next()) {
+          values.add(mapRowToStockMovementResponse(rs));
+        }
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+    return values;
+  }
+
+  @Override
+  public long countStockMovementsByItem(String itemId, String movementType) {
+    boolean filtered = movementType != null && !movementType.isBlank();
+    String sql =
+        "SELECT count(*) FROM security.stock_movement WHERE item_id = ?"
+            + (filtered ? " AND movement_type = CAST(? AS security.movement_type)" : "");
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      int index = 1;
+      stmt.setObject(index++, UUID.fromString(itemId));
+      if (filtered) {
+        stmt.setString(index, movementType);
+      }
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getLong(1) : 0L;
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public long countStockMovements(String search) {
+    boolean filtered = search != null && !search.isBlank();
+    String sql =
+        "SELECT count(*) FROM security.stock_movement"
+            + (filtered ? " WHERE reference ILIKE ? OR notes ILIKE ?" : "");
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      if (filtered) {
+        String pattern = "%" + search + "%";
+        stmt.setString(1, pattern);
+        stmt.setString(2, pattern);
+      }
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getLong(1) : 0L;
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public long countStockMovementsByItem(String itemId) {
+    String sql = "SELECT count(*) FROM security.stock_movement WHERE item_id = ?";
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      stmt.setObject(1, UUID.fromString(itemId));
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getLong(1) : 0L;
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
   public Optional<StockMovementResponse> getStockMovementById(String id) {
     String sql = "SELECT * FROM security.stock_movement WHERE id = ?";
     UUID uuid = UUID.fromString(id);

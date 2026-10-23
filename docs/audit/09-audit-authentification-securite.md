@@ -1,5 +1,7 @@
 ﻿# 09 — Audit de l'authentification et de la sécurité
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** évaluer l'inscription, la connexion, les JWT, le refresh, les rôles, les permissions, le CORS et la protection des données. Les routes d'inventaire sont supposées authentifiées ; ce rapport vérifie ce que « authentifié » signifie réellement.
 
 **Mise à jour du 21 octobre 2026 (Lot 1) :** l'inscription publique est fermée, le refresh token est distinct et rotatif, le logout et la révocation sont implémentés, les rôles sont rechargés au refresh, le JWT porte le tenant et les permissions, et le CORS est explicite. Les sections ci-dessous décrivent l'état initial puis signalent l'état courant. Les points non corrigés restent listés.

@@ -23,7 +23,7 @@ tags:
   - name: Inventory Counts
     description: Inventaires et scans
 paths:
-  /api/inventory/inventory-counts:
+  /api/v1/inventory/inventory-counts:
     get:
       tags: [ Inventory Counts ]
       operationId: listInventoryCounts
@@ -36,7 +36,7 @@ paths:
           description: Liste paginée des inventaires de l'entreprise du jeton
           content:
             application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/InventoryCount' } }
+              schema: { $ref: '#/components/schemas/PageInventoryCount' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -60,8 +60,12 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/InventoryCountCreate' } }
       responses:
-        '200':
+        '201':
           description: Inventaire ouvert, avec son instantané d'attendus figé
+          headers:
+            Location:
+              description: URI de l'inventaire créé.
+              schema: { type: string, format: uri }
           content:
             application/json:
               schema: { $ref: '#/components/schemas/InventoryCount' }
@@ -72,18 +76,18 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Entrepôt introuvable dans l'entreprise (enveloppe ItemError)
+          description: Entrepôt introuvable dans l'entreprise (Problem Details RFC 9457)
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '409':
           description: Référence déjà utilisée par un inventaire de l'entreprise
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/inventory-counts/{id}:
+  /api/v1/inventory/inventory-counts/{id}:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     get:
@@ -99,15 +103,15 @@ paths:
         '404':
           description: Inventaire inconnu ou appartenant à une autre entreprise
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/inventory-counts/{id}/scans:
+  /api/v1/inventory/inventory-counts/{id}/scans:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     post:
@@ -133,13 +137,13 @@ paths:
               schema: { $ref: '#/components/schemas/InventoryCountScan' }
         '400':
           description: >-
-            Erreur client structurée (enveloppe ItemError) — item_id
+            Erreur client structurée (Problem Details RFC 9457) — item_id
             manquant/vide, UUID invalide, quantité négative, scanned_at
             invalide, champ inconnu, entrepôt constaté d'une autre entreprise,
             doublon (inventory_count_id, item_id) ou FK inexistante.
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -147,18 +151,18 @@ paths:
         '404':
           description: Inventaire inconnu ou d'une autre entreprise
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '409':
           description: >-
             Inventaire non IN_PROGRESS (COUNT_NOT_OPEN) ou article hors
             périmètre (ITEM_OUT_OF_SCOPE).
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/inventory-counts/{id}/results:
+  /api/v1/inventory/inventory-counts/{id}/results:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     get:
@@ -187,7 +191,7 @@ paths:
               schema: { type: integer, minimum: 1, maximum: 500 }
           content:
             application/json:
-              schema: { type: array, items: { $ref: '#/components/schemas/InventoryCountScan' } }
+              schema: { $ref: '#/components/schemas/PageInventoryCountScan' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -197,11 +201,11 @@ paths:
         '404':
           description: Inventaire inconnu ou d'une autre entreprise
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/inventory-counts/{id}/close:
+  /api/v1/inventory/inventory-counts/{id}/close:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     post:
@@ -237,18 +241,18 @@ paths:
         '404':
           description: Inventaire inconnu ou d'une autre entreprise
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '409':
           description: >-
             Inventaire vide (COUNT_EMPTY) ou annulé (COUNT_CANCELLED), ou
             transition concurrente perdue.
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/inventory-counts/{id}/cancel:
+  /api/v1/inventory/inventory-counts/{id}/cancel:
     parameters:
       - { $ref: '#/components/parameters/InventoryCountId' }
     post:
@@ -273,13 +277,13 @@ paths:
         '404':
           description: Inventaire inconnu ou d'une autre entreprise
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '409':
           description: Inventaire déjà clôturé (COUNT_COMPLETED)
           content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
         '500':
           $ref: '#/components/responses/ServerError'
 components:
@@ -307,48 +311,81 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Forbidden:
       description: Compte sans entreprise ou sans permission d'inventaire (403).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    PageInventoryCount:
       type: object
+      description: Réponse de pagination normalisée (page 1-based, taille plafonnée).
+      required: [ items, page, pageSize, total, totalPages ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/InventoryCount' }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 500 }
+        total: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    PageInventoryCountScan:
       type: object
-      required: [message, detail, code]
+      description: Réponse de pagination normalisée (page 1-based, taille plafonnée).
+      required: [ items, page, pageSize, total, totalPages ]
       properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/InventoryCountScan' }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 500 }
+        total: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    Problem:
+      type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
+      properties:
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR, INVALID_REQUEST_BODY,
-            NOT_FOUND, CLIENT_ERROR, SERVER_ERROR, COUNT_EMPTY, COUNT_NOT_OPEN,
-            COUNT_CANCELLED, COUNT_COMPLETED, ITEM_OUT_OF_SCOPE, UNAUTHORIZED,
-            FORBIDDEN, INTERNAL_ERROR) ou SQLState PostgreSQL.
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     InventoryCountStatus:
       type: string
       enum: [ IN_PROGRESS, COMPLETED, CANCELLED ]

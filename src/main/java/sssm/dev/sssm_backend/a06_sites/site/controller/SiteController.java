@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a06_sites.site.dto.SiteUpdateRequest;
 import sssm.dev.sssm_backend.a06_sites.site.service.SiteService;
 
 @RestController
-@RequestMapping("/api/sites")
+@RequestMapping("/api/v1/sites")
 public class SiteController {
   private final SiteService service;
 

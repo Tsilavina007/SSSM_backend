@@ -29,10 +29,11 @@ import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmen
  */
 @Deprecated
 @RestController
-@RequestMapping("/api/inventory")
+@RequestMapping("/api/v1/inventory")
 public class AssignmentController {
   private static final String DEPRECATION_HEADER = "true";
-  private static final String SUCCESSOR_LINK = "</api/item-assignments>; rel=\"successor-version\"";
+  private static final String SUCCESSOR_LINK =
+      "</api/v1/item-assignments>; rel=\"successor-version\"";
 
   private final ItemAssignmentService itemAssignmentService;
 
@@ -48,11 +49,13 @@ public class AssignmentController {
       @RequestParam(required = false) Boolean active) {
     return deprecated(
         HttpStatus.OK,
-        itemAssignmentService.getItemAssignments(
-            Optional.ofNullable(search),
-            Optional.ofNullable(page),
-            Optional.ofNullable(pageSize),
-            Boolean.TRUE.equals(active)));
+        itemAssignmentService
+            .getItemAssignments(
+                Optional.ofNullable(search),
+                Optional.ofNullable(page),
+                Optional.ofNullable(pageSize),
+                Boolean.TRUE.equals(active))
+            .items());
   }
 
   @PostMapping("/assignments")
@@ -102,17 +105,20 @@ public class AssignmentController {
   @GetMapping("/employees/{id}/assignments")
   public ResponseEntity<List<ItemAssignmentRest>> employee(@PathVariable String id) {
     return deprecated(
-        HttpStatus.OK, itemAssignmentService.getItemAssignmentsByEmployee(id, 1, 500));
+        HttpStatus.OK,
+        itemAssignmentService.getItemAssignmentsByEmployee(id, 1, 500).items());
   }
 
   @GetMapping("/security-posts/{id}/assignments")
   public ResponseEntity<List<ItemAssignmentRest>> post(@PathVariable String id) {
-    return deprecated(HttpStatus.OK, itemAssignmentService.getItemAssignmentsByPost(id, 1, 500));
+    return deprecated(
+        HttpStatus.OK, itemAssignmentService.getItemAssignmentsByPost(id, 1, 500).items());
   }
 
   @GetMapping("/items/{id}/assignments")
   public ResponseEntity<List<ItemAssignmentRest>> item(@PathVariable String id) {
-    return deprecated(HttpStatus.OK, itemAssignmentService.getItemAssignmentsByItem(id, 1, 500));
+    return deprecated(
+        HttpStatus.OK, itemAssignmentService.getItemAssignmentsByItem(id, 1, 500).items());
   }
 
   private <T> ResponseEntity<T> deprecated(HttpStatus status, T body) {

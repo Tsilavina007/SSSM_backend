@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a03_authentication.role.dto.RoleUpdateRequest;
 import sssm.dev.sssm_backend.a03_authentication.role.service.RoleService;
 
 @RestController
-@RequestMapping("/api/roles")
+@RequestMapping("/api/v1/roles")
 public class RoleController {
   private final RoleService service;
 

@@ -5,6 +5,8 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import sssm.dev.sssm_backend.a01_common.pagination.PageQuery;
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.report.dto.ReportMovementResponse;
 import sssm.dev.sssm_backend.a11_inventory.report.dto.mapper.ReportMovementRestMapper;
 import sssm.dev.sssm_backend.a11_inventory.report.dto.rest.ReportMovementRest;
@@ -16,8 +18,12 @@ public class ReportService {
   private final ReportDAO reportDAO;
   private final ReportMovementRestMapper reportMovementRestMapper;
 
-  public List<ReportMovementRest> list(Integer p, Integer s, String q, String w, Object... a) {
-    return mapperListResponseToRest(reportDAO.list(p, s, q, w, a));
+  public PageResponse<ReportMovementRest> list(
+      Integer p, Integer s, String q, String w, Object... a) {
+    PageQuery query = PageQuery.of(p, s, 50);
+    List<ReportMovementRest> movements =
+        mapperListResponseToRest(reportDAO.list(query.page(), query.pageSize(), q, w, a));
+    return PageResponse.of(movements, query, reportDAO.countList(q, w, a));
   }
 
   public Map<String, Object> one(String id) {

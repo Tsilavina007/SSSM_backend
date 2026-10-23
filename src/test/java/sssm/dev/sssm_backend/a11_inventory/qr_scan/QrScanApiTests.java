@@ -67,7 +67,7 @@ class QrScanApiTests {
   void knownCodeReturnsEnrichedItem() throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/scans/resolve")
+            post("/api/v1/inventory/scans/resolve")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrCode\":\"QR-ITEM-001\",\"deviceId\":\"terminal-1\"}"))
@@ -86,7 +86,7 @@ class QrScanApiTests {
   void responseDoesNotLeakInternalFields() throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/scans/resolve")
+            post("/api/v1/inventory/scans/resolve")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrCode\":\"QR-ITEM-001\"}"))
@@ -100,12 +100,12 @@ class QrScanApiTests {
   void unknownCodeReturnsNotFound() throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/scans/resolve")
+            post("/api/v1/inventory/scans/resolve")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrCode\":\"QR-INCONNU-999\"}"))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.errors.code").value("NOT_FOUND"));
+        .andExpect(jsonPath("$.code").value("NOT_FOUND"));
   }
 
   @Test
@@ -139,7 +139,7 @@ class QrScanApiTests {
     try {
       mockMvc
           .perform(
-              post("/api/inventory/scans/resolve")
+              post("/api/v1/inventory/scans/resolve")
                   .header("Authorization", "Bearer " + token)
                   .contentType(MediaType.APPLICATION_JSON)
                   .content("{\"qrCode\":\"" + otherCode + "\"}"))
@@ -164,7 +164,7 @@ class QrScanApiTests {
   void everyScanIsJournalised() throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/scans/resolve")
+            post("/api/v1/inventory/scans/resolve")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrCode\":\"QR-ITEM-001\",\"deviceId\":\"terminal-9\"}"))
@@ -187,7 +187,7 @@ class QrScanApiTests {
   void unknownScanIsAlsoJournalised() throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/scans/resolve")
+            post("/api/v1/inventory/scans/resolve")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrCode\":\"QR-JOURNALISE-404\"}"))
@@ -208,12 +208,12 @@ class QrScanApiTests {
   void qrCodeCannotBeModifiedAfterCreation() throws Exception {
     mockMvc
         .perform(
-            patch("/api/inventory/items/" + itemId)
+            patch("/api/v1/inventory/items/" + itemId)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qr_code\":\"QR-MODIFIE\"}"))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors.code").value("IMMUTABLE_QR_CODE"));
+        .andExpect(jsonPath("$.code").value("IMMUTABLE_QR_CODE"));
   }
 
   @Test
@@ -221,7 +221,7 @@ class QrScanApiTests {
     String etag =
         mockMvc
             .perform(
-                get("/api/inventory/items/" + itemId + "/qr-code/image")
+                get("/api/v1/inventory/items/" + itemId + "/qr-code/image")
                     .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(header().string("Cache-Control", containsString("max-age")))
@@ -232,7 +232,7 @@ class QrScanApiTests {
 
     mockMvc
         .perform(
-            get("/api/inventory/items/" + itemId + "/qr-code/image")
+            get("/api/v1/inventory/items/" + itemId + "/qr-code/image")
                 .header("Authorization", "Bearer " + token)
                 .header("If-None-Match", etag))
         .andExpect(status().isNotModified());
@@ -243,7 +243,7 @@ class QrScanApiTests {
     String html =
         mockMvc
             .perform(
-                get("/api/inventory/items/" + itemId + "/label")
+                get("/api/v1/inventory/items/" + itemId + "/label")
                     .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andReturn()
@@ -259,7 +259,7 @@ class QrScanApiTests {
     String html =
         mockMvc
             .perform(
-                post("/api/inventory/labels/batch")
+                post("/api/v1/inventory/labels/batch")
                     .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"item_ids\":[\"" + itemId + "\"],\"size\":150}"))
@@ -275,7 +275,7 @@ class QrScanApiTests {
   void labelOfUnknownItemReturnsNotFound() throws Exception {
     mockMvc
         .perform(
-            get("/api/inventory/items/" + UUID.randomUUID() + "/label")
+            get("/api/v1/inventory/items/" + UUID.randomUUID() + "/label")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isNotFound());
   }
@@ -284,7 +284,7 @@ class QrScanApiTests {
   void blankQrCodeIsRejected() throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/scans/resolve")
+            post("/api/v1/inventory/scans/resolve")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrCode\":\"  \"}"))
@@ -295,12 +295,12 @@ class QrScanApiTests {
   void uuidLikeQrCodeDoesNotProduceServerError() throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/scans/resolve")
+            post("/api/v1/inventory/scans/resolve")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrCode\":\"" + UUID.randomUUID() + "\"}"))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.errors.code").value(not("INTERNAL_ERROR")));
+        .andExpect(jsonPath("$.code").value(not("INTERNAL_ERROR")));
   }
 
   private String firstValue(String sql) throws Exception {

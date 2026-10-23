@@ -5,10 +5,10 @@ info:
   description: >-
     API des rôles (module a03_authentication/role), dérivée du contrôleur
     RoleController. Toutes les routes exigent le rôle ADMIN. Toutes les erreurs
-    renvoient l'enveloppe {"errors": {message, detail, code}} : 400 (requête
+    renvoient un Problem Details RFC 9457 (`application/problem+json`) : 400 (requête
     invalide, JSON illisible ou UUID malformé), 401 (JWT absent, invalide ou
     expiré), 403 (rôle ADMIN manquant), 404 (rôle introuvable lors d'une mise à
-    jour), 500 (erreur serveur ou SQL). Pagination : page=1, pageSize=10 par
+    jour), 500 (erreur serveur inattendue ; erreurs SQL traduites en 400/409/422/503). Pagination : page=1, pageSize=10 par
     défaut. Attention : RoleDAO.create appelle UUID.fromString(company_id) sans
     garde ; un company_id null (rôle global) provoque une erreur 500.
 servers:
@@ -19,7 +19,7 @@ tags:
   - name: Roles
     description: Rôles et permissions associées (ADMIN)
 paths:
-  /api/roles:
+  /api/v1/roles:
     get:
       tags: [ Roles ]
       summary: Lister les rôles
@@ -44,13 +44,17 @@ paths:
       tags: [ Roles ]
       summary: Créer un rôle
       description: >-
-        company_id est obligatoire en pratique (UUID.fromString sans garde). Une erreur SQL renvoie 500 avec une enveloppe ItemError.
+        Une erreur SQL est traduite en 400/409/422/503 avec un Problem Details RFC 9457.
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/Role' } }
       responses:
         '201':
+          headers:
+            Location:
+              description: URI de la ressource créée.
+              schema: { type: string, format: uri }
           description: Rôle créé
           content:
             application/json:
@@ -63,14 +67,14 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/roles/{id}:
+  /api/v1/roles/{id}:
     parameters:
       - { $ref: '#/components/parameters/RoleId' }
     get:
       tags: [ Roles ]
       summary: Récupérer un rôle par identifiant
       description: >-
-        Un identifiant inexistant renvoie 404 avec l'enveloppe ItemError.
+        Un identifiant inexistant renvoie 404 avec l'Problem Details RFC 9457.
       responses:
         '200':
           description: Rôle trouvé
@@ -92,7 +96,7 @@ paths:
       summary: Mettre à jour partiellement un rôle
       description: >-
         Seuls les champs non null sont écrits. Un identifiant inconnu lève
-        NotFoundException → 404 (enveloppe ItemError). La réponse est l'objet
+        NotFoundException → 404 (Problem Details RFC 9457). La réponse est l'objet
         envoyé complété de l'id.
       requestBody:
         required: true
@@ -129,7 +133,7 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/roles/{roleId}/permissions/{permissionId}:
+  /api/v1/roles/{roleId}/permissions/{permissionId}:
     parameters:
       - { $ref: '#/components/parameters/RoleIdPath' }
       - { $ref: '#/components/parameters/PermissionId' }
@@ -199,53 +203,62 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Forbidden:
-      description: Rôle ADMIN manquant (403) — enveloppe ItemError.
+      description: Rôle ADMIN manquant (403) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: Ressource introuvable (404) — enveloppe ItemError.
+      description: Ressource introuvable (404) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
             UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     Role:
       type: object
       required: [ name ]

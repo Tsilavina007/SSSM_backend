@@ -12,7 +12,6 @@ import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
+import sssm.dev.sssm_backend.a01_common.errors.handler.ProblemResponseWriter;
 import sssm.dev.sssm_backend.a03_authentication.auth.repository.RevokedAccessTokenDAO;
 import sssm.dev.sssm_backend.a03_authentication.auth.service.JwtService;
 
@@ -84,10 +84,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         var authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
       } catch (RuntimeException e) {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), Map.of("errors", jwtError(e)));
+        ProblemResponseWriter.write(
+            response,
+            objectMapper,
+            HttpServletResponse.SC_UNAUTHORIZED,
+            jwtError(e),
+            request.getRequestURI());
         return;
       }
     }

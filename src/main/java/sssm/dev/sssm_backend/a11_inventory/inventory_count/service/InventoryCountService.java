@@ -16,6 +16,8 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
 import sssm.dev.sssm_backend.a01_common.enums.MovementType;
+import sssm.dev.sssm_backend.a01_common.pagination.PageQuery;
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.CurrentUser;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.JwtPrincipal;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountCreateRequest;
@@ -43,9 +45,14 @@ public class InventoryCountService {
   private final StockMovementDAO stockMovementDAO;
   private final CurrentUser currentUser;
 
-  public List<InventoryCountScanRest> getResults(String id, int page, int pageSize) {
+  public PageResponse<InventoryCountScanRest> getResults(
+      String id, int page, int pageSize) {
     requireCount(id);
-    return mapperListScanResponseToRest(inventoryCountDAO.getResults(id, page, pageSize));
+    PageQuery query = PageQuery.of(page, pageSize, 50);
+    List<InventoryCountScanRest> lines =
+        mapperListScanResponseToRest(
+            inventoryCountDAO.getResults(id, query.page(), query.pageSize()));
+    return PageResponse.of(lines, query, inventoryCountDAO.countResults(id));
   }
 
   public int countResults(String id) {
@@ -183,10 +190,15 @@ public class InventoryCountService {
     return inventoryCountRestMapper.toRest(requireCount(id));
   }
 
-  public List<InventoryCountRest> list(Integer p, Integer s, String q) {
+  public PageResponse<InventoryCountRest> list(Integer p, Integer s, String q) {
     String companyId = currentUser.requireCompanyId();
-    return mapperListResponseToRest(
-        inventoryCountDAO.list(p, s, q, "company_id = ?", companyId));
+    PageQuery query = PageQuery.of(p, s, 50);
+    List<InventoryCountRest> counts =
+        mapperListResponseToRest(
+            inventoryCountDAO.list(
+                query.page(), query.pageSize(), q, "company_id = ?", companyId));
+    return PageResponse.of(
+        counts, query, inventoryCountDAO.countList(q, "company_id = ?", companyId));
   }
 
   public InventoryCountRest one(String id) {

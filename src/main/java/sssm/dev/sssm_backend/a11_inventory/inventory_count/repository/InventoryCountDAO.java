@@ -38,6 +38,8 @@ public interface InventoryCountDAO {
   List<InventoryCountResponse> list(
       Integer page, Integer size, String search, String where, Object... args);
 
+  long countList(String search, String where, Object... args);
+
   Optional<InventoryCountResponse> one(String id);
 
   Optional<InventoryCountResponse> one(String id, String companyId);

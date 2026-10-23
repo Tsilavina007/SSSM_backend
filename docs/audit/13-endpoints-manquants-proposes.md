@@ -1,5 +1,7 @@
 ﻿# 13 — Endpoints manquants proposés
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** spécifier les endpoints qui manquent pour rendre le backend utilisable par un frontend web et mobile, sans les implémenter. Ce document est une **proposition de contrat**, pas une description de l'existant.
 
 **Avertissement :** aucun endpoint de ce rapport n'existe aujourd'hui. Les chemins, DTO, codes et règles ci-dessous sont des cibles. Ils ne doivent pas être consommés avant implémentation et validation.
@@ -95,7 +97,7 @@ Format `application/problem+json` :
 
 ## 2. Tableau des endpoints proposés
 
-**Note Lot 1 :** les routes `/api/auth/**` existantes ont été durcies (inscription fermée, refresh rotatif, logout, claims), mais aucun endpoint `/api/v1` n'a été créé. E-01 à E-05 restent des propositions de contrat cible.
+**Note Lot 1 :** les routes `/api/auth/**` existantes ont été durcies (inscription fermée, refresh rotatif, logout, claims), mais aucun endpoint `/api/v1` n'a été créé à ce moment. Depuis le Lot 7, `/api/v1` est le préfixe canonique de tous les contrôleurs et `/api` reste un alias déprécié. E-01 à E-05 restent des propositions de contrat cible.
 
 | ID | Priorité | Méthode | Chemin | Remplace / comble |
 |---|---|---|---|---|
@@ -692,7 +694,7 @@ POST /api/v1/labels/batch
 
 ### E-23 — Créer un comptage avec attendu figé
 
-**Statut (Lot 6) :** exécuté sous `POST /api/inventory/inventory-counts` (entreprise issue du jeton, entrepôt validé, statut `IN_PROGRESS`, instantané `inventory_count_expected`). Le `scope` par type ou catégorie et le `201 + Location` restent hors périmètre (Lot 7).
+**Statut (Lot 6) :** exécuté sous `POST /api/v1/inventory/inventory-counts` (entreprise issue du jeton, entrepôt validé, statut `IN_PROGRESS`, instantané `inventory_count_expected`). Le `scope` par type ou catégorie reste hors périmètre ; le `201 + Location` est fourni depuis le Lot 7.
 
 ```http
 POST /api/v1/inventory-counts

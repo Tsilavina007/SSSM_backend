@@ -9,7 +9,7 @@ info:
     l'operation_type n'est PAS déduit de la route choisie (dette connue,
     préexistant) — il doit figurer dans le corps, sinon l'insertion échoue en
     500 (NOT NULL sans défaut). Les champs inconnus sont ignorés. Réponses en
-    200 : ligne sérialisée en OperationRest, ou enveloppe {"errors": ItemError}
+    200 : ligne sérialisée en OperationRest, ou Problem Details RFC 9457
     si le corps est vide ou sans colonne writable. Aucune lecture ou suppression
     n'est exposée (routes de création uniquement).
 servers:
@@ -20,7 +20,7 @@ tags:
   - name: Operations
     description: Opérations (réception, sortie, transfert)
 paths:
-  /api/inventory/operations/receipt:
+  /api/v1/inventory/operations/receipt:
     post:
       tags: [ Operations ]
       summary: Créer une opération de réception
@@ -32,22 +32,22 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/OperationUpsert' } }
       responses:
-        '200':
-          description: 'Opération créée, ou enveloppe {"errors": ItemError} si le corps
-            est vide ou sans colonne writable'
+        '201':
+          description: Opération créée
+          headers:
+            Location:
+              description: URI de l'opération créée.
+              schema: { type: string, format: uri }
           content:
             application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/Operation' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
+              schema: { $ref: '#/components/schemas/Operation' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/operations/issue:
+  /api/v1/inventory/operations/issue:
     post:
       tags: [ Operations ]
       summary: Créer une opération de sortie
@@ -59,42 +59,43 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/OperationUpsert' } }
       responses:
-        '200':
-          description: 'Opération créée, ou enveloppe {"errors": ItemError}'
+        '201':
+          description: Opération créée
+          headers:
+            Location:
+              description: URI de l'opération créée.
+              schema: { type: string, format: uri }
           content:
             application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/Operation' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
+              schema: { $ref: '#/components/schemas/Operation' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/ServerError'
         "401":
           $ref: "#/components/responses/Unauthorized"
-  /api/inventory/operations/transfer:
+  /api/v1/inventory/operations/transfer:
     post:
       tags: [ Operations ]
       summary: Créer une opération de transfert
       description: >-
         L'operation_type n'est pas renseigné automatiquement : fournir
         "operation_type": "TRANSFER" dans le corps pour une opération conforme.
-        Contrainte base : source_warehouse_id ≠ destination_warehouse_id (sinon
-        500).
+        Contrainte base : source_warehouse_id ≠ destination_warehouse_id (sinon 422).
       requestBody:
         required: true
         content:
           application/json: { schema: { $ref: '#/components/schemas/OperationUpsert' } }
       responses:
-        '200':
-          description: 'Opération créée, ou enveloppe {"errors": ItemError}'
+        '201':
+          description: Opération créée
+          headers:
+            Location:
+              description: URI de l'opération créée.
+              schema: { type: string, format: uri }
           content:
             application/json:
-              schema:
-                oneOf:
-                  - { $ref: '#/components/schemas/Operation' }
-                  - { $ref: '#/components/schemas/FamilyCError' }
+              schema: { $ref: '#/components/schemas/Operation' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
@@ -111,50 +112,52 @@ components:
   responses:
     BadRequest:
       description: Requête invalide (JSON illisible, UUID ou paramètre malformé,
-        validation) — enveloppe ItemError.
+        validation) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré (401) — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré (401) — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL (500) — enveloppe ItemError (message, detail,
+      description: Erreur serveur inattendue (500) — Problem Details RFC 9457 (message, detail,
         code).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message:
-          type: string
-          description: Message lisible en français, toujours renseigné.
-        detail:
-          type: string
-          description: Précision contextuelle (identifiant, champ, contrainte SQL, cause).
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif (BAD_REQUEST, VALIDATION_ERROR,
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
             INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
             UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
-            INTERNAL_ERROR) ou SQLState PostgreSQL (ex. 23505).
-    FamilyCError:
-      type: object
-      description: >-
-        Erreur douce renvoyée en 200 par les opérations de cette famille
-        (enveloppe ItemError, code NOT_FOUND ou BAD_REQUEST).
-      properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     OperationType:
       type: string
       enum: [ RECEIPT, ISSUE, TRANSFER, ASSIGNMENT, RETURN, ADJUSTMENT ]
@@ -183,10 +186,10 @@ components:
       description: >-
         Corps typé (OperationRequest). Les champs absents ne sont pas transmis
         au SQL et les champs inconnus sont ignorés. company_id et
-        operation_type sont NOT NULL sans défaut : leur omission provoque une
-        erreur 500 (et non 400). status a pour défaut PENDING.
+        operation_type sont NOT NULL sans défaut : leur omission renvoie 400.
+        status a pour défaut PENDING.
       required: [ company_id, operation_type ]
-      additionalProperties: false
+      additionalProperties: true
       properties:
         company_id: { type: string, format: uuid }
         operation_type: { $ref: '#/components/schemas/OperationType' }

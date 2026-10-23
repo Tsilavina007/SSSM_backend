@@ -21,6 +21,19 @@ public interface ItemAssignmentDAO {
 
   List<ItemAssignmentResponse> getItemAssignmentsByPost(String postId, int page, int pageSize);
 
+  long countItemAssignments(String search, boolean activeOnly);
+
+  long countItemAssignmentsByItem(String itemId);
+
+  List<ItemAssignmentResponse> getItemAssignmentsByItem(
+      String itemId, int page, int pageSize, boolean activeOnly);
+
+  long countItemAssignmentsByItem(String itemId, boolean activeOnly);
+
+  long countItemAssignmentsByEmployee(String employeeId);
+
+  long countItemAssignmentsByPost(String postId);
+
   Optional<ItemAssignmentResponse> getItemAssignmentById(String id);
 
   Optional<ItemAssignmentResponse> getActiveItemAssignmentByItem(String itemId);

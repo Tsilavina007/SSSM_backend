@@ -11,7 +11,7 @@ import sssm.dev.sssm_backend.a04_personnel.employee_document.dto.EmployeeDocumen
 import sssm.dev.sssm_backend.a04_personnel.employee_document.service.EmployeeDocumentService;
 
 @RestController
-@RequestMapping("/api/employee-documents")
+@RequestMapping("/api/v1/employee-documents")
 public class EmployeeDocumentController {
   private final EmployeeDocumentService service;
 

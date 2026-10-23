@@ -1,5 +1,7 @@
 ﻿# 04 — Audit du catalogue matériel
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** évaluer le CRUD et l'intégrité des catégories, types de matériel, entrepôts et articles. Les mouvements, le stock, les QR Codes et les affectations sont traités dans les rapports 05 à 08.
 
 **Mise à jour du 22 octobre 2026 (Lot 2) :** la création de type sans champs facultatifs applique désormais les `DEFAULT` PostgreSQL, les doublons SQL renvoient 409 et les violations de FK/`CHECK` renvoient 422, sans SQLSTATE. Les sections 3.4, 3.6 et 3.9 ci-dessous décrivent l'état initial de l'audit et ne sont plus l'état courant.

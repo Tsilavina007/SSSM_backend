@@ -11,7 +11,7 @@ import sssm.dev.sssm_backend.a11_inventory.operation.dto.OperationRequest;
 import sssm.dev.sssm_backend.a11_inventory.operation.service.OperationService;
 
 @RestController
-@RequestMapping("/api/inventory/operations")
+@RequestMapping("/api/v1/inventory/operations")
 public class OperationController {
   private final OperationService operationService;
 

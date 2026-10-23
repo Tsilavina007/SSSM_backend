@@ -1,6 +1,5 @@
 package sssm.dev.sssm_backend.a11_inventory.inventory_count.controller;
 
-import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountCloseRequest;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.InventoryCountScanRequest;
@@ -18,7 +18,7 @@ import sssm.dev.sssm_backend.a11_inventory.inventory_count.dto.rest.InventoryCou
 import sssm.dev.sssm_backend.a11_inventory.inventory_count.service.InventoryCountService;
 
 @RestController
-@RequestMapping("/api/inventory/inventory-counts")
+@RequestMapping("/api/v1/inventory/inventory-counts")
 public class InventoryCountController {
   private static final int DEFAULT_PAGE_SIZE = 50;
 
@@ -29,7 +29,7 @@ public class InventoryCountController {
   }
 
   @GetMapping
-  public List<InventoryCountRest> list(
+  public PageResponse<InventoryCountRest> list(
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer pageSize) {
     return inventoryCountService.list(page, pageSize, null);
@@ -37,7 +37,8 @@ public class InventoryCountController {
 
   @PostMapping
   public ResponseEntity<Object> create(@RequestBody InventoryCountCreateRequest request) {
-    return ResponseEntity.ok().body(inventoryCountService.create(request));
+    return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+        .body(inventoryCountService.create(request));
   }
 
   @GetMapping("/{id}")
@@ -56,19 +57,19 @@ public class InventoryCountController {
    * rester compatible avec la réponse tableau existante.
    */
   @GetMapping("/{id}/results")
-  public ResponseEntity<List<InventoryCountScanRest>> results(
+  public ResponseEntity<PageResponse<InventoryCountScanRest>> results(
       @PathVariable String id,
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer pageSize) {
-    int safePage = page == null || page < 1 ? 1 : page;
-    int safeSize =
-        pageSize == null || pageSize < 1 ? DEFAULT_PAGE_SIZE : Math.min(pageSize, 500);
-    List<InventoryCountScanRest> lines = inventoryCountService.getResults(id, safePage, safeSize);
-    int total = inventoryCountService.countResults(id);
+    PageResponse<InventoryCountScanRest> lines =
+        inventoryCountService.getResults(
+            id,
+            page == null ? 1 : page,
+            pageSize == null ? DEFAULT_PAGE_SIZE : pageSize);
     return ResponseEntity.ok()
-        .header("X-Total-Count", String.valueOf(total))
-        .header("X-Page", String.valueOf(safePage))
-        .header("X-Page-Size", String.valueOf(safeSize))
+        .header("X-Total-Count", String.valueOf(lines.total()))
+        .header("X-Page", String.valueOf(lines.page()))
+        .header("X-Page-Size", String.valueOf(lines.pageSize()))
         .body(lines);
   }
 

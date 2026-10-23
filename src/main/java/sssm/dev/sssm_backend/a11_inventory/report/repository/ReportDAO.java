@@ -10,6 +10,8 @@ public interface ReportDAO {
   List<ReportMovementResponse> list(
       Integer page, Integer size, String search, String where, Object... args);
 
+  long countList(String search, String where, Object... args);
+
   Map<String, Object> one(String id);
 
   Map<String, Object> save(String id, Map<String, Object> body, boolean update);

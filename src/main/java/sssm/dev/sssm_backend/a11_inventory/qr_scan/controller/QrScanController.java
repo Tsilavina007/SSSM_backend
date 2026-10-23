@@ -18,7 +18,7 @@ import sssm.dev.sssm_backend.a11_inventory.qr_scan.service.QrScanService;
  * entreprise renvoie 404. Chaque tentative est journalisée.
  */
 @RestController
-@RequestMapping("/api/inventory/scans")
+@RequestMapping("/api/v1/inventory/scans")
 public class QrScanController {
   private final QrScanService qrScanService;
 

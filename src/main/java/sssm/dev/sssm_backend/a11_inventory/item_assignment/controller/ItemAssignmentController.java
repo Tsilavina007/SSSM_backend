@@ -6,13 +6,14 @@ import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
 
 @RestController
-@RequestMapping("/api/item-assignments")
+@RequestMapping("/api/v1/item-assignments")
 public class ItemAssignmentController {
   private final ItemAssignmentService itemAssignmentService;
 
@@ -21,7 +22,7 @@ public class ItemAssignmentController {
   }
 
   @GetMapping
-  public List<ItemAssignmentRest> getItemAssignments(
+  public PageResponse<ItemAssignmentRest> getItemAssignments(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search,
@@ -35,18 +36,30 @@ public class ItemAssignmentController {
   }
 
   @GetMapping("/item/{itemId}")
-  public List<ItemAssignmentRest> getItemAssignmentsByItem(@PathVariable String itemId) {
-    return itemAssignmentService.getItemAssignmentsByItem(itemId, 1, 500);
+  public PageResponse<ItemAssignmentRest> getItemAssignmentsByItem(
+      @PathVariable String itemId,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer pageSize) {
+    return itemAssignmentService.getItemAssignmentsByItem(
+        itemId, page == null ? 1 : page, pageSize == null ? 10 : pageSize);
   }
 
   @GetMapping("/employee/{employeeId}")
-  public List<ItemAssignmentRest> getItemAssignmentsByEmployee(@PathVariable String employeeId) {
-    return itemAssignmentService.getItemAssignmentsByEmployee(employeeId, 1, 500);
+  public PageResponse<ItemAssignmentRest> getItemAssignmentsByEmployee(
+      @PathVariable String employeeId,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer pageSize) {
+    return itemAssignmentService.getItemAssignmentsByEmployee(
+        employeeId, page == null ? 1 : page, pageSize == null ? 10 : pageSize);
   }
 
   @GetMapping("/post/{postId}")
-  public List<ItemAssignmentRest> getItemAssignmentsByPost(@PathVariable String postId) {
-    return itemAssignmentService.getItemAssignmentsByPost(postId, 1, 500);
+  public PageResponse<ItemAssignmentRest> getItemAssignmentsByPost(
+      @PathVariable String postId,
+      @RequestParam(required = false) Integer page,
+      @RequestParam(required = false) Integer pageSize) {
+    return itemAssignmentService.getItemAssignmentsByPost(
+        postId, page == null ? 1 : page, pageSize == null ? 10 : pageSize);
   }
 
   @PostMapping

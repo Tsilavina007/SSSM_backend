@@ -19,18 +19,20 @@ vérifie chaque push et chaque pull request ciblant `dev` ou `main`. Il peut aus
   `JWT_SECRET` fournis par l'environnement du job.
 - Publication des rapports Surefire en artefact, même en cas d'échec.
 
-La suite est volontairement réduite : **7 classes, 49 tests**. Elle ne
+La suite est volontairement réduite : **8 classes, 58 tests**. Elle ne
 vérifie pas tous les comportements métier, mais la conformité entre le
 schéma SQL appliqué et ce que l'application attend, le contrat du scan QR
-(tenant-scoped, enrichi, journalisé, limité en débit) et le contrat des
+(tenant-scoped, enrichi, journalisé, limité en débit), le contrat des
 comptages (instantané figé, périmètre, clôture idempotente, ajustements,
-annulation, pagination).
+annulation, pagination) et le contrat HTTP (versionnement, erreurs,
+pagination, `Location`, dates UTC).
 
 | Classe | Tests | Objet |
 |---|---:|---|
 | `DatabaseSchemaConformanceTests` | 15 | Tables lues par les DAO, colonnes exposées par l'API, énumérations Java ↔ PostgreSQL, types des colonnes du cycle de vie des affectations, colonnes d'archivage, tables du stock, clés étrangères, index unique partiel, application des règles de void, clés primaires, journal `qr_scan`, instantané des comptages, tables de la base ↔ scripts SQL |
 | `SchemaScriptsConformanceTests` | 5 | Inclusion de tous les scripts par le runner principal, absence d'opération destructive, ordre et unicité des scripts, tables ciblées par les données de démonstration, contenu de la migration Lot 4 |
 | `SssmBackendApplicationTests` | 1 | Démarrage du contexte Spring |
+| `HttpContractApiTests` | 9 | Alias `/api` déprécié, Problem Details 404/400, `errors[]`, 201 + `Location`, dates ISO-8601 UTC, pagination `page=0`, historique 404/paginé/filtré, UUID invalide, 204 |
 | `QrScanApiTests` | 13 | Résolution enrichie, 404 inconnu, 404 code d'une autre entreprise, journal, code immuable, cache et 304, étiquette et planche |
 | `QrScanRateLimiterTests` | 4 | Limitation de débit des résolutions de QR code |
 | `InventoryCountApiTests` | 10 | Instantané figé, article hors périmètre, cloisonnement, comptage vide, clôture idempotente, ajustements et solde, annulation, pagination, comptage inconnu |
@@ -39,8 +41,9 @@ annulation, pagination).
 Les tests de conformité de schéma n'utilisent pas Spring : ils ouvrent une
 connexion JDBC avec la même configuration que l'application (`DB_URL`,
 `DB_USER`, `DB_PASSWORD`), ce qui les rend rapides et indépendants du contexte
-applicatif. Les tests d'API (`QrScanApiTests`, `InventoryCountApiTests`)
-utilisent `@SpringBootTest` et MockMvc sur la même base.
+applicatif. Les tests d'API (`HttpContractApiTests`, `QrScanApiTests`,
+`InventoryCountApiTests`) utilisent `@SpringBootTest` et MockMvc sur la même
+base.
 
 ### `lint` — Contrôles statiques Java et OpenAPI
 

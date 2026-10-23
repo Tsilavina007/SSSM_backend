@@ -125,7 +125,7 @@ class InventoryCountApiTests {
     String reference = nextReference();
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts")
+            post("/api/v1/inventory/inventory-counts")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
@@ -138,7 +138,8 @@ class InventoryCountApiTests {
                         + "\",\"status\":\"COMPLETED\",\"started_by\":\""
                         + UUID.randomUUID()
                         + "\"}"))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
+        .andExpect(header().exists("Location"))
         .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
         .andExpect(jsonPath("$.company_id").value(companyId))
         .andExpect(jsonPath("$.started_by").value(userId))
@@ -177,7 +178,7 @@ class InventoryCountApiTests {
     // Une référence déjà utilisée par l'entreprise est refusée en 409.
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts")
+            post("/api/v1/inventory/inventory-counts")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
@@ -187,7 +188,7 @@ class InventoryCountApiTests {
                         + reference
                         + "\"}"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors.code").value("COUNT_REFERENCE_EXISTS"));
+        .andExpect(jsonPath("$.code").value("COUNT_REFERENCE_EXISTS"));
   }
 
   @Test
@@ -202,7 +203,7 @@ class InventoryCountApiTests {
     String body =
         mockMvc
             .perform(
-                post("/api/inventory/inventory-counts/" + countId + "/scans")
+                post("/api/v1/inventory/inventory-counts/" + countId + "/scans")
                     .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"item_id\":\"" + itemId + "\"}"))
@@ -229,34 +230,34 @@ class InventoryCountApiTests {
     String lateItem = createItem("LATE", "AVAILABLE", warehouseId, false);
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/scans")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/scans")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"item_id\":\"" + lateItem + "\"}"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors.code").value("ITEM_OUT_OF_SCOPE"));
+        .andExpect(jsonPath("$.code").value("ITEM_OUT_OF_SCOPE"));
 
     // Article archivé avant l'ouverture : également absent.
     String archivedItem = createItem("ARCH", "AVAILABLE", warehouseId, true);
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/scans")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/scans")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"item_id\":\"" + archivedItem + "\"}"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors.code").value("ITEM_OUT_OF_SCOPE"));
+        .andExpect(jsonPath("$.code").value("ITEM_OUT_OF_SCOPE"));
 
     // Article d'une autre entreprise : refusé de la même manière.
     String foreignItem = createForeignKeyItem("FOREIGN");
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/scans")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/scans")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"item_id\":\"" + foreignItem + "\"}"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors.code").value("ITEM_OUT_OF_SCOPE"));
+        .andExpect(jsonPath("$.code").value("ITEM_OUT_OF_SCOPE"));
 
     // Entrepôt constaté d'une autre entreprise : le scan ne doit pas créditer son solde.
     if (otherCompanyId == null) {
@@ -271,7 +272,7 @@ class InventoryCountApiTests {
         "Entrepôt " + prefix + " étranger");
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/scans")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/scans")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
@@ -281,7 +282,7 @@ class InventoryCountApiTests {
                         + otherWarehouseId
                         + "\"}"))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors.code").value("CLIENT_ERROR"));
+        .andExpect(jsonPath("$.code").value("CLIENT_ERROR"));
   }
 
   @Test
@@ -301,31 +302,31 @@ class InventoryCountApiTests {
 
     mockMvc
         .perform(
-            get("/api/inventory/inventory-counts/" + countId)
+            get("/api/v1/inventory/inventory-counts/" + countId)
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isNotFound());
     mockMvc
         .perform(
-            get("/api/inventory/inventory-counts/" + countId + "/results")
+            get("/api/v1/inventory/inventory-counts/" + countId + "/results")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isNotFound());
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/scans")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/scans")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"item_id\":\"" + UUID.randomUUID() + "\"}"))
         .andExpect(status().isNotFound());
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/close")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/close")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isNotFound());
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/cancel")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/cancel")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isNotFound());
   }
@@ -337,16 +338,16 @@ class InventoryCountApiTests {
 
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/close")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/close")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors.code").value("COUNT_EMPTY"));
+        .andExpect(jsonPath("$.code").value("COUNT_EMPTY"));
 
     mockMvc
         .perform(
-            get("/api/inventory/inventory-counts/" + countId)
+            get("/api/v1/inventory/inventory-counts/" + countId)
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
@@ -365,7 +366,7 @@ class InventoryCountApiTests {
 
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/close")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/close")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"notes\":\"clôture de test\"}"))
@@ -449,26 +450,26 @@ class InventoryCountApiTests {
 
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/cancel")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/cancel")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CANCELLED"));
 
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/cancel")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/cancel")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("CANCELLED"));
 
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/close")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/close")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.errors.code").value("COUNT_CANCELLED"));
+        .andExpect(jsonPath("$.code").value("COUNT_CANCELLED"));
 
     assertEquals(
         "AVAILABLE", firstValue("SELECT status FROM security.item WHERE id = ?", itemId));
@@ -498,18 +499,23 @@ class InventoryCountApiTests {
     scan(countId, "{\"item_id\":\"" + third + "\"}");
     mockMvc
         .perform(
-            get("/api/inventory/inventory-counts/" + countId + "/results?page=1&pageSize=2")
+            get("/api/v1/inventory/inventory-counts/" + countId + "/results?page=1&pageSize=2")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(header().string("X-Total-Count", "3"))
-        .andExpect(jsonPath("$.length()").value(2));
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.page").value(1))
+        .andExpect(jsonPath("$.pageSize").value(2))
+        .andExpect(jsonPath("$.total").value(3))
+        .andExpect(jsonPath("$.totalPages").value(2));
     mockMvc
         .perform(
-            get("/api/inventory/inventory-counts/" + countId + "/results?page=2&pageSize=2")
+            get("/api/v1/inventory/inventory-counts/" + countId + "/results?page=2&pageSize=2")
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(header().string("X-Total-Count", "3"))
-        .andExpect(jsonPath("$.length()").value(1));
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.page").value(2));
   }
 
   @Test
@@ -517,7 +523,7 @@ class InventoryCountApiTests {
   void unknownCountReturnsNotFound() throws Exception {
     mockMvc
         .perform(
-            get("/api/inventory/inventory-counts/" + UUID.randomUUID())
+            get("/api/v1/inventory/inventory-counts/" + UUID.randomUUID())
                 .header("Authorization", "Bearer " + token))
         .andExpect(status().isNotFound());
   }
@@ -534,7 +540,7 @@ class InventoryCountApiTests {
     String body =
         mockMvc
             .perform(
-                post("/api/inventory/inventory-counts")
+                post("/api/v1/inventory/inventory-counts")
                     .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
@@ -543,7 +549,7 @@ class InventoryCountApiTests {
                             + "\",\"reference\":\""
                             + nextReference()
                             + "\"}"))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -553,7 +559,7 @@ class InventoryCountApiTests {
   private void scan(String countId, String body) throws Exception {
     mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/scans")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/scans")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
@@ -563,7 +569,7 @@ class InventoryCountApiTests {
   private String close(String countId) throws Exception {
     return mockMvc
         .perform(
-            post("/api/inventory/inventory-counts/" + countId + "/close")
+            post("/api/v1/inventory/inventory-counts/" + countId + "/close")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))

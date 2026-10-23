@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import sssm.dev.sssm_backend.a01_common.enums.ItemStatus;
+import sssm.dev.sssm_backend.a01_common.pagination.PageQuery;
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.stock_balance.dto.StockBalanceResponse;
 import sssm.dev.sssm_backend.a11_inventory.stock_balance.dto.mapper.StockBalanceRestMapper;
@@ -34,11 +36,15 @@ public class StockBalanceService {
     return stockBalanceDAO.quantity(companyId, warehouseId, itemTypeId);
   }
 
-  public List<StockBalanceRest> list(
+  public PageResponse<StockBalanceRest> list(
       String warehouseId, String itemTypeId, Integer page, Integer pageSize) {
+    PageQuery query = PageQuery.of(page, pageSize, 50);
     List<StockBalanceResponse> balances =
-        stockBalanceDAO.list(warehouseId, itemTypeId, page, pageSize);
-    return balances.stream().map(stockBalanceRestMapper::toRest).toList();
+        stockBalanceDAO.list(warehouseId, itemTypeId, query.page(), query.pageSize());
+    return PageResponse.of(
+        balances.stream().map(stockBalanceRestMapper::toRest).toList(),
+        query,
+        stockBalanceDAO.count(warehouseId, itemTypeId));
   }
 
   /**

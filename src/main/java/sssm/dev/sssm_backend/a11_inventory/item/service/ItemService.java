@@ -13,6 +13,8 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.ConflictException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
+import sssm.dev.sssm_backend.a01_common.pagination.PageQuery;
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.CurrentUser;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemBulkCreateResult;
 import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemBulkFailure;
@@ -37,22 +39,21 @@ public class ItemService {
   private final ItemAssignmentService itemAssignmentService;
   private final CurrentUser currentUser;
 
-  public List<ItemRest> getItems(
+  public PageResponse<ItemRest> getItems(
       Optional<String> search,
       Optional<Integer> page,
       Optional<Integer> pageSize,
       Optional<String> warehouseId,
       Optional<String> status) {
-    int pageNumber = page.orElse(1);
-    int pageSizeNumber = pageSize.orElse(10);
+    PageQuery query = PageQuery.of(page.orElse(null), pageSize.orElse(null), 10);
+    String searchValue = search.orElse(null);
+    String warehouseValue = warehouseId.orElse(null);
+    String statusValue = status.orElse(null);
     List<ItemResponse> items =
         itemDAO.getItemsFiltered(
-            search.orElse(null),
-            warehouseId.orElse(null),
-            status.orElse(null),
-            pageNumber,
-            pageSizeNumber);
-    return items.stream().map(itemRestMapper::toRest).toList();
+            searchValue, warehouseValue, statusValue, query.page(), query.pageSize());
+    long total = itemDAO.countItems(searchValue, warehouseValue, statusValue);
+    return PageResponse.of(items.stream().map(itemRestMapper::toRest).toList(), query, total);
   }
 
   public ItemRest getItemById(String itemId) {

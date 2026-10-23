@@ -2,8 +2,10 @@ package sssm.dev.sssm_backend.a01_common.errors.handler;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.Map;
 import org.springframework.boot.webmvc.error.ErrorController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,10 +21,13 @@ import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 public class ItemErrorController implements ErrorController {
 
   @RequestMapping("${server.error.path:${error.path:/error}}")
-  public ResponseEntity<Map<String, ItemError>> error(HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> error(HttpServletRequest request) {
     int status = status(request);
     ItemError error = new ItemError(message(status), detail(request, status), code(status));
-    return ResponseEntity.status(status).body(Map.of("errors", error));
+    ProblemDetail problem = ProblemDetails.of(HttpStatus.valueOf(status), error, request);
+    return ResponseEntity.status(status)
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(problem);
   }
 
   private static int status(HttpServletRequest request) {

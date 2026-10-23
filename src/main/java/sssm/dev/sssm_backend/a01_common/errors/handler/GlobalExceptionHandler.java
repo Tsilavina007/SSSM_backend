@@ -4,12 +4,14 @@ import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -35,111 +37,141 @@ import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 
 /**
- * Transforme toutes les exceptions non capturées par les contrôleurs en une enveloppe unique :
- * {"errors": {"message", "detail", "code"}}.
+ * Transforme toutes les exceptions non capturées par les contrôleurs en Problem Details (RFC 9457),
+ * avec le code applicatif stable, un identifiant de trace et l'URI de la requête.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
   @ExceptionHandler(ClientException.class)
-  public ResponseEntity<Map<String, ItemError>> handleClient(ClientException exception) {
-    return build(HttpStatus.BAD_REQUEST, exception);
+  public ResponseEntity<ProblemDetail> handleClient(
+      ClientException exception, HttpServletRequest request) {
+    return build(HttpStatus.BAD_REQUEST, exception, request);
   }
 
   @ExceptionHandler(NotFoundException.class)
-  public ResponseEntity<Map<String, ItemError>> handleNotFound(NotFoundException exception) {
-    return build(HttpStatus.NOT_FOUND, exception);
+  public ResponseEntity<ProblemDetail> handleNotFound(
+      NotFoundException exception, HttpServletRequest request) {
+    return build(HttpStatus.NOT_FOUND, exception, request);
   }
 
   @ExceptionHandler(ConflictException.class)
-  public ResponseEntity<Map<String, ItemError>> handleConflict(ConflictException exception) {
-    return build(HttpStatus.CONFLICT, exception);
+  public ResponseEntity<ProblemDetail> handleConflict(
+      ConflictException exception, HttpServletRequest request) {
+    return build(HttpStatus.CONFLICT, exception, request);
   }
 
   @ExceptionHandler(UnauthorizedException.class)
-  public ResponseEntity<Map<String, ItemError>> handleUnauthorized(UnauthorizedException exception) {
-    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-        .body(
-            Map.of(
-                "errors",
-                new ItemError(
-                    exception.getMessage(),
-                    exception.detail() == null ? exception.getMessage() : exception.detail(),
-                    "UNAUTHORIZED")));
+  public ResponseEntity<ProblemDetail> handleUnauthorized(
+      UnauthorizedException exception, HttpServletRequest request) {
+    return problem(
+        HttpStatus.UNAUTHORIZED,
+        new ItemError(
+            exception.getMessage(),
+            exception.detail() == null ? exception.getMessage() : exception.detail(),
+            "UNAUTHORIZED"),
+        request);
   }
 
   @ExceptionHandler(ServerException.class)
-  public ResponseEntity<Map<String, ItemError>> handleServer(ServerException exception) {
-    return build(HttpStatus.INTERNAL_SERVER_ERROR, exception);
+  public ResponseEntity<ProblemDetail> handleServer(
+      ServerException exception, HttpServletRequest request) {
+    return build(HttpStatus.INTERNAL_SERVER_ERROR, exception, request);
   }
 
   @ExceptionHandler(TooManyRequestsException.class)
-  public ResponseEntity<Map<String, ItemError>> handleTooManyRequests(
-      TooManyRequestsException exception) {
-    return build(HttpStatus.TOO_MANY_REQUESTS, exception);
+  public ResponseEntity<ProblemDetail> handleTooManyRequests(
+      TooManyRequestsException exception, HttpServletRequest request) {
+    return build(HttpStatus.TOO_MANY_REQUESTS, exception, request);
   }
 
   @ExceptionHandler(BindException.class)
-  public ResponseEntity<Map<String, ItemError>> handleValidation(BindException exception) {
+  public ResponseEntity<ProblemDetail> handleValidation(
+      BindException exception, HttpServletRequest request) {
+    List<Map<String, String>> errors = new ArrayList<>();
     List<String> details = new ArrayList<>();
     for (FieldError error : exception.getBindingResult().getFieldErrors()) {
-      details.add(
-          error.getField()
-              + " : "
-              + textOr(error.getDefaultMessage(), "valeur invalide"));
+      String message = textOr(error.getDefaultMessage(), "valeur invalide");
+      details.add(error.getField() + " : " + message);
+      errors.add(fieldError(error.getField(), message));
     }
     for (ObjectError error : exception.getBindingResult().getGlobalErrors()) {
-      details.add(textOr(error.getDefaultMessage(), "contrainte globale non respectée"));
+      String message = textOr(error.getDefaultMessage(), "contrainte globale non respectée");
+      details.add(message);
+      errors.add(fieldError(error.getObjectName(), message));
     }
 
     String detail =
         details.isEmpty()
             ? "La requête ne respecte pas les contraintes de validation."
             : String.join(" ; ", details);
-    return badRequest(new ItemError("Validation échouée", detail, "VALIDATION_ERROR"));
+    ProblemDetail problem =
+        ProblemDetails.of(
+            HttpStatus.BAD_REQUEST,
+            new ItemError("Validation échouée", detail, "VALIDATION_ERROR"),
+            request);
+    problem.setProperty("errors", errors);
+    return respond(HttpStatus.BAD_REQUEST, problem);
   }
 
   @ExceptionHandler(ConstraintViolationException.class)
-  public ResponseEntity<Map<String, ItemError>> handleConstraintViolation(
-      ConstraintViolationException exception) {
-    String detail =
-        exception.getConstraintViolations().stream()
-            .map(
-                violation ->
-                    violation.getPropertyPath() + " : " + violation.getMessage())
-            .collect(Collectors.joining(" ; "));
+  public ResponseEntity<ProblemDetail> handleConstraintViolation(
+      ConstraintViolationException exception, HttpServletRequest request) {
+    List<Map<String, String>> errors = new ArrayList<>();
+    List<String> details = new ArrayList<>();
+    exception
+        .getConstraintViolations()
+        .forEach(
+            violation -> {
+              String field = String.valueOf(violation.getPropertyPath());
+              String message = textOr(violation.getMessage(), "valeur invalide");
+              details.add(field + " : " + message);
+              errors.add(fieldError(field, message));
+            });
 
-    if (detail.isBlank()) {
-      detail = "La requête ne respecte pas les contraintes de validation.";
+    if (details.isEmpty()) {
+      details.add("La requête ne respecte pas les contraintes de validation.");
     }
-    return badRequest(new ItemError("Validation échouée", detail, "VALIDATION_ERROR"));
+    ProblemDetail problem =
+        ProblemDetails.of(
+            HttpStatus.BAD_REQUEST,
+            new ItemError("Validation échouée", String.join(" ; ", details), "VALIDATION_ERROR"),
+            request);
+    problem.setProperty("errors", errors);
+    return respond(HttpStatus.BAD_REQUEST, problem);
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<Map<String, ItemError>> handleUnreadableBody(
-      HttpMessageNotReadableException exception) {
+  public ResponseEntity<ProblemDetail> handleUnreadableBody(
+      HttpMessageNotReadableException exception, HttpServletRequest request) {
     String cause = exception.getMostSpecificCause().getMessage();
     String detail =
         textOr(cause, "Le corps de la requête est absent ou mal formé.")
             + " Vérifiez la syntaxe JSON et les types des champs.";
-    return badRequest(new ItemError("Corps de requête illisible", detail, "INVALID_REQUEST_BODY"));
+    return problem(
+        HttpStatus.BAD_REQUEST,
+        new ItemError("Corps de requête illisible", detail, "INVALID_REQUEST_BODY"),
+        request);
   }
 
   @ExceptionHandler(MissingServletRequestParameterException.class)
-  public ResponseEntity<Map<String, ItemError>> handleMissingParameter(
-      MissingServletRequestParameterException exception) {
+  public ResponseEntity<ProblemDetail> handleMissingParameter(
+      MissingServletRequestParameterException exception, HttpServletRequest request) {
     String type =
         exception.getParameterType() == null || exception.getParameterType().isBlank()
             ? ""
             : " de type " + exception.getParameterType();
     String detail =
         "Le paramètre '" + exception.getParameterName() + "'" + type + " est obligatoire.";
-    return badRequest(new ItemError("Paramètre obligatoire manquant", detail, "BAD_REQUEST"));
+    return problem(
+        HttpStatus.BAD_REQUEST,
+        new ItemError("Paramètre obligatoire manquant", detail, "BAD_REQUEST"),
+        request);
   }
 
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-  public ResponseEntity<Map<String, ItemError>> handleTypeMismatch(
-      MethodArgumentTypeMismatchException exception) {
+  public ResponseEntity<ProblemDetail> handleTypeMismatch(
+      MethodArgumentTypeMismatchException exception, HttpServletRequest request) {
     String requiredType =
         exception.getRequiredType() == null
             ? "attendu"
@@ -153,20 +185,21 @@ public class GlobalExceptionHandler {
             + ". Valeur reçue : '"
             + value
             + "'.";
-    return badRequest(new ItemError("Paramètre invalide", detail, "BAD_REQUEST"));
+    return problem(
+        HttpStatus.BAD_REQUEST, new ItemError("Paramètre invalide", detail, "BAD_REQUEST"), request);
   }
 
   @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
-  public ResponseEntity<Map<String, ItemError>> handleNoResource(HttpServletRequest request) {
+  public ResponseEntity<ProblemDetail> handleNoResource(HttpServletRequest request) {
     String detail = "Aucune route ne correspond à l'URL " + originalUri(request) + ".";
-    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-        .body(Map.of("errors", new ItemError("Route introuvable", detail, "NOT_FOUND")));
+    return problem(
+        HttpStatus.NOT_FOUND, new ItemError("Route introuvable", detail, "NOT_FOUND"), request);
   }
 
   @SuppressWarnings("null")
   @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-  public ResponseEntity<Map<String, ItemError>> handleMethodNotAllowed(
-      HttpRequestMethodNotSupportedException exception) {
+  public ResponseEntity<ProblemDetail> handleMethodNotAllowed(
+      HttpRequestMethodNotSupportedException exception, HttpServletRequest request) {
     String methods =
         exception.getSupportedHttpMethods() == null
             ? ""
@@ -179,17 +212,16 @@ public class GlobalExceptionHandler {
             + exception.getMethod()
             + " n'est pas autorisée pour cette route."
             + (methods.isBlank() ? "" : " Méthodes autorisées : " + methods + ".");
-    return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-        .body(
-            Map.of(
-                "errors",
-                new ItemError("Méthode HTTP non autorisée", detail, "METHOD_NOT_ALLOWED")));
+    return problem(
+        HttpStatus.METHOD_NOT_ALLOWED,
+        new ItemError("Méthode HTTP non autorisée", detail, "METHOD_NOT_ALLOWED"),
+        request);
   }
 
   @SuppressWarnings("null")
   @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
-  public ResponseEntity<Map<String, ItemError>> handleUnsupportedMediaType(
-      HttpMediaTypeNotSupportedException exception) {
+  public ResponseEntity<ProblemDetail> handleUnsupportedMediaType(
+      HttpMediaTypeNotSupportedException exception, HttpServletRequest request) {
     String supported =
         exception.getSupportedMediaTypes().stream()
             .map(MediaType::toString)
@@ -201,60 +233,72 @@ public class GlobalExceptionHandler {
             + contentType
             + "' n'est pas supporté."
             + (supported.isBlank() ? "" : " Types acceptés : " + supported + ".");
-    return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-        .body(
-            Map.of(
-                "errors",
-                new ItemError(
-                    "Type de média non supporté", detail, "UNSUPPORTED_MEDIA_TYPE")));
+    return problem(
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+        new ItemError("Type de média non supporté", detail, "UNSUPPORTED_MEDIA_TYPE"),
+        request);
   }
 
   @ExceptionHandler(AccessDeniedException.class)
-  public ResponseEntity<Map<String, ItemError>> handleAccessDenied(
-      AccessDeniedException exception) {
-    return ResponseEntity.status(HttpStatus.FORBIDDEN)
-        .body(
-            Map.of(
-                "errors",
-                new ItemError(
-                    "Accès refusé",
-                    "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
-                    "FORBIDDEN")));
+  public ResponseEntity<ProblemDetail> handleAccessDenied(
+      AccessDeniedException exception, HttpServletRequest request) {
+    return problem(
+        HttpStatus.FORBIDDEN,
+        new ItemError(
+            "Accès refusé",
+            "Vous n'avez pas les permissions nécessaires pour accéder à cette ressource.",
+            "FORBIDDEN"),
+        request);
   }
 
   @ExceptionHandler(io.jsonwebtoken.JwtException.class)
-  public ResponseEntity<Map<String, ItemError>> handleJwt(io.jsonwebtoken.JwtException exception) {
-    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-        .body(
-            Map.of(
-                "errors",
-                new ItemError(
-                    "Jeton invalide",
-                    "Le jeton JWT est invalide, mal formé ou a expiré.",
-                    "UNAUTHORIZED")));
+  public ResponseEntity<ProblemDetail> handleJwt(
+      io.jsonwebtoken.JwtException exception, HttpServletRequest request) {
+    return problem(
+        HttpStatus.UNAUTHORIZED,
+        new ItemError(
+            "Jeton invalide",
+            "Le jeton JWT est invalide, mal formé ou a expiré.",
+            "UNAUTHORIZED"),
+        request);
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
-  public ResponseEntity<Map<String, ItemError>> handleIllegalArgument(
-      IllegalArgumentException exception) {
-    return build(HttpStatus.BAD_REQUEST, exception);
+  public ResponseEntity<ProblemDetail> handleIllegalArgument(
+      IllegalArgumentException exception, HttpServletRequest request) {
+    return build(HttpStatus.BAD_REQUEST, exception, request);
   }
 
   @ExceptionHandler(Exception.class)
-  public ResponseEntity<Map<String, ItemError>> handleUnexpected(Exception exception) {
-    return build(HttpStatus.INTERNAL_SERVER_ERROR, exception);
+  public ResponseEntity<ProblemDetail> handleUnexpected(
+      Exception exception, HttpServletRequest request) {
+    return build(HttpStatus.INTERNAL_SERVER_ERROR, exception, request);
   }
 
-  private static ResponseEntity<Map<String, ItemError>> badRequest(ItemError error) {
-    return ResponseEntity.badRequest().body(Map.of("errors", error));
-  }
-
-  private static ResponseEntity<Map<String, ItemError>> build(
-      HttpStatus status, Throwable exception) {
+  private static ResponseEntity<ProblemDetail> build(
+      HttpStatus status, Throwable exception, HttpServletRequest request) {
     HttpStatus sqlStatus = ErrorMapper.httpStatus(exception);
     HttpStatus effectiveStatus = sqlStatus == null ? status : sqlStatus;
-    return ResponseEntity.status(effectiveStatus)
-        .body(Map.of("errors", ErrorMapper.toItemError(exception)));
+    return problem(effectiveStatus, ErrorMapper.toItemError(exception), request);
+  }
+
+  private static ResponseEntity<ProblemDetail> problem(
+      HttpStatus status, ItemError error, HttpServletRequest request) {
+    return respond(status, ProblemDetails.of(status, error, request));
+  }
+
+  private static ResponseEntity<ProblemDetail> respond(
+      HttpStatus status, ProblemDetail problem) {
+    return ResponseEntity.status(status)
+        .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        .body(problem);
+  }
+
+  private static Map<String, String> fieldError(String field, String message) {
+    Map<String, String> value = new LinkedHashMap<>();
+    value.put("field", field);
+    value.put("message", message);
+    return value;
   }
 
   private static String originalUri(HttpServletRequest request) {

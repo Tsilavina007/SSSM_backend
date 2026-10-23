@@ -11,9 +11,9 @@ info:
     supprimés.
 
     Les réponses de succès portent `Deprecation: true` et
-    `Link: </api/item-assignments>; rel="successor-version"`. Les erreurs
-    suivent l'enveloppe `{"errors": {message, detail, code}}` et ne portent pas
-    ces en-têtes. Préférez `/api/item-assignments` ; cette façade ne reçoit que
+    `Link: </api/v1/item-assignments>; rel="successor-version"`. Les erreurs
+    suivent un Problem Details RFC 9457 et ne portent pas
+    ces en-têtes. Préférez `/api/v1/item-assignments` ; cette façade ne reçoit que
     des correctifs de compatibilité.
 servers:
   - url: http://localhost:8080
@@ -21,9 +21,9 @@ security:
   - bearerAuth: []
 tags:
   - name: Assignments (deprecated)
-    description: Façade de compatibilité — utiliser /api/item-assignments
+    description: Façade de compatibilité — utiliser /api/v1/item-assignments
 paths:
-  /api/inventory/assignments:
+  /api/v1/inventory/assignments:
     get:
       operationId: listAssignments
       tags: [ Assignments (deprecated) ]
@@ -49,7 +49,7 @@ paths:
       summary: Créer une affectation
       deprecated: true
       description: >-
-        Mêmes règles que `POST /api/item-assignments` : article `AVAILABLE`,
+        Mêmes règles que `POST /api/v1/item-assignments` : article `AVAILABLE`,
         aucune affectation active sans `returned_at`, création atomique de l'état
         `ASSIGNED` et du stock.
       requestBody:
@@ -69,7 +69,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/assignments/{itemAssignmentId}:
+  /api/v1/inventory/assignments/{itemAssignmentId}:
     parameters:
       - { $ref: '#/components/parameters/ItemAssignmentId' }
     get:
@@ -138,7 +138,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/assignments/{itemAssignmentId}/return:
+  /api/v1/inventory/assignments/{itemAssignmentId}/return:
     parameters:
       - { $ref: '#/components/parameters/ItemAssignmentId' }
     post:
@@ -166,7 +166,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/assignments/{itemAssignmentId}/void:
+  /api/v1/inventory/assignments/{itemAssignmentId}/void:
     parameters:
       - { $ref: '#/components/parameters/ItemAssignmentId' }
     post:
@@ -189,7 +189,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/assignments/{itemAssignmentId}/restore:
+  /api/v1/inventory/assignments/{itemAssignmentId}/restore:
     parameters:
       - { $ref: '#/components/parameters/ItemAssignmentId' }
     post:
@@ -210,7 +210,7 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/items/{itemId}/assignments:
+  /api/v1/inventory/items/{itemId}/assignments:
     parameters:
       - { $ref: '#/components/parameters/ItemId' }
     get:
@@ -228,7 +228,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/employees/{employeeId}/assignments:
+  /api/v1/inventory/employees/{employeeId}/assignments:
     parameters:
       - { $ref: '#/components/parameters/EmployeeId' }
     get:
@@ -246,7 +246,7 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/ServerError'
-  /api/inventory/security-posts/{postId}/assignments:
+  /api/v1/inventory/security-posts/{postId}/assignments:
     parameters:
       - { $ref: '#/components/parameters/PostId' }
     get:
@@ -276,7 +276,7 @@ components:
       schema: { type: string, example: 'true' }
     Link:
       description: Lien vers le successeur canonique.
-      schema: { type: string, example: '</api/item-assignments>; rel="successor-version"' }
+      schema: { type: string, example: '</api/v1/item-assignments>; rel="successor-version"' }
   parameters:
     Search:
       name: search
@@ -343,6 +343,9 @@ components:
       headers:
         Deprecation: { $ref: '#/components/headers/Deprecation' }
         Link: { $ref: '#/components/headers/Link' }
+        Location:
+          description: URI de l'affectation créée.
+          schema: { type: string, format: uri }
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ItemAssignment' }
@@ -362,44 +365,63 @@ components:
         Deprecation: { $ref: '#/components/headers/Deprecation' }
         Link: { $ref: '#/components/headers/Link' }
     BadRequest:
-      description: Requête invalide — enveloppe ItemError.
+      description: Requête invalide — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré — enveloppe ItemError.
+      description: JWT absent, invalide ou expiré — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
-      description: Affectation ou article introuvable — enveloppe ItemError.
+      description: Affectation ou article introuvable — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Conflict:
       description: >-
-        Conflit de cycle de vie ou d'unicité — enveloppe ItemError. Cette façade
+        Conflit de cycle de vie ou d'unicité — Problem Details RFC 9457. Cette façade
         renvoie les mêmes codes que le contrat canonique, sans erreur douce.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur — enveloppe ItemError.
+      description: Erreur serveur — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message: { type: string }
-        detail: { type: string }
-        code: { type: string }
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
+        code:
+          type: string
+          description: >-
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     ItemAssignment:
       type: object
       properties:

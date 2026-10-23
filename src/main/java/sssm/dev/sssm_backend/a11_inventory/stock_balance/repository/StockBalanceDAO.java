@@ -13,4 +13,6 @@ public interface StockBalanceDAO {
 
   List<StockBalanceResponse> list(
       String warehouseId, String itemTypeId, Integer page, Integer pageSize);
+
+  long count(String warehouseId, String itemTypeId);
 }

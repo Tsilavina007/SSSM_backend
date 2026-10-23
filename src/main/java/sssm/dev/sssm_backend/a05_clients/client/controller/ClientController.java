@@ -12,7 +12,7 @@ import sssm.dev.sssm_backend.a05_clients.client.dto.ClientUpdateRequest;
 import sssm.dev.sssm_backend.a05_clients.client.service.ClientService;
 
 @RestController
-@RequestMapping("/api/clients")
+@RequestMapping("/api/v1/clients")
 public class ClientController {
   private final ClientService service;
 

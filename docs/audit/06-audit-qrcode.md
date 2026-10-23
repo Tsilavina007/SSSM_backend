@@ -1,5 +1,7 @@
 ﻿# 06 — Audit des QR Codes
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** évaluer la génération, la lecture, l'impression et la résolution des QR Codes, ainsi que leur utilisabilité pour un frontend web ou mobile. Les rapports 04 et 05 traitent du catalogue et du stock ; ce rapport se concentre sur le contrat QR.
 
 **État de référence :** HEAD `7e3f196`, qui corrige la livraison des erreurs JSON sur l'image QR. Les constats de l'audit initial antérieurs à ce commit sont signalés comme tels.

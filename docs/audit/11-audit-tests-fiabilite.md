@@ -1,12 +1,14 @@
 ﻿# 11 — Audit des tests et de la fiabilité
 
+**Note Lot 7 (23 octobre 2026) :** les routes canoniques sont désormais préfixées `/api/v1` ; l'alias `/api` reste accepté avec `Deprecation`/`Link`. Les chemins cités ci-dessous reflètent l'état de l'audit au moment de sa rédaction, sauf mise à jour explicite.
+
 **Objectif :** évaluer ce que les tests prouvent réellement, ce qu'ils ne prouvent pas, et dans quelle mesure ils peuvent servir de garde-fou avant correction.
 
 **Mise à jour du 22 octobre 2026 (suite de tests réduite) :** la suite automatisée a été ramenée à **4 classes et 20 tests** (`PingControllerTest`, `SssmBackendApplicationTests`, `DatabaseSchemaConformanceTests`, `SchemaScriptsConformanceTests`). Ces tests vérifient uniquement que le schéma SQL appliqué est conforme à ce que l'application attend (tables, colonnes, types, clés étrangères, index, énumérations, scripts de migration). Les classes de tests fonctionnels citées dans les sections suivantes ont été supprimées le 22 octobre 2026 (commit `453c82f`) : les constats qu'elles étayaient restent **vérifiés par lecture de code**, mais ne sont plus couverts par un test automatisé. Les critères `PASS` correspondants du rapport 15 se lisent désormais « vérifié statiquement ».
 
 La suite exécutée le 22 octobre 2026 après le Lot 4 comptait **150 tests dans 28 suites** ; cette suite a ensuite été remplacée par la suite de conformité (20 tests, 4 suites).
 
-**Mise à jour du 23 octobre 2026 (Lots 5 et 6) :** la suite compte désormais **7 classes et 49 tests**. Deux contrats métier s'y ajoutent : le scan QR (13 tests et 4 tests de limiteur, Lot 5) et les comptages (10 tests, Lot 6) — instantané figé, périmètre, cloisonnement, clôture idempotente, ajustements, annulation et pagination. Les tests de conformité de schéma passent à 20 tests. Le reste des constats (tenancy générale, concurrence, matrice RBAC, base isolée par test) reste ouvert.
+**Mise à jour du 23 octobre 2026 (Lots 5 à 7) :** la suite compte désormais **8 classes et 58 tests**. Trois contrats métier s'y ajoutent : le scan QR (13 tests et 4 tests de limiteur, Lot 5), les comptages (10 tests, Lot 6) et le contrat HTTP (9 tests, Lot 7 : versionnement, Problem Details, pagination, `Location`, dates UTC, historique 404). Les tests de conformité de schéma restent à 20 tests. Le reste des constats (tenancy générale, concurrence, matrice RBAC, base isolée par test) reste ouvert.
 
 ---
 
@@ -251,7 +253,7 @@ Ces tests ne sont pas des bugs en eux-mêmes, mais ils **acceptent** un comporte
 
 ## 6. Divergence code / test sur l'historique (historique)
 
-`ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre courant. Le constat ci-dessous décrit l'état historique du Lot 1 ; l'anomalie fonctionnelle de l'historique reste ouverte sous `P1-12`.
+`ItemApiTests.historyUnknownReturnsNotFound` n'existe plus dans l'arbre courant. Le constat ci-dessous décrit l'état historique du Lot 1 ; l'anomalie a été corrigée au Lot 7 (`P1-12` : 404, pagination et filtres, test `HttpContractApiTests`).
 
 L'ancien test attendait :
 
@@ -270,7 +272,7 @@ Or `ItemController.getItemHistory` :
 
 Aucune exception 404 n'est levée.
 
-**Conclusion :** l'exécution complète du 21 octobre 2026 avait confirmé cette divergence avec 200 au lieu de 404. Le test a depuis été retiré de l'arbre et la suite est verte au 22 octobre 2026. Le contrôleur conserve cependant l'absence de contrôle d'existence et le filtrage en mémoire ; cette anomalie fonctionnelle reste ouverte (`P1-12`) et n'est pas couverte par un test négatif.
+**Conclusion :** l'exécution complète du 21 octobre 2026 avait confirmé cette divergence avec 200 au lieu de 404. Le test a depuis été retiré de l'arbre. Le contrôleur a été corrigé au Lot 7 : `GET /api/v1/inventory/items/{id}/history` renvoie 404 pour un article inconnu, pagine et filtre les collections, et `HttpContractApiTests` couvre le cas négatif (`P1-12` corrigé).
 
 ---
 
@@ -418,7 +420,7 @@ Ses limites sont cependant structurantes :
 - tests RBAC et scope entreprise présents, mais pas de scénario à deux entreprises réelles ;
 - aucun test de transaction, concurrence ou réconciliation ;
 - aucun seuil de couverture ;
-- la suite est verte, mais l'historique d'article n'a plus de test négatif : l'absence de 404 et le filtrage en mémoire restent ouverts (`P1-12`).
+- la suite est verte, mais elle ne couvre que le schéma, le QR, les comptages et le contrat HTTP : la tenancy générale, la concurrence, la matrice RBAC et l'archivage restent non testés (`P1-13`) ; l'historique article est désormais couvert (`P1-12` corrigé).
 
 Une suite verte localement ou en CI ne signifie donc pas :
 
@@ -452,7 +454,7 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 
 La suite qui précédait la réduction était **nombreuse pour un prototype** et **utile pour les parcours nominaux** : elle couvrait l'identité et le RBAC (Lot 1), le pool, le rollback transactionnel et le mapping SQL (Lot 2), les soldes calculés, le journal immuable et les comptages (Lot 3), le cycle de vie des affectations et l'archivage (Lot 4). Elle totalisait **150 tests dans 28 suites**.
 
-**La suite actuelle (49 tests, 7 suites) ne couvre que des périmètres ciblés.** Elle contrôle la conformité du schéma à l'application, le contrat du scan QR et le contrat des comptages ; elle ne couvre ni la tenancy générale, ni la concurrence, ni la matrice RBAC, ni l'archivage. C'est un filet de sécurité sur les migrations et deux contrats, pas une preuve de bon fonctionnement : le rapport 15 doit être relu en conséquence, et `P1-13` reste ouvert avec un niveau de gravité plus élevé qu'avant.
+**La suite actuelle (58 tests, 8 suites) ne couvre que des périmètres ciblés.** Elle contrôle la conformité du schéma à l'application, les contrats QR, comptage et HTTP ; elle ne couvre ni la tenancy générale, ni la concurrence, ni la matrice RBAC, ni l'archivage. C'est un filet de sécurité sur les migrations et trois contrats, pas une preuve de bon fonctionnement : le rapport 15 doit être relu en conséquence, et `P1-13` reste ouvert avec un niveau de gravité plus élevé qu'avant.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 

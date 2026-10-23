@@ -95,6 +95,31 @@ public class StockBalanceDAOImpl implements StockBalanceDAO {
   }
 
   @Override
+  public long count(String warehouseId, String itemTypeId) {
+    StringBuilder sql = new StringBuilder("SELECT count(*) FROM security.stock_balance b WHERE 1=1 ");
+    List<Object> parameters = new ArrayList<>();
+    if (warehouseId != null && !warehouseId.isBlank()) {
+      sql.append("AND b.warehouse_id = ? ");
+      parameters.add(uuid("warehouse_id", warehouseId));
+    }
+    if (itemTypeId != null && !itemTypeId.isBlank()) {
+      sql.append("AND b.item_type_id = ? ");
+      parameters.add(uuid("item_type_id", itemTypeId));
+    }
+    try (Connection c = DatabaseConnection.getConnection();
+        PreparedStatement s = c.prepareStatement(sql.toString())) {
+      for (int i = 0; i < parameters.size(); i++) {
+        s.setObject(i + 1, parameters.get(i));
+      }
+      try (ResultSet r = s.executeQuery()) {
+        return r.next() ? r.getLong(1) : 0L;
+      }
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
   public List<StockBalanceResponse> list(
       String warehouseId, String itemTypeId, Integer page, Integer pageSize) {
     int p = page == null ? 1 : Math.max(1, page);

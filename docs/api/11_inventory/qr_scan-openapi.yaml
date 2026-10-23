@@ -14,7 +14,7 @@ tags:
   - name: QR Scans
     description: Résolution de QR codes
 paths:
-  /api/inventory/scans/resolve:
+  /api/v1/inventory/scans/resolve:
     post:
       operationId: resolveQrScan
       tags: [ QR Scans ]
@@ -69,56 +69,70 @@ components:
     BadRequest:
       description: >-
         Requête invalide (JSON illisible, code vide, champ trop long,
-        validation) - enveloppe ItemError.
+        validation) - Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Unauthorized:
-      description: JWT absent, invalide ou expiré - enveloppe ItemError.
+      description: JWT absent, invalide ou expiré - Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     Forbidden:
       description: >-
         JWT valide mais sans entreprise, ou sans permission d'inventaire -
-        enveloppe ItemError.
+        Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     NotFound:
       description: >-
-        Code inconnu, archivé ou appartenant à une autre entreprise - enveloppe
-        ItemError.
+        Code inconnu, archivé ou appartenant à une autre entreprise - Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     TooManyRequests:
       description: >-
-        Limite de débit de résolution atteinte - enveloppe ItemError.
+        Limite de débit de résolution atteinte - Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
     ServerError:
-      description: Erreur serveur ou SQL - enveloppe ItemError.
+      description: Erreur serveur inattendue — Problem Details RFC 9457.
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
   schemas:
-    ErrorEnvelope:
+    Problem:
       type: object
+      description: >-
+        Réponse d'erreur au format Problem Details (RFC 9457), servie en
+        application/problem+json. Le type reste about:blank tant qu'aucun
+        catalogue d'URI public n'est publié.
+      required: [ type, title, status, detail, instance, code, traceId, timestamp ]
       properties:
-        errors: { $ref: '#/components/schemas/ItemError' }
-    ItemError:
-      type: object
-      required: [message, detail, code]
-      properties:
-        message: { type: string }
-        detail: { type: string }
+        type: { type: string, format: uri, example: 'about:blank' }
+        title: { type: string, description: Résumé stable du type d'erreur. }
+        status: { type: integer, description: Code HTTP répété dans le corps. }
+        detail: { type: string, description: Précision contextuelle non technique. }
+        instance: { type: string, format: uri, description: URI de la requête en échec. }
         code:
           type: string
           description: >-
-            Code applicatif stable (VALIDATION_ERROR, NOT_FOUND, FORBIDDEN,
-            RATE_LIMITED, CLIENT_ERROR, SERVER_ERROR, ...).
+            Code applicatif stable (BAD_REQUEST, VALIDATION_ERROR,
+            INVALID_REQUEST_BODY, NOT_FOUND, CLIENT_ERROR, SERVER_ERROR,
+            UNAUTHORIZED, FORBIDDEN, METHOD_NOT_ALLOWED, UNSUPPORTED_MEDIA_TYPE,
+            INTERNAL_ERROR).
+        traceId: { type: string, format: uuid, description: Identifiant de corrélation. }
+        timestamp: { type: string, format: date-time, description: Horodatage UTC de l'erreur. }
+        errors:
+          type: array
+          description: Champs en erreur, présent uniquement pour une validation.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
     QrScanRequest:
       type: object
       required: [ qrCode ]

@@ -71,6 +71,28 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
   }
 
   @Override
+  public List<ItemAssignmentResponse> getItemAssignmentsByItem(
+      String itemId, int page, int pageSize, boolean activeOnly) {
+    return list(
+        "SELECT "
+            + SELECT_COLUMNS
+            + " FROM security.item_assignment WHERE item_id = ? AND voided_at IS NULL"
+            + (activeOnly ? " AND returned_at IS NULL" : "")
+            + " ORDER BY assigned_at DESC, id LIMIT ? OFFSET ?",
+        page,
+        pageSize,
+        UUID.fromString(itemId));
+  }
+
+  @Override
+  public long countItemAssignmentsByItem(String itemId, boolean activeOnly) {
+    return count(
+        "SELECT count(*) FROM security.item_assignment WHERE item_id = ? AND voided_at IS NULL"
+            + (activeOnly ? " AND returned_at IS NULL" : ""),
+        UUID.fromString(itemId));
+  }
+
+  @Override
   public List<ItemAssignmentResponse> getItemAssignmentsByEmployee(
       String employeeId, int page, int pageSize) {
     return list(
@@ -319,6 +341,56 @@ public class ItemAssignmentDAOImpl implements ItemAssignmentDAO {
         PreparedStatement stmt = conn.prepareStatement(sql)) {
       stmt.setObject(1, UUID.fromString(id));
       stmt.executeUpdate();
+    } catch (SQLException e) {
+      throw new ServerException(e);
+    }
+  }
+
+  @Override
+  public long countItemAssignments(String search, boolean activeOnly) {
+    boolean filtered = search != null && !search.isBlank();
+    String where =
+        " WHERE voided_at IS NULL"
+            + (activeOnly ? " AND returned_at IS NULL" : "")
+            + (filtered
+                ? " AND (condition_on_assignment ILIKE ? OR condition_on_return ILIKE ? OR notes ILIKE ?)"
+                : "");
+    String pattern = filtered ? "%" + search + "%" : null;
+    return filtered
+        ? count("SELECT count(*) FROM security.item_assignment" + where, pattern, pattern, pattern)
+        : count("SELECT count(*) FROM security.item_assignment" + where);
+  }
+
+  @Override
+  public long countItemAssignmentsByItem(String itemId) {
+    return count(
+        "SELECT count(*) FROM security.item_assignment WHERE item_id = ? AND voided_at IS NULL",
+        UUID.fromString(itemId));
+  }
+
+  @Override
+  public long countItemAssignmentsByEmployee(String employeeId) {
+    return count(
+        "SELECT count(*) FROM security.item_assignment WHERE employee_id = ? AND voided_at IS NULL",
+        UUID.fromString(employeeId));
+  }
+
+  @Override
+  public long countItemAssignmentsByPost(String postId) {
+    return count(
+        "SELECT count(*) FROM security.item_assignment WHERE post_id = ? AND voided_at IS NULL",
+        UUID.fromString(postId));
+  }
+
+  private long count(String sql, Object... args) {
+    try (Connection conn = DatabaseConnection.getConnection();
+        PreparedStatement stmt = conn.prepareStatement(sql)) {
+      for (int index = 0; index < args.length; index++) {
+        stmt.setObject(index + 1, args[index]);
+      }
+      try (ResultSet rs = stmt.executeQuery()) {
+        return rs.next() ? rs.getLong(1) : 0L;
+      }
     } catch (SQLException e) {
       throw new ServerException(e);
     }

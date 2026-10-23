@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.*;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -21,6 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.ObjectMapper;
 
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
+import sssm.dev.sssm_backend.a01_common.errors.handler.ProblemResponseWriter;
 
 @Configuration
 @EnableMethodSecurity
@@ -53,19 +53,19 @@ public class SecurityConfig {
                         "/",
                         "/ping",
                         "/error",
-                        "/api/auth/login",
-                        "/api/auth/refresh",
-                        "/api/auth/logout")
+                        "/api/v1/auth/login",
+                        "/api/v1/auth/refresh",
+                        "/api/v1/auth/logout")
                     .permitAll()
-                    .requestMatchers("/api/auth/register")
+                    .requestMatchers("/api/v1/auth/register")
                     .hasAnyAuthority("ROLE_ADMIN", "users.manage")
-                    .requestMatchers("/api/inventory/**")
+                    .requestMatchers("/api/v1/inventory/**")
                     .hasAnyAuthority("ROLE_ADMIN", "ROLE_INVENTORY", "inventory.manage")
-                    .requestMatchers("/api/users/**")
+                    .requestMatchers("/api/v1/users/**")
                     .hasAnyAuthority("ROLE_ADMIN", "users.manage")
-                    .requestMatchers("/api/roles/**")
+                    .requestMatchers("/api/v1/roles/**")
                     .hasAnyAuthority("ROLE_ADMIN", "roles.manage")
-                    .requestMatchers("/api/permissions/**")
+                    .requestMatchers("/api/v1/permissions/**")
                     .hasRole("ADMIN")
                     .anyRequest()
                     .authenticated())
@@ -75,6 +75,7 @@ public class SecurityConfig {
                     .authenticationEntryPoint(
                         (request, response, exception) ->
                             writeError(
+                                request,
                                 response,
                                 objectMapper,
                                 HttpServletResponse.SC_UNAUTHORIZED,
@@ -86,6 +87,7 @@ public class SecurityConfig {
                     .accessDeniedHandler(
                         (request, response, exception) ->
                             writeError(
+                                request,
                                 response,
                                 objectMapper,
                                 HttpServletResponse.SC_FORBIDDEN,
@@ -125,11 +127,13 @@ public class SecurityConfig {
   }
 
   private static void writeError(
-      HttpServletResponse response, ObjectMapper objectMapper, int status, ItemError error)
+      jakarta.servlet.http.HttpServletRequest request,
+      HttpServletResponse response,
+      ObjectMapper objectMapper,
+      int status,
+      ItemError error)
       throws IOException {
-    response.setStatus(status);
-    response.setContentType("application/json");
-    response.setCharacterEncoding("UTF-8");
-    objectMapper.writeValue(response.getWriter(), Map.of("errors", error));
+    ProblemResponseWriter.write(
+        response, objectMapper, status, error, request.getRequestURI());
   }
 }

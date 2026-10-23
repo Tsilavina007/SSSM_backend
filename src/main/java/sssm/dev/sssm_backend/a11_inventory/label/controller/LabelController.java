@@ -27,7 +27,7 @@ public class LabelController {
     this.labelService = labelService;
   }
 
-  @GetMapping(value = "/api/inventory/items/{itemId}/label", produces = MediaType.TEXT_HTML_VALUE)
+  @GetMapping(value = "/api/v1/inventory/items/{itemId}/label", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<String> label(
       @PathVariable String itemId, @RequestParam(required = false) Integer size) {
     return ResponseEntity.ok()
@@ -35,7 +35,7 @@ public class LabelController {
         .body(labelService.renderLabel(itemId, size));
   }
 
-  @PostMapping(value = "/api/inventory/labels/batch", produces = MediaType.TEXT_HTML_VALUE)
+  @PostMapping(value = "/api/v1/inventory/labels/batch", produces = MediaType.TEXT_HTML_VALUE)
   public ResponseEntity<String> batch(@Valid @RequestBody QrLabelBatchRequest request) {
     return ResponseEntity.ok()
         .contentType(MediaType.TEXT_HTML)

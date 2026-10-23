@@ -6,13 +6,14 @@ import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.StockMovementUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.dto.rest.StockMovementRest;
 import sssm.dev.sssm_backend.a11_inventory.stock_movement.service.StockMovementService;
 
 @RestController
-@RequestMapping("/api/inventory/movements")
+@RequestMapping("/api/v1/inventory/movements")
 public class StockMovementController {
   private final StockMovementService stockMovementService;
 
@@ -21,7 +22,7 @@ public class StockMovementController {
   }
 
   @GetMapping
-  public List<StockMovementRest> getStockMovements(
+  public PageResponse<StockMovementRest> getStockMovements(
       @RequestParam Optional<Integer> page,
       @RequestParam Optional<Integer> pageSize,
       @RequestParam Optional<String> search) {
