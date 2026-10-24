@@ -33,11 +33,11 @@ import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ServerException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.TooManyRequestsException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.UnauthorizedException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ForbiddenException;
 import sssm.dev.sssm_backend.a01_common.errors.ItemError;
 import sssm.dev.sssm_backend.a01_common.errors.mapper.ErrorMapper;
 
-/**
- * Transforme toutes les exceptions non capturées par les contrôleurs en Problem Details (RFC 9457),
+/** Transforme toutes les exceptions non capturées par les contrôleurs en Problem Details (RFC 9457),
  * avec le code applicatif stable, un identifiant de trace et l'URI de la requête.
  */
 @RestControllerAdvice
@@ -70,6 +70,18 @@ public class GlobalExceptionHandler {
             exception.getMessage(),
             exception.detail() == null ? exception.getMessage() : exception.detail(),
             "UNAUTHORIZED"),
+        request);
+  }
+
+  @ExceptionHandler(ForbiddenException.class)
+  public ResponseEntity<ProblemDetail> handleForbidden(
+      ForbiddenException exception, HttpServletRequest request) {
+    return problem(
+        HttpStatus.FORBIDDEN,
+        new ItemError(
+            exception.getMessage(),
+            exception.detail() == null ? exception.getMessage() : exception.detail(),
+            "FORBIDDEN"),
         request);
   }
 
@@ -186,7 +198,9 @@ public class GlobalExceptionHandler {
             + value
             + "'.";
     return problem(
-        HttpStatus.BAD_REQUEST, new ItemError("Paramètre invalide", detail, "BAD_REQUEST"), request);
+        HttpStatus.BAD_REQUEST,
+        new ItemError("Paramètre invalide", detail, "BAD_REQUEST"),
+        request);
   }
 
   @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
@@ -214,7 +228,8 @@ public class GlobalExceptionHandler {
             + (methods.isBlank() ? "" : " Méthodes autorisées : " + methods + ".");
     return problem(
         HttpStatus.METHOD_NOT_ALLOWED,
-        new ItemError("Méthode HTTP non autorisée", detail, "METHOD_NOT_ALLOWED"),
+        new ItemError(
+            "Méthode HTTP non autorisée", detail, "METHOD_NOT_ALLOWED"),
         request);
   }
 

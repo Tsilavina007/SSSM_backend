@@ -163,9 +163,14 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - RBAC des routes organisation, personnel, clients et sites ;
 - tests croisés sur deux entreprises ;
 - purge automatique des refresh tokens et des jetons révoqués ;
-- statuts 401/403 du login et traduction des erreurs SQL (Lot 2/Lot 7).
+- traduction des erreurs SQL (Lot 2/Lot 7).
 
 **Vérifications historiques du Lot 1 :** suite complète `mvn test` exécutée : **120 tests, 119 succès, 1 échec**. L'échec était `ItemApiTests.historyUnknownReturnsNotFound` (404 attendu, 200 obtenu), divergence préexistante du contrôleur d'historique, hors Lot 1 ; ce test a depuis été retiré. Les tests ciblés d'authentification et de RBAC passent (29 tests).
+
+**Corrections réalisées depuis le Lot 1 :**
+- `login` retourne maintenant `401` pour mot de passe incorrect et `403` pour compte inactif (implémenté au Lot 9) ;
+- Handler `ForbiddenException` ajouté à `GlobalExceptionHandler` ;
+- Nouvelle classe `ForbiddenException` dans `a00_infrastructure.exception`.
 
 ---
 

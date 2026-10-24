@@ -16,8 +16,10 @@ import org.springframework.stereotype.Service;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.ClientException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.NotFoundException;
 import sssm.dev.sssm_backend.a00_infrastructure.exception.UnauthorizedException;
+import sssm.dev.sssm_backend.a00_infrastructure.exception.ForbiddenException;
 import sssm.dev.sssm_backend.a01_common.enums.UserStatus;
 import sssm.dev.sssm_backend.a03_authentication.auth.dto.*;
+import sssm.dev.sssm_backend.a03_authentication.auth.dto.AuthResponse.UserResponse;
 import sssm.dev.sssm_backend.a03_authentication.auth.repository.*;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.CurrentUser;
 import sssm.dev.sssm_backend.a03_authentication.auth.security.JwtPrincipal;
@@ -60,10 +62,8 @@ public class AuthService {
     this.refreshExpirationMs = refreshExpirationMs;
   }
 
-  /**
-   * Inscription réservée aux administrateurs. Un administrateur d'entreprise ne peut créer que dans
-   * sa propre entreprise ; un administrateur plateforme utilise /api/users pour choisir
-   * l'entreprise.
+  /** Inscription réservée aux administrateurs. Un administrateur d'entreprise ne peut créer que dans
+   * sa propre entreprise ; un administrateur plateforme utilise /api/users pour choisir l'entreprise.
    */
   public AuthResponse register(RegisterRequest request) {
     if (request == null) {
@@ -116,18 +116,24 @@ public class AuthService {
     AppUser user =
         users
             .findByUsernameOrEmail(request.login())
-            .filter(u -> u.getStatus() == UserStatus.ACTIVE)
             .orElseThrow(
                 () ->
-                    new ClientException(
+                    new UnauthorizedException(
                         "Identifiants invalides",
-                        "Le login/email ou le mot de passe est incorrect, ou le compte n'est pas actif.",
-                        "CLIENT_ERROR"));
-    if (!encoder.matches(request.password(), user.getPassword_hash()))
-      throw new ClientException(
+                        "Aucun compte ne correspond à cet identifiant."));
+
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new ForbiddenException(
+          "Compte inactif",
+          "Votre compte n'est pas actif. Contactez l'administration.");
+    }
+
+    if (!encoder.matches(request.password(), user.getPassword_hash())) {
+      throw new UnauthorizedException(
           "Identifiants invalides",
-          "Le login/email ou le mot de passe est incorrect, ou le compte n'est pas actif.",
-          "CLIENT_ERROR");
+          "Le mot de passe est incorrect.");
+    }
+
     users.updateLastLogin(user.getId());
     return authenticatedResponse(user);
   }
@@ -155,6 +161,7 @@ public class AuthService {
                     new UnauthorizedException(
                         "Refresh token invalide",
                         "L'utilisateur associé au refresh token n'existe plus."));
+
     if (user.getStatus() != UserStatus.ACTIVE) {
       throw new UnauthorizedException("Compte inactif", "Le compte utilisateur n'est pas actif.");
     }
@@ -188,8 +195,7 @@ public class AuthService {
       Claims claims = jwt.parse(accessToken);
       String jti = claims.getId();
       if (jti != null) {
-        revokedTokens.revoke(
-            jti, claims.get("uid", String.class), claims.getExpiration().toInstant());
+        revokedTokens.revoke(jti, claims.get("uid", String.class), claims.getExpiration().toInstant());
       }
     } catch (RuntimeException ignored) {
       // Logout idempotent : un access token déjà expiré ou illisible ne doit pas empêcher
@@ -197,7 +203,7 @@ public class AuthService {
     }
   }
 
-  public AuthResponse.UserResponse whoAmI(String username) {
+  public UserResponse whoAmI(String username) {
     AppUser user =
         users
             .findByUsername(username)
@@ -255,13 +261,7 @@ public class AuthService {
 
   private AuthResponse.UserResponse toResponse(AppUser u, List<String> roles) {
     return new AuthResponse.UserResponse(
-        u.getId(),
-        u.getUsername(),
-        u.getEmail(),
-        u.getFirst_name(),
-        u.getLast_name(),
-        roles,
-        u.getCompany_id());
+        u.getId(), u.getUsername(), u.getEmail(), u.getFirst_name(), u.getLast_name(), roles, u.getCompany_id());
   }
 
   private record IssuedRefreshToken(String id, String rawToken) {}
