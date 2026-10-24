@@ -67,9 +67,8 @@ Conséquences :
   à 10 ;
 - `pageSize` n'est pas plafonné sur ces routes : le frontend doit se fixer sa
   propre limite ;
-- les deux routes dashboard sont globales et ne sont pas cloisonnées par
-  entreprise (`FE-11`, `P0-01`) : ne pas les exposer en production
-  multi-entreprise.
+- les deux routes dashboard sont globales : c'est le comportement attendu en
+  mono-entreprise (décision du 24 octobre 2026), sans filtre à ajouter.
 
 ## 4. Filtres disponibles
 
@@ -122,7 +121,7 @@ statut ou type d'écart absents (`CNT-10`).
 | `page`, `pageSize` | int | Pagination |
 
 Un UUID malformé renvoie `409 INVALID_IDENTIFIER` sur cette route (écart connu).
-La liste n'est pas filtrée par entreprise (`P0-01`).
+La liste n'est pas filtrée par entreprise (`P0-01`, écart accepté mono-entreprise).
 
 ### Rapports — `GET /inventory/reports/movements`
 

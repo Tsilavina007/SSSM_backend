@@ -1,20 +1,26 @@
 # Préparation frontend — Lot 9
 
-**Date :** 23 octobre 2026
+**Date :** 23 octobre 2026, mise à jour du 24 octobre 2026 (décision mono-entreprise)
 **Objet :** fournir au frontend web et mobile un contrat stable à consommer, sans
 commencer les écrans.
 **État backend :** 74 tests verts (13 classes) ; `GET /api/v1/inventory/stock-balances`
-est désormais documenté dans OpenAPI ; `P0-01` (isolation multi-entreprise) et
-`P1-14` (concurrence/idempotence) restent ouverts.
+est documenté dans OpenAPI ; le déploiement est **mono-entreprise par conception**
+(décision du 24 octobre 2026) et `P1-14` (idempotence) reste ouvert.
 
 ## Verdict
 
-**No-Go pour un frontend de production**. `G0-1` et `G0-2` du rapport 15
-(isolation A/B en lecture et en écriture) sont toujours `FAIL`.
+**Mono-entreprise assumé** : le backend est conçu et exploité pour une seule
+entreprise. L'isolation A/B (`G0-1`, `G0-2` du rapport 15) est `N/A`, pas un
+échec : il n'y a pas d'autre entreprise à isoler. Aucun écran ne doit proposer de
+sélection ni de création d'entreprise.
 
-**Go limité à une démonstration mono-entreprise**, avec des données contrôlées et
-un utilisateur de confiance. Cet usage ne doit pas exposer une deuxième
-entreprise, ni des décisions de stock non surveillées.
+**No-Go pour un frontend de production** pour d'autres motifs : le login
+invalide renvoie `400` au lieu de `401` (`A-02`), login et refresh ne sont pas
+limités en débit (`A-18`), et l'idempotence des créations sensibles reste absente
+(`P1-14`, `API-10`, `API-11`).
+
+**Go pour une démonstration mono-entreprise**, avec des données contrôlées et un
+utilisateur de confiance.
 
 Les critères détaillés et les écarts acceptés sont dans
 [`05-criteres-acceptation.md`](05-criteres-acceptation.md).
@@ -71,7 +77,7 @@ Règles de configuration :
 
 | Limite | Effet pour le frontend | Référence |
 |---|---|---|
-| Aucun filtrage `company_id` dans les DAO d'inventaire | Ne jamais exposer deux entreprises ; les listes peuvent contenir des données d'autres entreprises si la base en contient | `P0-01`, `G0-1`, `G0-2` |
+| Aucun filtrage `company_id` dans les DAO d'inventaire | Sans effet en mono-entreprise ; interdit d'ajouter une deuxième entreprise dans la même base avant correction | `P0-01` (écart accepté) |
 | Pas d'`Idempotency-Key` ni d'`If-Match`/ETag | Double-clic et écrasement concurrent non détectés ; désactiver le bouton pendant l'appel, recharger après conflit | `P1-14`, `API-10`, `API-11` |
 | Login invalide en `400` | Ne pas déclencher un refresh sur un `400` de login ; afficher le message | `A-02` |
 | Listes hors inventaire non paginées avec total | Référentiels types/catégories/entrepôts et modules 02 à 06 : tableaux bruts, plafond absent | `API-02`, `NFR-05` |
@@ -85,7 +91,9 @@ Règles de configuration :
 
 - Aucun écran, composant ou projet frontend.
 - Aucune modification de schéma SQL ni de données.
-- Aucun jeu de données multi-entreprise (voir
+- Aucun jeu de données multi-entreprise : hors périmètre par la décision du
+  24 octobre 2026 (voir
   [`06-donnees-demonstration.md`](06-donnees-demonstration.md)).
-- Aucune correction de `P0-01` ou `P1-14` : ces corrections appartiennent aux
-  lots de sécurité/concurrence et restent bloquantes pour la production.
+- Aucune correction de `P1-14` : l'idempotence appartient au lot concurrence et
+  reste bloquante pour la production. `P0-01` est un écart accepté
+  mono-entreprise.

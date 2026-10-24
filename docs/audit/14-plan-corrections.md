@@ -2,7 +2,9 @@
 
 **Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Les Lots 1 à 9 ont été exécutés entre le 21 et le 24 octobre 2026 ; le Lot 8, dernier du plan, a été traité le 24 octobre 2026. Le détail du Lot 1 est consigné dans la section 4.6, celui du Lot 3 dans la section 6.5, celui du Lot 4 dans la section 7.6 et celui du Lot 9 dans la section 12.
 
-**Principe directeur :** ne pas ajouter d'écran sur un contrat faux. La stabilité de la tenancy, des transactions et du stock précède le frontend.
+**Principe directeur :** ne pas ajouter d'écran sur un contrat faux. La stabilité des transactions et du stock précède le frontend.
+
+**Décision du 24 octobre 2026 — mono-entreprise définitive (D-02) :** le produit est exploité pour une seule entreprise. Toutes les mentions de tenancy non corrigée (`P0-01`) dans ce document se lisent désormais comme un **écart accepté**, sous la condition de réversibilité décrite en D-02 : une deuxième entreprise imposerait la correction préalable (filtres `company_id`, FK composites ou RLS, tests A/B).
 
 ---
 
@@ -13,7 +15,7 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | ID | Décision | Options | Impact |
 |---|---|---|---|
 | D-01 | Modèle de stock | Journal calculé / stock déclaratif assumé / hybride | Détermine les tables, le dashboard et les écrans |
-| D-02 | Multi-entreprise | Mono-entreprise définitive / multi-entreprise réelle | Détermine l'effort de tenancy |
+| D-02 | Multi-entreprise | Mono-entreprise définitive / multi-entreprise réelle | **Tranchée le 24 octobre 2026 : mono-entreprise définitive.** Tenancy hors périmètre, `P0-01` en écart accepté |
 | D-03 | Inscription | Fermée / invitation / publique avec validation | Détermine le flux d'identité |
 | D-04 | Suppression | Physique / archivage logique / les deux | Détermine les contraintes et l'UI |
 | D-05 | QR Code | Immuable / versionné / modifiable avec historique | Détermine l'impression et le mobile — **décidé le 22 octobre 2026 : immuable, sans historique ni rotation** |
@@ -21,7 +23,7 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | D-07 | API | Versionner `/api/v1` / garder `/api` | Détermine la compatibilité |
 | D-08 | Portée admin | Admin plateforme / admin entreprise | Détermine le RBAC |
 
-**Sortie :** un court document de décisions signé. Sans D-01 et D-02, les lots 3 et 4 ne peuvent pas être planifiés correctement.
+**Sortie :** un court document de décisions signé. **État des décisions :** D-01 (journal calculé, Lot 3), D-02 (mono-entreprise définitive, 24 octobre 2026), D-05 (QR immuable, 22 octobre 2026) et D-08 (admin entreprise et admin plateforme, Lot 1) sont tranchées.
 
 ---
 
@@ -73,7 +75,9 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 
 ### 4.1. Modèle de tenancy
 
-**Cible :**
+**Décision du 24 octobre 2026 (D-02) :** le modèle cible ci-dessous n'est **pas planifié** ; il est conservé comme spécification de reprise si une deuxième entreprise est admise. Seules les colonnes `company_id` et leur backfill ont été livrés au Lot 1 ; les filtres, FK composites, `NOT NULL` et RLS restent absents et sans effet en mono-entreprise.
+
+**Cible (hors périmètre actuel) :**
 
 - `app_user.company_id` obligatoire pour les comptes métier ;
 - les comptes plateforme ont un indicateur explicite et une permission dédiée ;
@@ -132,7 +136,7 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - un `USER` ne peut pas appeler une route `ADMIN` ;
 - un rôle retiré ne peut pas être rafraîchi ;
 - un refresh rejoué est rejeté ;
-- les tests de tenancy et RBAC passent sur deux entreprises.
+- les tests RBAC passent ; la tenancy A/B est hors périmètre (mono-entreprise par conception).
 
 ### 4.6. Compte rendu d'exécution — 21 octobre 2026
 
@@ -395,7 +399,7 @@ Aucun `DROP`, `DELETE`, `TRUNCATE` ni `NOT NULL` sur une colonne historique. Les
 - suite complète à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; cette suite a été supprimée le 22 octobre 2026 ;
 - migration rejouée sur la base de démonstration : colonnes, contraintes et index présents, aucune donnée supprimée.
 
-**Limites résiduelles :** tenancy (`P0-01`), concurrence/idempotence (`P1-14`), cohérence entreprise/article/employé/poste, refus des références vers des référentiels archivés, purge physique définitive (D-04) et réconciliation de la donnée de démonstration incohérente. Le retrait effectif de la façade `/api/inventory/assignments` reste une décision de versionnement (D-07).
+**Limites résiduelles :** tenancy (`P0-01`, devenue écart accepté le 24 octobre 2026), concurrence/idempotence (`P1-14`), cohérence entreprise/article/employé/poste, refus des références vers des référentiels archivés, purge physique définitive (D-04) et réconciliation de la donnée de démonstration incohérente. Le retrait effectif de la façade `/api/inventory/assignments` reste une décision de versionnement (D-07).
 
 ---
 
@@ -501,7 +505,7 @@ Aucune colonne, table ou ligne existante n'est modifiée ou supprimée ; aucun `
 - **Annulation** : `POST /{id}/cancel` idempotent, statut `CANCELLED` sans ajustement ; un comptage clôturé ne peut pas être annulé (`409 COUNT_COMPLETED`).
 - **Lignes paginées** : `GET /{id}/results?page=&pageSize=` (défaut 50, maximum 500) avec `X-Total-Count`, `X-Page` et `X-Page-Size`.
 - **Tests** : `InventoryCountApiTests` (10 tests) sur base isolée avec nettoyage ; conformité de schéma complétée. Suite complète : **49 tests, 0 échec, 0 erreur, 7 suites** sur une base neuve.
-- **Limites documentées** : un article attendu mais jamais scanné n'est pas marqué manquant ; le solde est corrigé depuis l'état courant de l'article alors que le journal d'ajustement suit l'écart figé (divergence possible si l'article bouge entre l'ouverture et la clôture) ; les filtres des lignes restent absents ; `P0-01` (tenancy générale) et `P1-14` (concurrence) restent ouverts.
+- **Limites documentées** : un article attendu mais jamais scanné n'est pas marqué manquant ; le solde est corrigé depuis l'état courant de l'article alors que le journal d'ajustement suit l'écart figé (divergence possible si l'article bouge entre l'ouverture et la clôture) ; les filtres des lignes restent absents ; `P1-14` (concurrence) reste ouvert et `P0-01` est devenu un écart accepté (mono-entreprise, 24 octobre 2026).
 
 ---
 
@@ -573,9 +577,10 @@ Aucune colonne, table ou ligne existante n'est modifiée ou supprimée ; aucun `
 corriger une anomalie hors périmètre, et ont été traitées comme telles avec
 l'accord du demandeur :
 
-- **tenancy A/B non testée** : `P0-01` n'étant pas corrigé, `ItemDAOImpl` lit
-  toujours `security.item` sans filtre `company_id` ; un test « A ne voit pas B »
-  serait rouge par construction. Il est différé avec la correction de `P0-01`.
+- **tenancy A/B hors périmètre** : le produit est mono-entreprise par décision
+  (24 octobre 2026) et `P0-01` est un écart accepté ; un test « A ne voit pas B »
+  reste documenté comme spécification de reprise et serait rouge par
+  construction aujourd'hui.
 - **idempotence non testée** : `P1-14` (`Idempotency-Key`, `If-Match`) n'étant
   pas implémenté, les tests de concurrence figent le comportement actuel
   (une écriture, un `409` pour la perdante) et non une garantie d'idempotence.
@@ -616,7 +621,7 @@ dépendance.** Aucune migration, aucun reset de base.
 |---|---|---|
 | La suite tourne sur une base vide | **PARTIEL** | Les 16 tests du Lot 8 tournent sur une base initialisée depuis les scripts et ne dépendent que de leurs fixtures ; les suites QR, comptage, contrat HTTP et conformité de schéma supposent encore les données de démonstration. |
 | Aucun test ignoré silencieusement | **PASS** | Aucun `@Disabled` ni `Assumptions` dans `src/test` ; étape CI « Fail on skipped tests ». |
-| Un test échoue si la tenancy est cassée | **DIFFÉRÉ** | Impossible sans corriger `P0-01` ; documenté comme limite. |
+| Un test échoue si la tenancy est cassée | **N/A** | Mono-entreprise par conception (décision du 24 octobre 2026) ; un test A/B reste documenté comme spécification de reprise et serait rouge par construction. |
 | Un test échoue si une transaction partielle est possible | **PASS** | `StockMovementConsistencyApiTests` : stock insuffisant, aucun mouvement, aucune affectation, solde inchangé et jamais négatif. |
 | Un test échoue si un retour laisse l'article `ASSIGNED` | **PASS** | Les deux classes d'affectation et de mouvement vérifient statut, entrepôt, solde et absence d'affectation active. |
 | Le pipeline est bloquant sur `main` | **PARTIEL** | Les tests et le lint sont bloquants dans le workflow ; la protection de branche n'est pas vérifiable depuis le dépôt. |
@@ -637,7 +642,7 @@ Ce lot ne commence pas le frontend. Il produit les éléments nécessaires pour 
 - pagination et filtres ;
 - maquettes de scan et d'étiquette ;
 - critères d'acceptation du rapport 15 ;
-- jeu de données de démonstration multi-entreprise — **reporté au Lot 9** (voir l'exécution ci-dessous : le jeu reste mono-entreprise tant que `P0-01` n'est pas corrigé).
+- jeu de données de démonstration mono-entreprise — le multi-entreprise est **hors périmètre** depuis la décision du 24 octobre 2026 (voir l'exécution ci-dessous).
 
 ### Exécution (23 octobre 2026)
 
@@ -645,8 +650,8 @@ Ce lot ne commence pas le frontend. Il produit les éléments nécessaires pour 
 limite à ses livrables documentaires et à la validation du contrat ; il ne
 débloque pas la production.
 
-**Décisions appliquées :** le jeu de démonstration reste **mono-entreprise** ; le
-multi-entreprise est reporté tant que `P0-01` n'est pas corrigé. Le stockage des
+**Décisions appliquées :** le jeu de démonstration est **mono-entreprise** ; le
+multi-entreprise est hors périmètre depuis la décision du 24 octobre 2026. Le stockage des
 jetons retenu pour le web est **access token en mémoire + refresh token en
 `localStorage`**. Le verdict est **No-Go production, Go démonstration
 mono-entreprise**.
@@ -666,7 +671,8 @@ mono-entreprise**.
 - `docs/frontend/05-criteres-acceptation.md` : portes Go/No-Go, critères par
   écran, recettes minimales et blocages production ;
 - `docs/frontend/06-donnees-demonstration.md` : jeu mono-entreprise existant,
-  comptes, parcours, anomalies de données et prérequis du multi-entreprise.
+  comptes, parcours, anomalies de données et prérequis d'une deuxième entreprise
+  (hors périmètre depuis la décision du 24 octobre 2026).
 
 **Contrat OpenAPI :** ajout de
 `docs/api/11_inventory/stock_balance-openapi.yaml`, qui documente
@@ -687,8 +693,8 @@ migration n'a été appliquée et aucune base n'a été réinitialisée.
 
 Le frontend de production peut démarrer seulement si :
 
-- les P0 du rapport 12 sont fermés ;
-- les tests de tenancy et RBAC passent ;
+- les P0 bloquants du rapport 12 sont fermés (`P0-01` étant un écart accepté mono-entreprise) ;
+- le RBAC métier est couvert (la tenancy est hors périmètre) ;
 - le stock est défini et testé ;
 - les affectations ont une seule API ;
 - le scan QR est enrichi et tenant-scoped ;
@@ -713,7 +719,7 @@ L0 Décisions
 
 ### Pourquoi cet ordre ?
 
-- Corriger le stock avant la tenancy créerait des agrégats faux par entreprise.
+- Corriger le stock avant la tenancy créait le risque d'agrégats faux par entreprise ; la décision mono-entreprise du 24 octobre 2026 supprime cette dépendance.
 - Corriger les affectations avant les transactions laisserait des états partiels.
 - Construire le scan avant le stock et les affectations donnerait une interface sans action fiable.
 - Construire le frontend avant le contrat ferait porter la dette à l'interface.
@@ -752,7 +758,7 @@ Une correction n'est terminée que si :
 - le comportement est spécifié ;
 - le code est revu ;
 - les tests couvrent le cas nominal et les cas d'erreur ;
-- la tenancy est testée ;
+- le périmètre mono-entreprise est respecté (aucune donnée d'une deuxième entreprise) ;
 - la transaction est testée ;
 - les erreurs sont stables ;
 - l'OpenAPI est à jour ;
@@ -766,7 +772,7 @@ Une correction n'est terminée que si :
 ## 16. Ce qui ne doit pas être fait maintenant
 
 - Commencer les écrans avant les P0.
-- Ajouter des endpoints sans corriger la tenancy.
+- Ajouter des endpoints ou des données appartenant à une deuxième entreprise.
 - Optimiser le N+1 avant de choisir le modèle de stock.
 - Supprimer les anciennes routes avant d'avoir une période de compatibilité.
 - Ajouter un PDF d'étiquette avant de stabiliser le code QR.

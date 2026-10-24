@@ -2,11 +2,12 @@
 
 ## 1. Périmètre retenu
 
-**Une seule entreprise : `SSSM Madagascar`.** Le jeu multi-entreprise demandé par
-le plan du Lot 9 est **reporté** : `P0-01` n'est pas corrigé, les DAO
-d'inventaire ne filtrent pas par `company_id`. Ajouter une deuxième entreprise
-maintenant exposerait ses articles, entrepôts et mouvements à tous les
-utilisateurs authentifiés.
+**Une seule entreprise : `SSSM Madagascar`.** Le déploiement est **mono-entreprise
+par conception** (décision du 24 octobre 2026) : le jeu multi-entreprise est
+**hors périmètre**, pas reporté. Les DAO d'inventaire ne filtrent pas par
+`company_id` (`P0-01`, écart accepté) : ajouter une deuxième entreprise
+exposerait ses articles, entrepôts et mouvements à tous les utilisateurs
+authentifiés.
 
 Aucune donnée de démonstration n'est modifiée au Lot 9.
 
@@ -116,9 +117,10 @@ psql -d sssm_front_demo -f docs/database/mock_data/sssm_mock_data.sql
 
 Aucun reset n'est exécuté par le Lot 9.
 
-## 7. Prérequis du jeu multi-entreprise (différé)
+## 7. Prérequis si une deuxième entreprise était admise (hors périmètre)
 
-Avant d'ajouter une entreprise B, il faut :
+Le mono-entreprise est une décision produit ; ce chapitre est conservé comme
+spécification de reprise. Avant d'ajouter une entreprise B, il faudrait :
 
 1. corriger `P0-01` : filtrer chaque lecture et écriture d'inventaire par le
    `company_id` du jeton, et refuser les références croisées ;
@@ -127,5 +129,5 @@ Avant d'ajouter une entreprise B, il faut :
 4. définir des comptes et des données B sans collision de QR code ;
 5. documenter la procédure de chargement et de nettoyage.
 
-Tant que ces points ne sont pas faits, le frontend doit rester sur une seule
-entreprise et aucun écran ne doit proposer de sélection d'entreprise.
+Tant que ces points ne sont pas faits, le frontend reste sur une seule entreprise
+et aucun écran ne doit proposer de sélection ou de création d'entreprise.

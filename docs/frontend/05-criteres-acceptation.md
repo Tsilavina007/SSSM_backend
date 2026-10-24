@@ -3,12 +3,18 @@
 **Décision du 23 octobre 2026 :** No-Go pour la production, Go pour une
 démonstration **mono-entreprise** en lecture et CRUD encadré.
 
+**Mise à jour du 24 octobre 2026 — mono-entreprise par conception :** le backend
+exploite une seule entreprise. Les portes `G0-1` et `G0-2` sont `N/A` (et non
+`FAIL`), `FE-11`/`FE-12` aussi, et l'isolation A/B sort des blocages de
+production. Le No-Go production subsiste pour le login `400` (`A-02`, `A-03`),
+l'absence de rate limit sur login/refresh (`A-18`) et l'idempotence (`P1-14`).
+
 ## 1. Portes Go/No-Go backend
 
 | Porte | Critère | Statut | Conséquence frontend |
 |---|---|---|---|
-| `G0-1` | A ne peut pas lire les données de B | **FAIL** | Aucune donnée d'une deuxième entreprise ne doit être chargée |
-| `G0-2` | A ne peut pas écrire dans B | **FAIL** | Pas de saisie multi-entreprise |
+| `G0-1` | A ne peut pas lire les données de B | **N/A** | Mono-entreprise : aucune donnée d'une deuxième entreprise ne doit exister |
+| `G0-2` | A ne peut pas écrire dans B | **N/A** | Pas de saisie multi-entreprise |
 | `G0-3` | Compte sans entreprise/rôle bloqué | **PARTIEL** | L'admin plateforme reste autorisé par conception |
 | `G0-4` | Écritures multi-lignes atomiques | **PASS** | Opérations, affectations et comptages fiables |
 | `G0-5` | Source de vérité du stock | **PASS** | Les soldes peuvent être affichés |
@@ -167,13 +173,13 @@ Recette minimale :
 | ID | Critère d'acceptation | Statut backend |
 |---|---|---|
 | FE-10 | Dashboard avec stock réel | **PARTIEL** |
-| FE-11 | Dashboard tenant-scoped | **FAIL** |
+| FE-11 | Dashboard tenant-scoped | **N/A** : global par conception en mono-entreprise |
 | STK-18 | Seuil low-stock par entrepôt | **PASS** |
-| FE-12 | Écrans multi-entreprise | **FAIL** |
+| FE-12 | Écrans multi-entreprise | **N/A** : hors périmètre |
 
-Le low-stock lit `stock_balance` et le seuil effectif, mais les deux routes
-dashboard restent globales. En démonstration mono-entreprise, les afficher avec
-une mention « données globales » ; en production, les désactiver.
+Le low-stock lit `stock_balance` et le seuil effectif ; les deux routes dashboard
+sont globales, ce qui correspond au déploiement mono-entreprise. Elles peuvent
+être affichées en production sans mention de cloisonnement.
 
 ## 3. Définition de « prêt pour la démonstration »
 
@@ -190,21 +196,22 @@ La démonstration est acceptée si :
 - [ ] les écrans de stock, d'affectation et de comptage sont testés sur les
       scénarios ci-dessus ;
 - [ ] le scan et l'étiquette fonctionnent avec un jeton et sans lien partageable ;
-- [ ] le `traceId` est visible sur les erreurs 5xx ;
-- [ ] le dashboard porte une mention explicite sur son absence de cloisonnement.
+- [ ] le `traceId` est visible sur les erreurs 5xx.
 
 ## 4. Blocages pour la production
 
 | Blocage | Critère | Correction attendue |
 |---|---|---|
-| Isolation multi-entreprise | `G0-1`, `G0-2`, `T-01` à `T-11` | Filtres `company_id` dans les DAO, FK composites ou RLS |
 | Concurrence | `API-10`, `API-11`, `NFR-12` | `version`/`If-Match`, `Idempotency-Key` |
 | RBAC hors inventaire | `A-08`, `P0-02` | Permissions sur organisation, personnel, clients, sites |
 | Login 400 | `A-02`, `A-03` | `401`/`403` distincts |
-| Dashboard global | `FE-11` | Agrégats par entreprise |
+| Rate limit login/refresh | `A-18` | Limitation de débit sur les routes d'authentification (limiteur partagé) |
 | Filtres d'écran | `API-15` | Paramètres serveur et index |
 | Étiquette PDF | `FE-09` | Génération serveur ou impression HTML validée |
-| Rate limit login | `A-18` | Limiteur partagé |
 
-Aucun de ces points n'est corrigé au Lot 9 : le frontend de production reste
-interdit jusqu'à leur fermeture.
+**Hors blocage depuis le 24 octobre 2026 :** l'isolation multi-entreprise
+(`G0-1`, `G0-2`, `T-01` à `T-11`, `FE-11`, `FE-12`) et le dashboard global. Ces
+points redeviennent bloquants si une deuxième entreprise est admise.
+
+Aucun de ces points n'est corrigé à ce jour (Lots 8 et 9 inclus) : le frontend de
+production reste interdit jusqu'à leur fermeture.

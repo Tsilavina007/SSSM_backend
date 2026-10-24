@@ -10,7 +10,7 @@ La suite exécutée le 22 octobre 2026 après le Lot 4 comptait **150 tests dans
 
 **Mise à jour du 23 octobre 2026 (Lots 5 à 7) :** la suite compte désormais **8 classes et 58 tests**. Trois contrats métier s'y ajoutent : le scan QR (13 tests et 4 tests de limiteur, Lot 5), les comptages (10 tests, Lot 6) et le contrat HTTP (9 tests, Lot 7 : versionnement, Problem Details, pagination, `Location`, dates UTC, historique 404). Les tests de conformité de schéma restent à 20 tests. Le reste des constats (tenancy générale, concurrence, matrice RBAC, base isolée par test) reste ouvert.
 
-**Mise à jour du 24 octobre 2026 (Lot 8) :** la suite compte désormais **13 classes et 74 tests**, exécutés sur une base dédiée initialisée depuis les scripts. Seize tests couvrent les affectations, la cohérence mouvement/stock, la concurrence, l'échec de login et la latence d'une liste de 1 000 articles ; ils créent leurs propres fixtures et ne dépendent plus des données de démonstration. La tenancy A/B et l'idempotence restent non testées, faute de correctif (`P0-01`, `P1-14`). Détail en [1.7](#17-état-après-le-lot-8-24-octobre-2026).
+**Mise à jour du 24 octobre 2026 (Lot 8) :** la suite compte désormais **13 classes et 74 tests**, exécutés sur une base dédiée initialisée depuis les scripts. Seize tests couvrent les affectations, la cohérence mouvement/stock, la concurrence, l'échec de login et la latence d'une liste de 1 000 articles ; ils créent leurs propres fixtures et ne dépendent plus des données de démonstration. La tenancy A/B est hors périmètre (mono-entreprise par conception, `P0-01` écart accepté) ; l'idempotence reste non testée (`P1-14`). Détail en [1.7](#17-état-après-le-lot-8-24-octobre-2026).
 
 ---
 
@@ -197,7 +197,7 @@ La suite de conformité s'exécute sur la base de démonstration et n'y écrit q
 
 **Ce que ces tests ne prouvent toujours pas :**
 
-- la tenancy A/B : chaque fixture ne contient qu'une entreprise, et `ItemDAOImpl.getAllItems` lit toujours `security.item` sans filtre `company_id` (`P0-01`) ; un test A/B serait rouge par construction ;
+- la tenancy A/B : hors périmètre par la décision mono-entreprise du 24 octobre 2026 ; `ItemDAOImpl.getAllItems` lit toujours sans filtre `company_id` (`P0-01`, écart accepté) et un test A/B serait rouge par construction ;
 - l'idempotence HTTP : `Idempotency-Key` et `If-Match`/`ETag` restent absents (`P1-14`) ; les tests figent le comportement actuel (refus en `409`), pas une garantie d'idempotence ;
 - le RBAC : les nouveaux tests utilisent un jeton `ADMIN` synthétique, comme les suites antérieures ;
 - la mise à jour concurrente d'un article, qui reste non versionnée ;
@@ -449,7 +449,7 @@ Ils prouvent :
 
 Ils ne prouvent pas :
 
-- l'isolation multi-entreprise complète (DAO d'inventaire non filtrés) ;
+- l'isolation multi-entreprise complète (DAO d'inventaire non filtrés) — hors périmètre depuis la décision mono-entreprise du 24 octobre 2026 ;
 - le contrôle d'accès métier sur les modules hors inventaire ;
 - la fiabilité du stock ;
 - la cohérence des affectations ;
@@ -479,14 +479,14 @@ Ses limites sont cependant structurantes :
 - dépendance aux données de démonstration pour les suites antérieures au Lot 8 ;
 - tests RBAC et scope entreprise présents, mais pas de scénario à deux entreprises réelles ;
 - aucun seuil de couverture ;
-- depuis le Lot 8 : 16 tests autonomes couvrent affectations, cohérence du stock, concurrence, échec de login et latence, et le CI échoue sur un test ignoré ; la tenancy générale, la matrice RBAC et l'idempotence restent non testées (`P0-01`, `P1-13`, `P1-14`) ; l'historique article est couvert (`P1-12` corrigé).
+- depuis le Lot 8 : 16 tests autonomes couvrent affectations, cohérence du stock, concurrence, échec de login et latence, et le CI échoue sur un test ignoré ; la matrice RBAC et l'idempotence restent non testées (`P1-13`, `P1-14`), la tenancy étant hors périmètre (mono-entreprise) ; l'historique article est couvert (`P1-12` corrigé).
 
 Une suite verte localement ou en CI ne signifie donc pas :
 
 - que la suite passera sur une base réellement vide ;
 - qu'elle passera en parallèle ;
 - qu'elle passera sans données de démonstration ;
-- qu'elle détectera une régression de tenancy ou de stock.
+- qu'elle détectera une régression de stock.
 
 ---
 
@@ -494,7 +494,7 @@ Une suite verte localement ou en CI ne signifie donc pas :
 
 Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté les tests RBAC, scope entreprise et révocation ; le reste doit être planifié. Le workflow CI existant est un bon point de départ ; il doit être conservé et étendu, pas remplacé.
 
-**État au 24 octobre 2026 (Lot 8) :** les points 2, 6 et 11 sont traités (fixtures explicites, concurrence, latence) et le point 5 est complété par un test de rollback de mouvement ; le point 12 est partiellement traité (login en échec, compte inactif). Les points 1 (Testcontainers), 3 (tenancy A/B), 4 (matrice RBAC complète) et un seuil de couverture restent ouverts.
+**État au 24 octobre 2026 (Lot 8) :** les points 2, 6 et 11 sont traités (fixtures explicites, concurrence, latence) et le point 5 est complété par un test de rollback de mouvement ; le point 12 est partiellement traité (login en échec, compte inactif). Les points 1 (Testcontainers), 4 (matrice RBAC complète) et un seuil de couverture restent ouverts ; le point 3 (tenancy A/B) est hors périmètre par la décision mono-entreprise.
 
 1. **Testcontainers PostgreSQL** pour une base isolée et reproductible.
 2. **Fixtures explicites** : créer l'entreprise A et B, les utilisateurs, les rôles, les articles.
@@ -517,7 +517,7 @@ La suite qui précédait la réduction était **nombreuse pour un prototype** et
 
 **La suite actuelle (58 tests, 8 suites) ne couvre que des périmètres ciblés.** Elle contrôle la conformité du schéma à l'application, les contrats QR, comptage et HTTP ; elle ne couvre ni la tenancy générale, ni la concurrence, ni la matrice RBAC, ni l'archivage. C'est un filet de sécurité sur les migrations et trois contrats, pas une preuve de bon fonctionnement : le rapport 15 doit être relu en conséquence, et `P1-13` reste ouvert avec un niveau de gravité plus élevé qu'avant.
 
-**Après le Lot 8 (24 octobre 2026), la suite compte 74 tests dans 13 classes**, tous verts sur une base dédiée initialisée depuis les scripts. Elle couvre en plus le cycle de vie des affectations, la cohérence mouvement/stock/affectation, trois courses concurrentes, l'échec de login et la latence d'une liste de 1 000 articles ; ces 16 tests créent et suppriment leurs propres fixtures, sans dépendre des données de démonstration. Le CI échoue désormais si un test est ignoré. La suite reste **insuffisante comme preuve de production** : la tenancy A/B n'est pas testée (`P0-01` non corrigé), l'idempotence HTTP reste absente (`P1-14`), le RBAC des nouveaux tests repose sur un jeton `ADMIN` synthétique et aucun seuil de couverture n'est mesuré. `P1-13` passe de « non probante » à **partiellement corrigée**, avec un score de risque ramené de 25 à 15.
+**Après le Lot 8 (24 octobre 2026), la suite compte 74 tests dans 13 classes**, tous verts sur une base dédiée initialisée depuis les scripts. Elle couvre en plus le cycle de vie des affectations, la cohérence mouvement/stock/affectation, trois courses concurrentes, l'échec de login et la latence d'une liste de 1 000 articles ; ces 16 tests créent et suppriment leurs propres fixtures, sans dépendre des données de démonstration. Le CI échoue désormais si un test est ignoré. La suite reste **insuffisante comme preuve de production** : la tenancy A/B est hors périmètre (mono-entreprise, `P0-01` écart accepté), l'idempotence HTTP reste absente (`P1-14`), le RBAC des nouveaux tests repose sur un jeton `ADMIN` synthétique et aucun seuil de couverture n'est mesuré. `P1-13` passe de « non probante » à **partiellement corrigée**, avec un score de risque ramené de 25 à 15.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 
@@ -525,7 +525,7 @@ Ils ne sont pas encore **fiables comme garde-fou de production** :
 - ils ignorent silencieusement les cas non préparés ;
 - une grande partie des tests métier historiques utilise encore un jeton `ADMIN` synthétique ;
 - ils figent des comportements douteux ;
-- ils ne couvrent pas encore la tenancy complète, les transactions, la concurrence, le stock ou la réconciliation ;
+- ils ne couvrent pas encore la concurrence complète ni l'idempotence (la tenancy est hors périmètre depuis le 24 octobre 2026) ;
 - une divergence code/test est confirmée sur l'historique d'article.
 
-La priorité n'est pas d'augmenter le nombre de tests, mais de passer à une **isolation par test** (Testcontainers ou rollback), avec des **fixtures explicites** et des **scénarios de tenancy/stock/transaction**. Les critères sont dans le rapport 15.
+La priorité n'est pas d'augmenter le nombre de tests, mais de passer à une **isolation par test** (Testcontainers ou rollback), avec des **fixtures explicites** et des **scénarios de stock, transaction et concurrence**. Les critères sont dans le rapport 15.

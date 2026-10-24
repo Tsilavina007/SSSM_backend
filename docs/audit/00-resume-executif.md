@@ -2,7 +2,7 @@
 
 **Date :** 21 octobre 2026, mise à jour du 24 octobre 2026 (Lots 2 à 9)
 **Verdict global :** **NON PRÊT POUR LA PRODUCTION**  
-**Nuance :** **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, avec un stock calculé pour les flux mouvement/opération/comptage un cycle de vie des affectations unifié et des comptages réconciliés, mais sans tenancy complète ni concurrence maîtrisée.
+**Nuance :** **PARTIELLEMENT PRÊT** pour un déploiement mono-entreprise — **choix de conception acté le 24 octobre 2026** —, en lecture et CRUD encadré, avec un stock calculé pour les flux mouvement/opération/comptage, un cycle de vie des affectations unifié et des comptages réconciliés ; concurrence et idempotence restent non maîtrisées.
 
 **Mise à jour du 21 octobre 2026 (Lot 1) :** inscription publique fermée, comptes créés par un administrateur ; entreprise et permissions dans le JWT ; refresh distinct, rotatif et révocable ; logout ; RBAC sur l'inventaire et l'administration ; scope entreprise sur les utilisateurs et rôles ; CORS explicite. **P0-03 est corrigé**, **P0-02 est partiel** (RBAC non étendu aux modules hors inventaire) et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Les autres P0 restent ouverts.
 
@@ -18,22 +18,24 @@
 
 **Mise à jour du 23 octobre 2026 (Lot 7) :** les 28 contrôleurs exposent `/api/v1` ; l'alias `/api` reste accepté et porte `Deprecation`/`Link`. Les erreurs sont des **Problem Details RFC 9457** (`application/problem+json`) avec `code`, `traceId` et `timestamp` ; les validations ajoutent `errors[]`. Les listes d'inventaire renvoient **`PageResponse`** avec `total` et `pageSize` plafonné à 500. Les créations renvoient **201 + `Location`**, toutes les suppressions **204**, les dates sont **ISO-8601 UTC**. L'historique article renvoie 404 s'il est inconnu, est paginé et filtré : **P1-12 est corrigé**. **P2-02 est corrigé pour l'inventaire** et **P2-03 est corrigé** (versionnement, dates ; libellés d'enums partiels). Suite complète : **58 tests, 0 échec, 0 erreur, 0 ignoré, 8 suites**. Aucune migration SQL. `API-10` (`Idempotency-Key`) et `API-11` (`If-Match`/ETag) restent différés ; `P1-08` (N+1), `API-02` hors inventaire et `API-15` (filtres) restent partiels.
 
-**Mise à jour du 24 octobre 2026 (Lot 8) :** la suite passe à **74 tests dans 13 classes**, tous verts, exécutés sur une base dédiée (`sssm_lot8_it`) initialisée depuis les scripts. Seize tests autonomes couvrent le cycle de vie des affectations, la cohérence mouvement/stock/affectation (rollback complet sur stock insuffisant), trois courses concurrentes, l'échec de login et la latence d'une page de 50 sur 1 000 articles (médiane **149 à 222 ms** selon l'exécution, max 318 ms). Les tests créent et suppriment leurs propres fixtures ; le CI échoue désormais si un test est ignoré. **`P1-13` passe à partiellement corrigé** (score 15) et **`P2-06` aussi**. La tenancy A/B n'est pas testée (`P0-01`), l'idempotence reste absente (`P1-14`) et aucun seuil de couverture n'est mesuré. Aucun changement de code applicatif, de schéma, de donnée ou de dépendance ; aucune migration.
+**Décision du 24 octobre 2026 — déploiement mono-entreprise :** le produit est exploité pour **une seule entreprise**. L'isolation entre entreprises sort du périmètre : `P0-01` devient un **écart accepté** (score résiduel 5 au lieu de 25), les critères de tenancy du rapport 15 passent en `N/A` et `G0-1`/`G0-2` ne bloquent plus la production. Les colonnes `company_id`, le claim JWT et le scope entreprise des utilisateurs et rôles sont conservés, sans valeur d'isolation. **Condition de réversibilité :** admettre une deuxième entreprise exige la correction préalable de `P0-01` (filtres, FK composites ou RLS, tests A/B). **Aucun changement de code, de schéma ou de donnée** n'accompagne cette décision.
+
+**Mise à jour du 24 octobre 2026 (Lot 8) :** la suite passe à **74 tests dans 13 classes**, tous verts, exécutés sur une base dédiée (`sssm_lot8_it`) initialisée depuis les scripts. Seize tests autonomes couvrent le cycle de vie des affectations, la cohérence mouvement/stock/affectation (rollback complet sur stock insuffisant), trois courses concurrentes, l'échec de login et la latence d'une page de 50 sur 1 000 articles (médiane **149 à 222 ms** selon l'exécution, max 318 ms). Les tests créent et suppriment leurs propres fixtures ; le CI échoue désormais si un test est ignoré. **`P1-13` passe à partiellement corrigé** (score 15) et **`P2-06` aussi**. La tenancy A/B est hors périmètre (mono-entreprise, `P0-01` écart accepté), l'idempotence reste absente (`P1-14`) et aucun seuil de couverture n'est mesuré. Aucun changement de code applicatif, de schéma, de donnée ou de dépendance ; aucune migration.
 
 ---
 
 ## 1. Décision
 
-Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète comptait **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; elle a depuis été réduite puis reconstruite autour des contrats clés : **74 tests dans 13 classes au 24 octobre 2026** (schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence). Les comportements métier non couverts restent vérifiés par lecture de code, mais ne sont plus tous prouvés automatiquement.
+Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète comptait **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; elle a depuis été réduite puis reconstruite autour des contrats clés : **74 tests dans 13 classes au 24 octobre 2026** (schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence). Les comportements métier non couverts restent vérifiés par lecture de code, mais ne sont plus tous prouvés automatiquement. Le déploiement cible est **mono-entreprise par conception** (décision du 24 octobre 2026).
 
 En revanche, quatre garanties fondamentales restent incomplètes :
 
-1. **Isolation mono-entreprise seulement.** Les colonnes `company_id` ont été ajoutées et backfillées, mais les requêtes d'inventaire ne filtrent pas encore par entreprise ; l'entreprise est fournie dans le corps de la requête ou déduite d'un objet chargé globalement. Aucune seconde entreprise ne doit être exposée tant que ce filtrage n'est pas fait.
+1. **Mono-entreprise assumé, pas isolé techniquement.** Le produit est déployé pour une seule entreprise (décision du 24 octobre 2026). Les colonnes `company_id` ont été ajoutées et backfillées, mais les requêtes d'inventaire ne filtrent pas par entreprise et l'entreprise des écritures vient du corps de la requête : c'est sans effet tant qu'une seule entreprise existe. Une deuxième entreprise ne doit pas être admise avant correction (`P0-01`).
 2. **RBAC partiel.** L'inscription publique est fermée et l'inventaire, les utilisateurs, les rôles et le catalogue des permissions sont protégés. Les modules organisation, personnel, clients et sites restent seulement `authenticated`, sans permission métier.
 3. **Transactions rétablies, concurrence non traitée.** Les DAO utilisent une connexion transactionnelle issue du pool Spring/HikariCP ; les annotations `@Transactional` couvrent les écritures des services existants, y compris les opérations multi-lignes du Lot 3 et les affectations du Lot 4. Il reste à traiter la concurrence (version/`If-Match`, idempotence).
 4. **Stock calculé, mais pas encore universel.** `stock_balance` est la source du stock disponible et le dashboard low-stock lit ce solde. `item_type.quantity_total` existe encore pour compatibilité mais n'est plus le critère. Les affectations sont désormais synchronisées avec le solde ; depuis le Lot 6, chaque écart de comptage non nul produit un mouvement `ADJUSTMENT`, mais les lignes de mouvement antérieures au Lot 3 restent incomplètes.
 
-Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, avec des données contrôlées et un utilisateur de confiance. Il ne peut pas être exposé à plusieurs entreprises, à des utilisateurs non administrés ou à des décisions de stock sans corrections préalables.
+Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, avec des données contrôlées et un utilisateur de confiance. Il ne doit pas être exposé à une deuxième entreprise, ni à des utilisateurs non administrés, tant que `P0-01` et le RBAC métier hors inventaire ne sont pas traités.
 
 ---
 
@@ -43,7 +45,7 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 |---|---|---|---|
 | Authentification | **PARTIEL / DURCI** | Moyen | JWT avec `jti`/`iss`/`aud`/entreprise/permissions, refresh rotatif, logout et révocation. Restent rate limiting, verrouillage et statuts 401/403 du login. |
 | Autorisations / RBAC | **PARTIEL** | Élevé | RBAC sur inventaire, utilisateurs, rôles et permissions ; modules organisation/personnel/clients/sites encore seulement authentifiés. |
-| Isolation multi-entreprise | **PARTIEL — MONO-ENTREPRISE** | Critique | Colonnes et index ajoutés, scope entreprise sur utilisateurs/rôles ; DAO d'inventaire non filtrés. |
+| Mono-entreprise | **ASSUMÉ — DÉCISION** | Faible | Déploiement volontairement mono-entreprise (24 octobre 2026) ; colonnes `company_id` et claim JWT conservés mais DAO d'inventaire non filtrés : `P0-01` est un écart accepté, à corriger avant toute deuxième entreprise. |
 | Catalogue matériel | **PARTIEL** | Élevé | CRUD présent, création de type corrigée (défauts PostgreSQL), archivage logique et restauration des articles, catégories, types et entrepôts ; intégrité inter-entreprises non contrôlée. |
 | Stock / quantités | **CORRIGÉ — LOT 3** | Critique | `stock_balance` calculé et exposé ; dashboard low-stock sur le solde réel. Dette historique sur les lignes antérieures ; ajustements de comptage journalisés depuis le Lot 6. |
 | Mouvements | **CORRIGÉ — LOT 3** | Critique | Quantités, source/destination, opération et acteur exposés ; journal append-only ; stock négatif refusé. |
@@ -53,7 +55,7 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Comptages d'inventaire | **CORRIGÉ — LOT 3** | Élevé | Quantité attendue figée, écart calculé serveur, clôture réconciliée avec `last_inventory_at`. Ajustements journalisés en mouvements `ADJUSTMENT` depuis le Lot 6. |
 | Contrat API | **CORRIGÉ — LOT 7** | Élevé | `/api/v1` et alias déprécié, Problem Details, `PageResponse` sur l'inventaire, `Location`, 204, dates UTC, historique 404/paginé. Restent l'idempotence/ETag et la pagination hors inventaire. |
 | Performance | **PARTIEL** | Élevé | Pool HikariCP utilisé par les DAO ; plafond `pageSize` et pagination en place sur l'inventaire ; chaîne N+1 sur chaque article toujours ouverte. |
-| Tests | **PARTIEL — RECONSTRUIT ET ÉTENDU** | Moyen | 74 tests dans 13 classes au 24 octobre 2026 (schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence) ; fixtures autonomes et base dédiée. La tenancy A/B et l'idempotence restent non testées. |
+| Tests | **PARTIEL — RECONSTRUIT ET ÉTENDU** | Moyen | 74 tests dans 13 classes au 24 octobre 2026 (schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence) ; fixtures autonomes et base dédiée. L'idempotence reste non testée ; la tenancy A/B est hors périmètre (mono-entreprise). |
 | Documentation OpenAPI | **PARTIEL** | Moyen | 28 fichiers alignés sur `/api/v1`, dont la spec des soldes ajoutée au Lot 9 ; `Problem` RFC 9457 unique et `Page*` ; `ItemError` retiré des erreurs globales et `Location` documenté sur les 201. Validation 0 erreur de parsing / 0 `$ref` orphelin ; lint Redocly 0 erreur, 175 avertissements. Restent les exemples et les `license`. |
 
 ---
@@ -63,11 +65,11 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 ### 3.1. Peut-on démarrer le frontend web maintenant ?
 
 **Non, pas pour un frontend de production.**  
-Un frontend de démonstration peut consommer le catalogue, les articles, les QR Codes et les listes en lecture. Il ne doit pas exposer des écrans de stock, d'affectation ou d'administration multi-entreprise tant que les garanties de tenancy, de concurrence et de stock ne sont pas posées.
+Un frontend de démonstration peut consommer le catalogue, les articles, les QR Codes et les listes en lecture. Il ne doit pas exposer d'écrans d'administration d'une deuxième entreprise, et la concurrence/idempotence reste à sécuriser avant un usage intensif.
 
 ### 3.2. Peut-on démarrer l'application mobile maintenant ?
 
-**Pas pour la production, mais un prototype mono-entreprise est possible.** Le scan QR est enrichi (type, catégorie, entrepôt, affectation active, détenteur, poste), tenant-scoped, journalisé et limité en débit. Il reste bloqué par la tenancy générale (`P0-01`), l'absence d'idempotence (`P1-14`) et l'absence de contrat de synchronisation hors ligne. Le parcours de scan et d'étiquette est décrit dans `docs/frontend/04-parcours-scan-etiquettes.md`.
+**Pas pour la production, mais un prototype mono-entreprise est possible.** Le scan QR est enrichi (type, catégorie, entrepôt, affectation active, détenteur, poste), tenant-scoped, journalisé et limité en débit. Il reste bloqué par l'absence d'idempotence (`P1-14`) et l'absence de contrat de synchronisation hors ligne ; la tenancy est hors périmètre par la décision mono-entreprise du 24 octobre 2026 (`P0-01`, écart accepté). Le parcours de scan et d'étiquette est décrit dans `docs/frontend/04-parcours-scan-etiquettes.md`.
 
 ### 3.3. La génération et la lecture des QR Codes sont-elles prêtes ?
 
@@ -80,7 +82,7 @@ Un frontend de démonstration peut consommer le catalogue, les articles, les QR 
 - Code QR immuable après création (décision D-05).
 - Étiquette et planche HTML de 100 articles, imprimables depuis le navigateur.
 
-Limites : pas de PDF généré par le serveur, pas de file d'impression, pas de politique de rétention du journal, limiteur en mémoire non partagé entre instances et contrôle `company_id` non généralisé aux autres modules (`P0-01`).
+Limites : pas de PDF généré par le serveur, pas de file d'impression, pas de politique de rétention du journal, limiteur en mémoire non partagé entre instances et contrôle `company_id` non généralisé aux autres modules (`P0-01`, sans effet en mono-entreprise).
 
 ### 3.4. Les mouvements de stock sont-ils fiables ?
 
@@ -92,7 +94,7 @@ Restent des limites : les lignes de mouvement antérieures au Lot 3 n'ont ni sou
 
 **Oui, dans le périmètre documenté (Lot 4).** Le contrat canonique est `/api/item-assignments` ; `/api/inventory/assignments` est une façade dépréciée qui délègue au même service, avec les mêmes DTO, les mêmes codes HTTP et des en-têtes `Deprecation`. Une affectation active exige un article `AVAILABLE` sans affectation active, le passe à `ASSIGNED`, vide son emplacement et synchronise le solde. `POST /{id}/return` clôt l'affectation, pose la date et l'acteur côté serveur, restaure l'entrepôt d'origine et l'article. Le void est motivé et audité, la suppression d'une affectation active renvoie 409, et les listes excluent les lignes voidées.
 
-Restent des limites : aucun contrôle d'employé actif, de cohérence d'entreprise ni de poste (`P0-01`) ; l'idempotence n'est pas implémentée (`P1-14`) ; les références vers un référentiel archivé ne sont pas toutes refusées ; une affectation active antérieure de la base de démonstration pointe vers un article `AVAILABLE` et n'a pas été corrigée automatiquement.
+Restent des limites : aucun contrôle d'employé actif ni de cohérence d'entreprise (`P0-01`, écart accepté mono-entreprise) ; l'idempotence n'est pas implémentée (`P1-14`) ; les références vers un référentiel archivé ne sont pas toutes refusées ; une affectation active antérieure de la base de démonstration pointe vers un article `AVAILABLE` et n'a pas été corrigée automatiquement.
 
 ### 3.6. Quelles sont les anomalies les plus critiques ?
 
@@ -109,9 +111,9 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 
 ### 3.7. Quelles sont les cinq actions à mener avant toute nouvelle phase ?
 
-**État après Lot 9 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés). `P0-01` (tenancy générale) et `P1-14` (concurrence, ETag/idempotence) restent ouverts. Le Lot 9 ne corrige aucun de ces points : il documente le contrat et les critères d'acceptation. Le Lot 8, exécuté le 24 octobre 2026, ajoute la couverture de test et le garde-fou CI mais ne corrige aucune de ces anomalies ; il ne débloque pas la production non plus.
+**État après Lot 9 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 est tranchée par la décision mono-entreprise du 24 octobre 2026 (filtres DAO d'inventaire non généralisés, `P0-01` en écart accepté). `P1-14` (concurrence, ETag/idempotence) reste ouvert. Le Lot 9 ne corrige aucun de ces points : il documente le contrat et les critères d'acceptation. Le Lot 8, exécuté le 24 octobre 2026, ajoute la couverture de test et le garde-fou CI mais ne corrige aucune de ces anomalies ; il ne débloque pas la production non plus.
 
-1. **Trancher le modèle de tenancy et le contrôle d'accès.**  
+1. **Trancher le modèle de tenancy et le contrôle d'accès — fait le 24 octobre 2026 (mono-entreprise par conception).**
    Décider si l'entreprise est un tenant strict, comment elle est portée par le jeton, et quelles permissions sont réellement appliquées. Fermer ou encadrer l'inscription publique. Tant que ce point n'est pas décidé, tout développement frontend reposera sur un contrat faux.
 
 2. **Rétablir des transactions et des connexions maîtrisées — fait au Lot 2.**  
@@ -121,7 +123,7 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
    `quantity`, `source_warehouse_id`, `destination_warehouse_id`, `operation_id` et `performed_by` sont exposés ; `stock_balance` est alimenté par les mouvements, opérations, articles et comptages. `PATCH`/`DELETE` sont interdits sur le journal. `quantity_total` existe encore pour compatibilité mais n'est plus le critère du dashboard low-stock. Les ajustements de comptage sont journalisés en mouvements `ADJUSTMENT` depuis le Lot 6 ; les affectations ne désynchronisent plus le solde depuis le Lot 4.
 
 4. **Unifier les machines à états — fait au Lot 4.**  
-   Une seule vérité pour l'affectation, le retour, la sortie et la restitution : contrat canonique `/api/item-assignments` avec façade dépréciée, retour serveur daté et journalisé, entrepôt d'origine restauré, void motivé et audité, aucune suppression d'historique actif, aucun `OUT` sans affectation, et archivage logique avec restauration des référentiels. Restent l'idempotence (`P1-14`) et la cohérence d'entreprise (`P0-01`).
+   Une seule vérité pour l'affectation, le retour, la sortie et la restitution : contrat canonique `/api/item-assignments` avec façade dépréciée, retour serveur daté et journalisé, entrepôt d'origine restauré, void motivé et audité, aucune suppression d'historique actif, aucun `OUT` sans affectation, et archivage logique avec restauration des référentiels. Restent l'idempotence (`P1-14`) ; la cohérence d'entreprise (`P0-01`) est un écart accepté mono-entreprise.
 
 5. **Définir le contrat mobile et QR avant de coder le mobile — fait au Lot 5.**  
    Résolution tenant-scoped, réponse enrichie, scan tracé, étiquette imprimable, actions idempotentes et gestion des conflits. Sans ce contrat, le mobile ne pourra pas être testé de bout en bout.
@@ -143,17 +145,16 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 - Enveloppe d'erreur homogène **Problem Details RFC 9457** (`application/problem+json`) avec `code` et `traceId`, et pagination `PageResponse` sur l'inventaire.
 - **74 tests** exécutés : 74 succès, 0 échec, 0 erreur, 0 ignoré, 13 classes (conformité schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence, démarrage).
 
-Ces acquis sont réels, mais ils ne compensent pas les garanties encore incomplètes : tenancy d'inventaire, RBAC métier hors inventaire et concurrence.
+Ces acquis sont réels, mais ils ne compensent pas les garanties encore incomplètes : RBAC métier hors inventaire et concurrence/idempotence. La tenancy est hors périmètre par décision (mono-entreprise).
 
 ---
 
 ## 5. Ce qui ne doit pas être exposé en l'état
 
-- Un écran d'administration multi-entreprise.
+- Une deuxième entreprise dans la même instance : le mono-entreprise est une décision d'exploitation, pas une isolation technique (`P0-01`).
 - Un parcours mobile de scan avec action directe.
 - Un portail public d'inscription (fermé au Lot 1).
 - Un tableau de bord de stock basé sur `quantity_total` (le dashboard lit désormais `stock_balance`).
-- Un écran d'administration multi-entreprise tant que les DAO d'inventaire ne filtrent pas par `company_id`.
 - Les routes organisation/personnel/clients/sites avec un simple compte authentifié, sans RBAC métier.
 - Un parcours de double soumission sur une affectation : l'idempotence (`P1-14`) n'est pas implémentée et un second retour reçoit 409.
 
@@ -209,7 +210,7 @@ Ces acquis sont réels, mais ils ne compensent pas les garanties encore incompl�
 
 Trois orientations ont été tranchées pour le Lot 1 :
 
-1. **Tenancy :** mono-entreprise assumée pour le runtime, avec colonnes et scope entreprise préparés pour la suite.
+1. **Tenancy :** mono-entreprise **par conception** (décision du 24 octobre 2026) ; colonnes `company_id`, claim JWT et scope entreprise conservés, correction de `P0-01` requise avant toute deuxième entreprise.
 2. **Accès :** RBAC par permission, inscription fermée, admin entreprise séparé de l'admin plateforme.
 3. **Stock :** journal de mouvements avec solde calculé (`D-01`), implémenté au Lot 3. Les affectations sont raccordées au solde depuis le Lot 4 et les ajustements de comptage sont journalisés depuis le Lot 6.
 

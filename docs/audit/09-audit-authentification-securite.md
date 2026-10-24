@@ -420,7 +420,7 @@ Le test de suite complet conserve un échec préexistant sur l'historique d'un a
 
 Après le Lot 1, l'authentification est **présente, durcie et testée** : BCrypt, JWT signé avec `iss`/`aud`/`jti`, entreprise et permissions dans le jeton, refresh distinct et rotatif, logout et révocation, rôles rechargés au refresh, inscription fermée, RBAC sur l'inventaire et l'administration, CORS explicite.
 
-Elle n'est pas encore **suffisante** pour une API multi-entreprise :
+Elle n'est pas encore **suffisante** pour une API multi-entreprise (périmètre hors décision depuis le 24 octobre 2026 : le produit est mono-entreprise) :
 
 - l'hypothèse mono-entreprise est retenue : les DAO d'inventaire ne filtrent pas par `company_id` ;
 - les routes organisation, personnel, clients et sites restent seulement `authenticated` ;

@@ -233,7 +233,7 @@ Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquiba
 
 | Dette | Preuve | Impact |
 |---|---|---|
-| Absence de couche de tenancy | Aucun filtre `company_id` dans les DAO d'inventaire | Fuite et mélange de données entre entreprises |
+| Absence de couche de tenancy | Aucun filtre `company_id` dans les DAO d'inventaire | Fuite et mélange de données entre entreprises ; **écart accepté depuis le 24 octobre 2026** (mono-entreprise par conception) |
 | Couplage statique au `DataSource` | `DatabaseConnection` statique | Tests et injection moins explicites, mais transactions effectives |
 | Code mort du module `assignment` | `AssignmentService`, `AssignmentDAOImpl` et DTO associés ne sont plus référencés (Lot 4) | Confusion de lecture ; à supprimer à la clôture de la dépréciation (D-07) |
 | DAO génériques à colonnes libres | `InventoryCountDAOImpl.save`, `OperationDAOImpl.save` | Contournement des DTO et des validations |

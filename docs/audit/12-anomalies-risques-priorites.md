@@ -31,6 +31,8 @@ La cotation est qualitative. Elle sert à ordonner les travaux, pas à produire 
 
 ## 2. Registre P0 — bloquants
 
+> `P0-01` fait exception depuis le 24 octobre 2026 : il est conservé dans ce registre pour la traçabilité, mais son statut est **écart accepté** tant que le déploiement reste mono-entreprise.
+
 ### P0-01 — Absence d'isolation multi-entreprise
 
 **Constat :** toutes les requêtes d'inventaire sont globales. Aucune ne filtre `company_id`. Le `company_id` des créations et modifications vient du client.
@@ -52,6 +54,8 @@ La cotation est qualitative. Elle sert à ordonner les travaux, pas à produire 
 **Références :** rapports 02, 03, 04, 09.
 
 **Statut au 21 octobre 2026 (Lot 1) : PARTIEL.** La décision D-02 retient le mono-entreprise pour le runtime. La migration `18_lot1_security.sql` ajoute `company_id` à `stock_movement`, `item_assignment` et `inventory_count_scan`, backfille les lignes existantes et ajoute les index. `app_user.company_id` est backfillé pour les comptes non-plateforme de l'unique entreprise. En revanche, les DAO d'inventaire ne filtrent pas encore par `company_id`, les FK/contraintes composites et le `NOT NULL` ne sont pas ajoutés, et aucune isolation multi-entreprise n'est garantie. Le risque est neutralisé uniquement tant que la base ne contient qu'une entreprise.
+
+**Statut au 24 octobre 2026 — ÉCART ACCEPTÉ PAR DÉCISION (mono-entreprise).** Le produit est déployé pour **une seule entreprise** : l'absence de filtre `company_id` n'est plus exploitable tant que cette condition est tenue. Le constat technique reste exact et documenté (`ItemDAOImpl.getAllItems` et les autres DAO d'inventaire lisent globalement, le `company_id` des écritures vient du client, aucune FK composite), mais il ne bloque plus la production. Les colonnes `company_id`, le claim JWT et le scope entreprise des utilisateurs et rôles restent en place : ils ne constituent pas une garantie d'isolation. **Score résiduel : 5** (impact 5, probabilité 1) contre 25 à l'audit. **Condition de réversibilité :** admettre une deuxième entreprise exige la correction préalable (filtres `company_id`, FK composites ou RLS, tests A/B) ; les critères de tenancy du rapport 15 repassent alors en `PASS`/`FAIL` bloquants. Décision enregistrée en D-02 du rapport 14.
 
 ---
 
@@ -383,7 +387,7 @@ L'ancien test `ItemApiTests.historyUnknownReturnsNotFound` attendait 404 ; il a 
 
 **Statut au 23 octobre 2026 (Lots 5 à 7) : AGGRAVÉ, PARTIELLEMENT ATTÉNUÉ.** La suite fonctionnelle de 150 tests reste remplacée par des tests ciblés : **8 classes et 58 tests**, dont 20 de conformité du schéma SQL à l'application, 17 sur le contrat QR (Lot 5), 10 sur les comptages (Lot 6) et 9 sur le contrat HTTP (Lot 7). Les comportements métier couverts restent limités au QR, aux comptages et au contrat : ni la sécurité, ni les affectations, ni la tenancy générale, ni la concurrence, ni les transactions ne sont testés. La suite reste verte, mais elle ne prouve pas le domaine. L'impact reste 5 : **score 25, niveau Critique**. Le critère de résolution (base isolée, fixtures, matrice RBAC/tenancy A/B, tests de concurrence et de transaction) reste à faire.
 
-**Statut au 24 octobre 2026 (Lot 8) : PARTIELLEMENT CORRIGÉ.** La suite compte **13 classes et 74 tests**, tous verts sur une base dédiée initialisée depuis les scripts, et **16 tests nouveaux** couvrent le cycle de vie des affectations, la cohérence mouvement/stock/affectation, trois courses concurrentes, l'échec de login et la latence d'une liste de 1 000 articles. Ils créent leur entreprise, utilisateur, entrepôt, type, employé et poste, puis les suppriment : ils ne dépendent plus des données de démonstration, et le nettoyage a été vérifié (aucune ligne `LOT8-*` résiduelle). Le CI échoue désormais si un rapport Surefire contient un test ignoré. **Limites :** la tenancy A/B reste non testée (un test serait rouge par construction tant que `P0-01` n'est pas corrigé), l'idempotence reste absente (`P1-14`), les nouveaux tests utilisent encore un jeton `ADMIN` synthétique et aucun seuil de couverture n'est mesuré. Impact toujours 5, probabilité ramenée à 3 : **score 15, niveau Élevé**.
+**Statut au 24 octobre 2026 (Lot 8) : PARTIELLEMENT CORRIGÉ.** La suite compte **13 classes et 74 tests**, tous verts sur une base dédiée initialisée depuis les scripts, et **16 tests nouveaux** couvrent le cycle de vie des affectations, la cohérence mouvement/stock/affectation, trois courses concurrentes, l'échec de login et la latence d'une liste de 1 000 articles. Ils créent leur entreprise, utilisateur, entrepôt, type, employé et poste, puis les suppriment : ils ne dépendent plus des données de démonstration, et le nettoyage a été vérifié (aucune ligne `LOT8-*` résiduelle). Le CI échoue désormais si un rapport Surefire contient un test ignoré. **Limites :** la tenancy A/B n'est plus attendue (mono-entreprise par conception, `P0-01` devenu écart accepté), l'idempotence reste absente (`P1-14`), les nouveaux tests utilisent encore un jeton `ADMIN` synthétique et aucun seuil de couverture n'est mesuré. Impact toujours 5, probabilité ramenée à 3 : **score 15, niveau Élevé**.
 
 ---
 
@@ -427,17 +431,17 @@ Le PNG est disponible, mais il n'existe ni PDF, ni planche, ni file d'impression
 
 Un workflow GitHub Actions existe (`.github/workflows/ci.yml`) : PostgreSQL 16 éphémère, initialisation du schéma et des données de démonstration, tests, lint OpenAPI et packaging. Il ne couvre cependant ni la tenancy, ni le RBAC, ni les transactions, ni la concurrence, et la couverture n'est pas mesurée. Le lint OpenAPI a été rejoué au Lot 6 avec la version de la CI (`@redocly/cli@2.65.1`) : **173 avertissements non bloquants, 0 erreur** sur 27 fichiers (183 à l'audit initial). Il a été rejoué au Lot 9 sur les 28 fichiers (spec des soldes incluse) : **0 erreur, 175 avertissements** ; la validation structurelle ne relève ni erreur de parsing ni `$ref` orphelin, et les `servers`/`security`/`tags` sont à la racine. Les exemples ne sont toujours pas contractuels.
 
-**Statut au 24 octobre 2026 (Lot 8) : PARTIELLEMENT CORRIGÉ.** Le CI exécute désormais 74 tests (dont concurrence, affectations, mouvement et latence) et une étape « Fail on skipped tests » échoue si un test est ignoré. **Restent ouverts :** le seuil de couverture (JaCoCo n'a pas été ajouté, pour ne pas introduire de dépendance sans décision), la tenancy A/B, la protection de branche sur `main` et la contractualisation des exemples OpenAPI. Aucun avertissement Redocly n'a été rejoué au Lot 8 : les spécifications n'ont pas changé.
+**Statut au 24 octobre 2026 (Lot 8) : PARTIELLEMENT CORRIGÉ.** Le CI exécute désormais 74 tests (dont concurrence, affectations, mouvement et latence) et une étape « Fail on skipped tests » échoue si un test est ignoré. **Restent ouverts :** le seuil de couverture (JaCoCo n'a pas été ajouté, pour ne pas introduire de dépendance sans décision), la protection de branche sur `main` et la contractualisation des exemples OpenAPI. La tenancy A/B n'est plus attendue : elle est hors périmètre par la décision mono-entreprise du 24 octobre 2026. Aucun avertissement Redocly n'a été rejoué au Lot 8 : les spécifications n'ont pas changé.
 
 ---
 
 ## 5. Matrice de risque
 
-La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. Après le Lot 4 : **P0-06, P1-05 et P1-11 sont corrigés dans le périmètre documenté**, et **P2-01 est corrigé** pour les articles, catégories, types, entrepôts et affectations. Après le Lot 6 : **P1-07 est complété** (attendu figé, périmètre, clôture idempotente et non vide, annulation, pagination et journal des ajustements), et les comptages sont cloisonnés par entreprise. Après le Lot 7 : **P1-12 est corrigé**, **P2-02 est corrigé pour l'inventaire** et **P2-03 est corrigé** (versionnement et dates). Le Lot 9 est documentaire : il ajoute la spec OpenAPI des soldes et la préparation frontend, **sans modifier aucun statut d'anomalie**. Après le Lot 8 : **P1-13 est partiellement corrigé** (74 tests, fixtures autonomes, concurrence et latence mesurées ; score 15), la concurrence est **testée** mais `P1-14` reste ouvert pour l'idempotence (`API-10`/`API-11`) et **P2-06 est partiellement corrigé** (garde-fou CI sur les tests ignorés, pas de seuil de couverture). `P0-01` (tenancy A/B non testable), `P1-08` (N+1) et les autres P2 restent ouverts.
+La matrice ci-dessous reste la cotation de l'audit initial. Après le Lot 1 : **P0-03 est corrigé**, **P0-02 est partiellement corrigé** (inscription fermée et RBAC inventaire/utilisateurs/rôles), et **P0-01 reste partiel** sous l'hypothèse mono-entreprise. Après le Lot 2 : **P0-04 est corrigé pour les cas d'usage existants**, **P1-01, P1-02, P1-09 et P1-10 sont corrigés**. Après le Lot 3 : **P0-05, P1-03, P1-06 et P1-07 sont corrigés dans le périmètre documenté**. Après le Lot 4 : **P0-06, P1-05 et P1-11 sont corrigés dans le périmètre documenté**, et **P2-01 est corrigé** pour les articles, catégories, types, entrepôts et affectations. Après le Lot 6 : **P1-07 est complété** (attendu figé, périmètre, clôture idempotente et non vide, annulation, pagination et journal des ajustements), et les comptages sont cloisonnés par entreprise. Après le Lot 7 : **P1-12 est corrigé**, **P2-02 est corrigé pour l'inventaire** et **P2-03 est corrigé** (versionnement et dates). Le Lot 9 est documentaire : il ajoute la spec OpenAPI des soldes et la préparation frontend, **sans modifier aucun statut d'anomalie**. Après le Lot 8 : **P1-13 est partiellement corrigé** (74 tests, fixtures autonomes, concurrence et latence mesurées ; score 15), la concurrence est **testée** mais `P1-14` reste ouvert pour l'idempotence (`API-10`/`API-11`) et **P2-06 est partiellement corrigé** (garde-fou CI sur les tests ignorés, pas de seuil de couverture). Après la décision mono-entreprise (24 octobre 2026) : `P0-01` passe d'anomalie bloquante à **écart accepté** (score résiduel 5, probabilité 1) et les critères de tenancy du rapport 15 passent en `N/A`. `P1-08` (N+1), `P1-14` (idempotence) et les autres P2 restent ouverts.
 
 | ID | Risque | Probabilité | Impact | Score | Niveau |
 |---|---|---:|---:|---:|---|
-| P0-01 | Fuite/corruption inter-entreprises | 5 | 5 | 25 | Critique |
+| P0-01 | Fuite/corruption inter-entreprises — écart accepté mono-entreprise | 1 | 5 | 5 | Faible |
 | P0-02 | Inscription publique + RBAC absent | 5 | 5 | 25 | Critique |
 | P0-03 | Refresh perpétue les rôles révoqués | 5 | 5 | 25 | Critique |
 | P0-04 | Écritures partiellement validées | 4 | 5 | 20 | Critique |
@@ -506,7 +510,7 @@ L'ordre recommandé n'est pas l'ordre alphabétique des modules. Il suit les dé
 3. Rendre le retour, le void et l'archivage explicites et audités. **Fait** (`source_warehouse_id`, `voided_at`, `voided_by`, `void_reason`).
 4. Archiver logiquement les référentiels et les affectations, avec restauration. **Fait**.
 
-**Sortie :** un article `ASSIGNED` possède au plus une affectation active, un retour restaure l'article et son stock, et une suppression active est refusée. **Réserves :** isolation entreprise (`P0-01`), idempotence (`P1-14`) et réconciliation de la donnée de démonstration préexistante.
+**Sortie :** un article `ASSIGNED` possède au plus une affectation active, un retour restaure l'article et son stock, et une suppression active est refusée. **Réserves :** dépendance à la décision mono-entreprise (`P0-01`, écart accepté), idempotence (`P1-14`) et réconciliation de la donnée de démonstration préexistante.
 
 ### Étape 4 — Unifier les affectations
 
@@ -535,7 +539,7 @@ L'ordre recommandé n'est pas l'ordre alphabétique des modules. Il suit les dé
 
 - Ajouter des champs cosmétiques au dashboard.
 - Générer un PDF d'étiquette avant d'avoir stabilisé le code QR.
-- Ajouter des écrans avant d'avoir tranché la tenancy.
+- Ajouter des écrans ou des données d'une deuxième entreprise (la tenancy est hors périmètre depuis le 24 octobre 2026).
 - Augmenter le nombre de tests sans base isolée.
 - Optimiser le N+1 avant d'avoir corrigé le modèle de stock.
 - Renommer les routes avant d'avoir un contrat de version.

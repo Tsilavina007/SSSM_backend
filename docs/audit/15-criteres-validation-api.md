@@ -4,6 +4,8 @@
 
 **Portée :** API backend uniquement. Le frontend n'est pas évalué ici, sauf pour les contrats dont il dépend.
 
+**Décision du 24 octobre 2026 — déploiement mono-entreprise :** le produit est exploité pour **une seule entreprise**. Les critères d'isolation entre entreprises (portes `G0-1`/`G0-2`, section 3 « Tenancy », `CAT-05`, `ASG-04`/`ASG-05`, `TST-05`, `FE-11`/`FE-12`) sont marqués **N/A** et ne bloquent plus la mise en production. Les colonnes `company_id`, le claim `company_id` du JWT et le scope entreprise des utilisateurs et rôles restent en place, mais ne constituent pas une garantie d'isolation : `P0-01` devient un **écart accepté et documenté**, pas un correctif planifié. **Condition de réversibilité :** admettre une deuxième entreprise impose de corriger `P0-01` (filtres `company_id`, FK composites ou RLS) et de repasser ces critères en `PASS`/`FAIL` bloquants avant toute donnée réelle.
+
 ---
 
 ## 1. Comment utiliser ce document
@@ -16,8 +18,9 @@
 | **PARTIEL** | Implémentation partielle, ou vérifiée seulement statiquement, ou insuffisamment testée |
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
+| **N/A** | Hors périmètre par décision produit : le critère ne s'applique pas au déploiement mono-entreprise |
 
-**Important :** la suite complète exécutée après le Lot 4 comptait **150 tests dans 28 suites**. Elle a été réduite le 22 octobre 2026 à **20 tests dans 4 suites**, puis complétée par les contrats QR (Lot 5), comptage (Lot 6) et HTTP (Lot 7). Au 23 octobre 2026, elle comptait **58 tests dans 8 suites** : conformité du schéma SQL à l'application, contrat QR, contrat des comptages et contrat HTTP (versionnement, erreurs, pagination, `Location`, dates). **Après le Lot 8 (24 octobre 2026), elle compte 74 tests dans 13 classes** : s'y ajoutent le cycle de vie des affectations, la cohérence mouvement/stock/affectation, la concurrence, l'échec de login et une mesure de latence sur 1 000 articles. Les fixtures des 16 nouveaux tests sont autonomes (entreprise, utilisateur, entrepôt, type, employé et poste créés puis supprimés par chaque test). Un `PASS` signifie « cohérent avec le code, vérifié par la suite courante ou par lecture statique » ; la tenancy A/B reste non vérifiée (une seule entreprise par fixture) et l'idempotence HTTP reste absente. Le détail historique reste disponible dans les rapports 11 et 16.
+**Important :** la suite complète exécutée après le Lot 4 comptait **150 tests dans 28 suites**. Elle a été réduite le 22 octobre 2026 à **20 tests dans 4 suites**, puis complétée par les contrats QR (Lot 5), comptage (Lot 6) et HTTP (Lot 7). Au 23 octobre 2026, elle comptait **58 tests dans 8 suites** : conformité du schéma SQL à l'application, contrat QR, contrat des comptages et contrat HTTP (versionnement, erreurs, pagination, `Location`, dates). **Après le Lot 8 (24 octobre 2026), elle compte 74 tests dans 13 classes** : s'y ajoutent le cycle de vie des affectations, la cohérence mouvement/stock/affectation, la concurrence, l'échec de login et une mesure de latence sur 1 000 articles. Les fixtures des 16 nouveaux tests sont autonomes (entreprise, utilisateur, entrepôt, type, employé et poste créés puis supprimés par chaque test). Un `PASS` signifie « cohérent avec le code, vérifié par la suite courante ou par lecture statique » ; la tenancy A/B est hors périmètre (mono-entreprise par conception, décision du 24 octobre 2026) et l'idempotence HTTP reste absente. Le détail historique reste disponible dans les rapports 11 et 16.
 
 ### 1.2. Règle de décision
 
@@ -25,6 +28,7 @@
 - Un **PARTIEL** sur un critère P0 bloque aussi, sauf dérogation écrite et compensée.
 - Les critères P1 peuvent être partiels pour un pilote mono-entreprise encadré, avec liste d'écarts acceptés.
 - Les critères P2 sont planifiables après stabilisation.
+- Les critères **N/A** ne comptent ni comme `PASS` ni comme échec : ils documentent un choix de périmètre, réversible aux conditions indiquées en tête de document.
 
 ### 1.3. Preuves attendues
 
@@ -43,8 +47,8 @@ Une capture d'écran ne remplace pas un test de contrat.
 
 | Porte | Critère | Statut actuel | Preuve / écart |
 |---|---|---|---|
-| **G0-1** | Un utilisateur de l'entreprise A ne peut lire aucune donnée de B | **FAIL** | Requêtes globales ; aucun filtre `company_id` |
-| **G0-2** | Un utilisateur de A ne peut écrire aucune donnée de B | **FAIL** | `company_id` contrôlé par le client ; pas de FK composite |
+| **G0-1** | Un utilisateur de l'entreprise A ne peut lire aucune donnée de B | **N/A** | Mono-entreprise par conception : une seule entreprise est déployée. La lecture reste globale (`ItemDAOImpl` sans filtre `company_id`), ce qui interdit d'admettre une deuxième entreprise avant correction de `P0-01`. |
+| **G0-2** | Un utilisateur de A ne peut écrire aucune donnée de B | **N/A** | Idem : `company_id` vient du client et aucune FK composite ne l'empêche, sans conséquence tant qu'une seule entreprise existe. Condition de réversibilité en tête de document. |
 | **G0-3** | Un compte sans entreprise ou sans rôle ne peut pas accéder à l'inventaire | **PARTIEL** | Un compte sans rôle est bloqué ; un admin plateforme sans entreprise reste autorisé par conception. |
 | **G0-4** | Les écritures multi-lignes sont atomiques | **PASS** | Opérations `receipt`/`issue`/`transfer` avec lignes et mouvements atomiques ; rollback testé après échec sur la deuxième ligne (`P1-06`). |
 | **G0-5** | Le stock a une source de vérité unique et testée | **PASS** | `stock_balance` alimenté par les mouvements, opérations, articles et clôtures de comptage ; `GET /stock-balances` et dashboard low-stock testés (`P0-05`). Les ajustements de clôture sont journalisés en mouvements `ADJUSTMENT` depuis le Lot 6. |
@@ -52,31 +56,33 @@ Une capture d'écran ne remplace pas un test de contrat.
 | **G0-7** | Aucune erreur de saisie ne produit 500 avec SQLSTATE | **PASS** | Doublons 409, FK/CHECK 422, NOT NULL/format 400 ; aucun SQLSTATE exposé. |
 | **G0-8** | Un rôle révoqué ne peut pas être rafraîchi | **PASS** | `/refresh` recharge les rôles et permissions en base ; rotation testée. |
 
-**Verdict :** 5 portes sur 8 en `PASS` (`G0-4`, `G0-5`, `G0-6`, `G0-7`, `G0-8`), 1 `PARTIEL` (`G0-3`), 2 `FAIL` (`G0-1`, `G0-2`). La production reste bloquée par la tenancy ; les affectations sont couvertes par le code mais une donnée de démonstration antérieure reste à réconcilier.
+**Verdict :** 5 portes sur 8 en `PASS` (`G0-4`, `G0-5`, `G0-6`, `G0-7`, `G0-8`), 1 `PARTIEL` (`G0-3`), 2 `N/A` (`G0-1`, `G0-2`, mono-entreprise par conception) et **aucun `FAIL`**. La tenancy ne bloque plus la production ; les portes encore ouvertes sont `G0-3` (compte plateforme sans entreprise) et les critères `FAIL` hors tenancy du reste du document. Une donnée de démonstration antérieure reste à réconcilier sur les affectations.
 
 ---
 
-## 3. Tenancy
+## 3. Tenancy — hors périmètre (mono-entreprise par conception)
+
+Les critères ci-dessous décrivent l'isolation entre entreprises. Les critères d'isolation sont **N/A** depuis la décision du 24 octobre 2026 : le déploiement ne comporte qu'une entreprise. Ils restent documentés comme **spécification de reprise** si une deuxième entreprise devait être admise, et redeviennent alors bloquants. Les critères qui portent sur un comportement encore vérifiable en mono-entreprise restent évalués : `T-09`, `T-10` et `T-14` en `PASS`, `T-15` en `PARTIEL`.
 
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
-| T-01 | `GET /items` ne retourne que les articles de l'entreprise du jeton | **FAIL** | `ItemDAOImpl.getAllItems` sans filtre |
-| T-02 | `GET /items/{id}` d'une autre entreprise renvoie 404, pas 200 | **FAIL** | Lecture par ID global |
-| T-03 | `PATCH /items/{id}` d'une autre entreprise renvoie 404 | **FAIL** | Aucun contrôle de tenant |
-| T-04 | `DELETE /items/{id}` d'une autre entreprise renvoie 404 | **FAIL** | Aucun contrôle de tenant |
-| T-05 | `POST /items` ignore un `company_id` différent du jeton et utilise celui du jeton | **FAIL** | `company_id` vient du corps |
-| T-06 | Un article ne peut pas référencer un type/catégorie/entrepôt d'une autre entreprise | **FAIL** | Aucune FK composite, aucun contrôle |
-| T-07 | Une affectation ne peut pas lier un article, un employé et un poste de trois entreprises différentes | **FAIL** | Aucun contrôle |
-| T-08 | Un mouvement ne peut pas référencer un entrepôt ou un employé d'une autre entreprise | **FAIL** | FK simple, pas de tenant |
-| T-09 | Un scan QR ne renvoie jamais un article d'une autre entreprise | **FAIL** | `QrScanDAOImpl` global |
+| T-01 | `GET /items` ne retourne que les articles de l'entreprise du jeton | **N/A** | `ItemDAOImpl.getAllItems` reste sans filtre `company_id` ; sans objet en mono-entreprise, bloquant pour une deuxième entreprise. |
+| T-02 | `GET /items/{id}` d'une autre entreprise renvoie 404, pas 200 | **N/A** | Lecture par ID global, aucune entreprise tierce déployée. |
+| T-03 | `PATCH /items/{id}` d'une autre entreprise renvoie 404 | **N/A** | Aucun contrôle de tenant ; sans objet en mono-entreprise. |
+| T-04 | `DELETE /items/{id}` d'une autre entreprise renvoie 404 | **N/A** | Aucun contrôle de tenant ; sans objet en mono-entreprise. |
+| T-05 | `POST /items` ignore un `company_id` différent du jeton et utilise celui du jeton | **N/A** | `company_id` vient du corps ; une seule entreprise existe, donc la valeur est toujours la bonne. |
+| T-06 | Un article ne peut pas référencer un type/catégorie/entrepôt d'une autre entreprise | **N/A** | Aucune FK composite ; sans objet tant qu'une seule entreprise est déployée. |
+| T-07 | Une affectation ne peut pas lier un article, un employé et un poste de trois entreprises différentes | **N/A** | Aucun contrôle ; sans objet en mono-entreprise. |
+| T-08 | Un mouvement ne peut pas référencer un entrepôt ou un employé d'une autre entreprise | **N/A** | FK simples ; sans objet en mono-entreprise. |
+| T-09 | Un scan QR ne renvoie jamais un article d'une autre entreprise | **PASS** | `QrScanDAOImpl` filtre `i.company_id = ?` depuis le Lot 5 ; un code d'une autre entreprise renvoie 404 (`QrScanApiTests`). Correctif de lecture par rapport à l'audit initial. |
 | T-10 | Un comptage ne peut scanner que des articles de son entreprise et de son périmètre | **PASS** | Le scan lit l'instantané figé à l'ouverture et refuse en `409 ITEM_OUT_OF_SCOPE` un article d'une autre entreprise, archivé ou créé après l'ouverture ; un article attendu ailleurs produit un écart `WRONG_LOCATION`. Test `InventoryCountApiTests`. |
-| T-11 | Les listes de types, catégories, entrepôts, mouvements, affectations, comptages et rapports sont tenant-scoped | **FAIL** | Les comptages (liste, détail, lignes, écritures) sont tenant-scoped depuis le Lot 6 ; les autres listes restent globales (`P0-01`). |
-| T-12 | Un administrateur d'entreprise ne peut pas administrer une autre entreprise | **PASS** | Scope `company_id` sur `/api/users` et `/api/roles` ; admin plateforme non filtré. |
-| T-13 | La base possède des contraintes composites ou une RLS empêchant le cross-tenant | **FAIL** | Schéma à FK simples |
+| T-11 | Les listes de types, catégories, entrepôts, mouvements, affectations, comptages et rapports sont tenant-scoped | **N/A** | Les comptages sont tenant-scoped depuis le Lot 6 ; les autres listes restent globales, sans conséquence en mono-entreprise. |
+| T-12 | Un administrateur d'entreprise ne peut pas administrer une autre entreprise | **N/A** | Aucune autre entreprise à administrer ; le scope `company_id` sur `/api/users` et `/api/roles` reste en place. |
+| T-13 | La base possède des contraintes composites ou une RLS empêchant le cross-tenant | **N/A** | Schéma à FK simples ; contraintes requises uniquement en cas d'ouverture à une deuxième entreprise. |
 | T-14 | Un utilisateur anonyme ne peut pas appeler l'inventaire | **PASS** | `SecurityConfig` : `authenticated()` |
 | T-15 | Un utilisateur sans entreprise ne peut pas appeler l'inventaire | **PARTIEL** | Un admin plateforme sans entreprise y accède par conception ; les autres comptes sans entreprise n'ont pas de rôle métier. |
 
-### Scénario d'acceptation T-A
+### Scénario d'acceptation T-A — à réactiver si une deuxième entreprise est admise
 
 ```text
 Étant donné l'entreprise A et l'entreprise B, chacune avec un article
@@ -137,7 +143,7 @@ Et l'accès à /api/v1/users renvoie 403
 | CAT-02 | Créer un type sans `unit`, `quantity_total`, `minimum_stock` applique les défauts | **PASS** | Test `ItemTypeApiTests.createWithoutOptionalValuesAppliesDatabaseDefaults`. |
 | CAT-03 | Créer un employé sans `status` applique `ACTIVE` | **PASS** | Test `EmployeeDefaultsTests.createWithoutStatusAppliesDatabaseDefault`. |
 | CAT-04 | Un doublon de QR/code/nom renvoie 409 | **PASS** | Mapping `23505` → 409 ; test doublon de catégorie. |
-| CAT-05 | Un article ne peut pas référencer une relation d'une autre entreprise | **FAIL** | Aucun contrôle |
+| CAT-05 | Un article ne peut pas référencer une relation d'une autre entreprise | **N/A** | Aucun contrôle, sans objet en mono-entreprise ; requis si une deuxième entreprise est admise. |
 | CAT-06 | `GET /items` retourne `total`, `page`, `pageSize`, `totalPages` | **PASS** | `PageResponse<ItemRest>` ; test `HttpContractApiTests`. |
 | CAT-07 | `page=0` renvoie 400, pas 500 | **PARTIEL** | `PageQuery` normalise `page=0` à 1 et renvoie 200 ; aucune erreur 500, mais le critère attend 400. |
 | CAT-08 | `pageSize` est plafonné | **PASS** | Plafond `PageQuery.MAX_PAGE_SIZE = 500`, testé avec `pageSize=500`. |
@@ -173,7 +179,7 @@ Et l'accès à /api/v1/users renvoie 403
 | STK-13 | La réponse de création renvoie le type et la date réellement stockés | **PASS** | Création relue depuis la base (Lot 2). |
 | STK-14 | Un mouvement inconnu renvoie 404 | **PASS** | Code + test. |
 | STK-15 | Un mouvement référencé ne peut pas être supprimé sans compensation | **PASS** | `DELETE` interdit par le journal append-only. |
-| STK-16 | Le rapport mouvements filtre par date, type, acteur et entreprise | **FAIL** | Filtres item/entrepôt seulement. |
+| STK-16 | Le rapport mouvements filtre par date, type, acteur et entreprise | **FAIL** | Filtres item/entrepôt seulement ; le filtre entreprise est sans objet en mono-entreprise, les filtres date/type/acteur manquent toujours. |
 | STK-17 | Le dashboard utilise le stock réel | **PARTIEL** | Le low-stock lit `stock_balance` ; les compteurs de synthèse restent globaux. |
 | STK-18 | Les alertes low-stock utilisent un seuil par entrepôt | **PASS** | Seuil effectif `warehouse_stock_config.minimum_stock`, sinon `item_type.minimum_stock`. |
 
@@ -198,8 +204,8 @@ Et un second OUT de 4 renvoie 409 sans modifier le stock
 | ASG-01 | Un seul contrat d'affectation est exposé | **PARTIEL** | `/api/item-assignments` est canonique ; `/api/inventory/assignments` reste une façade dépréciée déléguant au même service. Deux préfixes subsistent jusqu'à D-07. |
 | ASG-02 | Affecter un article non disponible renvoie 409 | **PASS** | `409 ITEM_NOT_AVAILABLE` ; test dédié. |
 | ASG-03 | Affecter à un employé inactif renvoie 422 | **FAIL** | Aucun contrôle |
-| ASG-04 | Affecter à un employé d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle (`P0-01`) |
-| ASG-05 | Affecter à un poste d'une autre entreprise renvoie 404/422 | **FAIL** | Aucun contrôle (`P0-01`) |
+| ASG-04 | Affecter à un employé d'une autre entreprise renvoie 404/422 | **N/A** | Aucun contrôle de cohérence entreprise ; sans objet en mono-entreprise. |
+| ASG-05 | Affecter à un poste d'une autre entreprise renvoie 404/422 | **N/A** | Aucun contrôle de cohérence entreprise ; sans objet en mono-entreprise. |
 | ASG-06 | L'affectation et le passage à `ASSIGNED` sont atomiques | **PASS** | Service `@Transactional`, DAO sur connexion Spring, solde synchronisé ; tests de création et rollback. |
 | ASG-07 | Un retour exige une date de retour | **PASS** | `POST /{id}/return` pose `returned_at` côté serveur ; date bornée à `assigned_at` si nécessaire. |
 | ASG-08 | Un retour restaure l'entrepôt | **PASS** | `source_warehouse_id` ajouté et restauré ; test dédié. |
@@ -271,7 +277,7 @@ Et le scan est journalisé avec l'utilisateur et l'appareil
 | CNT-04 | Un doublon de scan est traité explicitement | **PASS** | Contrainte unique et erreur métier `Article déjà scanné`. |
 | CNT-05 | Un comptage vide ne peut pas être clôturé comme complet | **PASS** | `409 COUNT_EMPTY` et statut conservé `IN_PROGRESS` (`InventoryCountApiTests.emptyCountCannotBeClosed`). |
 | CNT-06 | La clôture renseigne `completed_at` | **PASS** | Horodatage serveur écrit dans la clôture transactionnelle. |
-| CNT-07 | La clôture réconcilie le stock | **PASS** | Statut, emplacement, `stock_balance` et un mouvement `ADJUSTMENT` par écart non nul (quantité `|écart|`, source/destination) ; test de clôture. |
+| CNT-07 | La clôture réconcilie le stock | **PASS** | Statut, emplacement, `stock_balance` et un mouvement `ADJUSTMENT` par écart non nul (quantité égale à la valeur absolue de l'écart, source/destination) ; test de clôture. |
 | CNT-08 | La clôture met à jour `last_inventory_at` | **PASS** | Écrit pour chaque ligne scannée dans la transaction de clôture (`InventoryCountApiTests.closeReconcilesStockAndJournalsAdjustments`). |
 | CNT-09 | `GET /inventory-counts/{id}` existe et renvoie 404 si inconnu | **PASS** | Route ajoutée et testée. |
 | CNT-10 | Les lignes sont paginées et filtrables | **PARTIEL** | `GET /{id}/results?page=&pageSize=` (maximum 500) avec `X-Total-Count` ; les filtres par statut ou type d'écart restent absents. |
@@ -353,7 +359,7 @@ Et un article hors de l'instantané est refusé en 409
 | TST-02 | Aucun test n'est ignoré silencieusement sur base vide | **PASS** | Aucun `Assumptions` ni `@Disabled` dans `src/test` ; le CI échoue désormais si un rapport Surefire contient `Skipped: [1-9]` (étape « Fail on skipped tests »). |
 | TST-03 | Le login et l'inscription sont testés | **PASS** | Inscription, refresh et logout sont vérifiés par le code (les classes historiques correspondantes ne font plus partie de la suite) ; depuis le Lot 8, `AuthLoginFailureApiTests` couvre le mot de passe incorrect et le compte inactif (aucun jeton émis). |
 | TST-04 | Le RBAC est testé pour `USER`, `INVENTORY`, `ADMIN`, sans rôle | **PARTIEL** | Tests sans permission, admin d'entreprise et inventaire ; matrice complète des rôles non couverte. |
-| TST-05 | La tenancy A/B est testée en lecture et en écriture | **FAIL** | Aucun test à deux entreprises. |
+| TST-05 | La tenancy A/B est testée en lecture et en écriture | **N/A** | Mono-entreprise par conception : aucun test A/B n'est requis. Un tel test redeviendrait nécessaire après correction de `P0-01`. |
 | TST-06 | Le rollback transactionnel est testé | **PASS** | `DatabaseTransactionRollbackTests`, `StockMovementTransactionTests`. |
 | TST-07 | La concurrence est testée | **PASS** | `ConcurrentInventoryApiTests` : deux affectations, deux sorties et deux retours simultanés ; une seule écriture aboutit, le solde n'est jamais négatif. Limite : ni la mise à jour d'article (`If-Match`) ni l'idempotence ne sont couvertes. |
 | TST-08 | Le stock et la réconciliation sont testés | **PASS** | `InventoryCountApiTests` vérifie le solde, les ajustements, `last_inventory_at` et l'idempotence de la clôture. |
@@ -380,8 +386,8 @@ Et un article hors de l'instantané est refusé en 409
 | FE-08 | Un scan QR fournit assez d'informations pour agir | **PASS** | Réponse enrichie, tenant-scoped, 404 et journal de scan (Lot 5). |
 | FE-09 | Une étiquette PDF peut être imprimée en lot | **PARTIEL** | Planche HTML de 100 articles et impression navigateur (Lot 5) ; pas de PDF généré par le serveur. |
 | FE-10 | Le dashboard affiche un stock réel | **PARTIEL** | Le low-stock utilise `stock_balance` ; les compteurs de synthèse restent globaux. |
-| FE-11 | Le dashboard est tenant-scoped | **FAIL** | `DashboardDAOImpl` reste global (`P0-01`). |
-| FE-12 | Les écrans peuvent gérer le multi-entreprise | **FAIL** | Aucun cloisonnement d'inventaire ; jeu de démonstration volontairement mono-entreprise (Lot 9). |
+| FE-11 | Le dashboard est tenant-scoped | **N/A** | `DashboardDAOImpl` reste global, ce qui correspond au déploiement mono-entreprise ; aucun filtre à ajouter. |
+| FE-12 | Les écrans peuvent gérer le multi-entreprise | **N/A** | Hors périmètre : l'interface n'expose qu'une entreprise (décision du 24 octobre 2026). |
 | FE-13 | Les dates sont affichables sans rechargement après création | **PASS** | Réponses de création relues depuis la base. |
 | FE-14 | Les actions sensibles sont idempotentes | **FAIL** | `Idempotency-Key` et `If-Match`/ETag absents (`P1-14`). |
 
@@ -389,25 +395,25 @@ Et un article hors de l'instantané est refusé en 409
 
 ## 14. Bilan actuel
 
-| Domaine | PASS | PARTIEL | FAIL | NON VÉRIFIÉ |
-|---|---:|---:|---:|---:|
-| Portes Go/No-Go | 5 | 1 | 2 | 0 |
-| Tenancy | 3 | 1 | 11 | 0 |
-| Authentification | 15 | 3 | 4 | 0 |
-| Catalogue | 10 | 3 | 5 | 0 |
-| Stock | 14 | 3 | 1 | 0 |
-| Affectations | 11 | 3 | 4 | 0 |
-| QR | 12 | 2 | 1 | 0 |
-| Comptages / opérations | 16 | 1 | 2 | 0 |
-| Contrat HTTP | 12 | 2 | 4 | 0 |
-| Performance / sécurité | 5 | 3 | 4 | 1 |
-| Tests / CI | 9 | 4 | 1 | 0 |
-| Frontend | 6 | 5 | 3 | 0 |
-| **Total** | **118** | **31** | **42** | **1** |
+| Domaine | PASS | PARTIEL | FAIL | NON VÉRIFIÉ | N/A |
+|---|---:|---:|---:|---:|---:|
+| Portes Go/No-Go | 5 | 1 | 0 | 0 | 2 |
+| Tenancy | 3 | 1 | 0 | 0 | 11 |
+| Authentification | 15 | 3 | 4 | 0 | 0 |
+| Catalogue | 10 | 3 | 4 | 0 | 1 |
+| Stock | 14 | 3 | 1 | 0 | 0 |
+| Affectations | 11 | 3 | 2 | 0 | 2 |
+| QR | 12 | 2 | 1 | 0 | 0 |
+| Comptages / opérations | 16 | 1 | 2 | 0 | 0 |
+| Contrat HTTP | 12 | 2 | 4 | 0 | 0 |
+| Performance / sécurité | 5 | 3 | 4 | 1 | 0 |
+| Tests / CI | 9 | 4 | 0 | 0 | 1 |
+| Frontend | 6 | 5 | 1 | 0 | 2 |
+| **Total** | **118** | **31** | **23** | **1** | **19** |
 
-**Total : 192 critères** (118 `PASS`, 31 `PARTIEL`, 42 `FAIL`, 1 `NON VÉRIFIÉ`) après le Lot 8. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
+**Total : 192 critères** (118 `PASS`, 31 `PARTIEL`, 23 `FAIL`, 1 `NON VÉRIFIÉ`, 19 `N/A`) après le Lot 8 et la décision mono-entreprise du 24 octobre 2026. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
-**Lecture :** le Lot 7 fait passer le contrat HTTP de 4 à 12 `PASS` : versionnement `/api/v1`, Problem Details, `traceId`, dates UTC, `Location`, 204, UUID invalide, CORS restreint. Les `PASS` supplémentaires portent aussi sur l'historique article (404, pagination, filtres), la pagination des listes d'inventaire et la mise en cache QR. Le Lot 9 ajoute deux `PASS` QR (planche, unicité inter-entreprise) et deux `PASS` frontend (affectation auditée, scan enrichi) ; l'étiquette en lot passe de `FAIL` à `PARTIEL` (HTML sans PDF serveur). Le Lot 8 ajoute trois `PASS` « Tests / CI » (aucun test ignoré, concurrence testée, performances mesurées), un `PASS` de concurrence sur les affectations (`ASG-16`) et un `PASS` de latence (`NFR-03`) ; la tenancy A/B (`TST-05`) reste `FAIL`. Restent bloquants : la tenancy complète (`G0-1`, `G0-2`), la concurrence sans ETag/idempotence (`API-10`, `API-11`), les filtres d'écran (`API-15`), le dashboard global (`FE-11`) et le RBAC des modules hors inventaire.
+**Lecture :** le Lot 7 fait passer le contrat HTTP de 4 à 12 `PASS` : versionnement `/api/v1`, Problem Details, `traceId`, dates UTC, `Location`, 204, UUID invalide, CORS restreint. Les `PASS` supplémentaires portent aussi sur l'historique article (404, pagination, filtres), la pagination des listes d'inventaire et la mise en cache QR. Le Lot 9 ajoute deux `PASS` QR (planche, unicité inter-entreprise) et deux `PASS` frontend (affectation auditée, scan enrichi) ; l'étiquette en lot passe de `FAIL` à `PARTIEL` (HTML sans PDF serveur). Le Lot 8 ajoute trois `PASS` « Tests / CI » (aucun test ignoré, concurrence testée, performances mesurées), un `PASS` de concurrence sur les affectations (`ASG-16`) et un `PASS` de latence (`NFR-03`) ; et la tenancy A/B (`TST-05`) est passée en `N/A`. Le choix mono-entreprise du 24 octobre 2026 retire 19 critères de tenancy du décompte des échecs (`G0-1`, `G0-2`, `T-01` à `T-08`, `T-11` à `T-13`, `CAT-05`, `ASG-04`, `ASG-05`, `TST-05`, `FE-11`, `FE-12`). Restent bloquants hors tenancy : la concurrence sans ETag/idempotence (`API-10`, `API-11`), le statut HTTP du login (`A-02`, `A-03`), l'absence de rate limit sur login/refresh (`A-18`), les filtres d'écran (`API-15`) et le RBAC des modules hors inventaire.
 
 ---
 
@@ -415,7 +421,9 @@ Et un article hors de l'instantané est refusé en 409
 
 Ces scénarios doivent être exécutés sur une base isolée avant tout Go.
 
-### S-01 — Isolation A/B
+### S-01 — Isolation A/B — non applicable (mono-entreprise)
+
+Scénario conservé comme **spécification de reprise** : il ne s'exécute qu'après correction de `P0-01`, si une deuxième entreprise est admise.
 
 ```text
 Étant donné A et B avec chacune un article, un entrepôt et un utilisateur
@@ -476,10 +484,12 @@ Et last_inventory_at et completed_at sont renseignés
 ### S-07 — QR
 
 ```text
-Étant donné deux entreprises avec le même code
-Quand un utilisateur de A scanne
-Alors seul l'article de A est retourné avec son affectation
+Étant donné un article avec un code QR connu
+Quand un utilisateur authentifié scanne ce code
+Alors l'article est retourné avec son affectation active
 Et le scan est journalisé
+Quand le code est inconnu
+Alors la réponse est 404 et la tentative est journalisée
 ```
 
 ### S-08 — Erreurs
@@ -499,15 +509,17 @@ Et aucun 200 avec errors n'est retourné
 | Phase | Critères minimum |
 |---|---|
 | Pilote interne mono-entreprise | T-14, A-19, CAT-01, STK-14, QR-10, API-07 |
-| Pilote multi-utilisateurs | T-01 à T-15, A-01 à A-22, ASG-01 à ASG-18 |
-| Production mono-entreprise | G0-4, G0-5, G0-7, STK-01 à STK-18, API-03 à API-05 |
-| Production multi-entreprise | Tous les P0 et P1, S-01 à S-08 |
+| Pilote multi-utilisateurs | T-10, T-14, T-15, A-01 à A-22, ASG-01 à ASG-18 |
+| Production mono-entreprise | G0-3 à G0-8, STK-01 à STK-18, API-03 à API-05, A-02, A-03, A-18 |
+| Ouverture à une deuxième entreprise (hors périmètre) | Correction de `P0-01`, puis `G0-1`, `G0-2`, `T-01` à `T-13`, `CAT-05`, `ASG-04`, `ASG-05`, `TST-05`, `FE-11`, `FE-12` et scénario S-01 |
 | Ouverture frontend | FE-01 à FE-14, API-01 à API-18 |
 
 ---
 
 ## 17. Conclusion
 
-Le backend ne satisfait pas aujourd'hui les portes Go/No-Go. Il peut servir à un prototype mono-entreprise, avec un utilisateur de confiance, sans enjeu de stock ni de tenancy. Il ne peut pas être déclaré prêt pour la production, ni recevoir un frontend de production, tant que les critères G0-1 à G0-8 ne sont pas `PASS`.
+Le déploiement est **mono-entreprise par conception**. La tenancy n'entre donc plus dans les portes Go/No-Go : `G0-1` et `G0-2` sont `N/A`, et aucun `FAIL` ne subsiste sur les portes.
 
-Le plan pour les atteindre est dans le rapport 14. Les anomalies et priorités sont dans le rapport 12.
+Le backend peut servir un pilote mono-entreprise avec un utilisateur de confiance et un stock désormais prouvé par les tests. Il ne peut pas encore être déclaré prêt pour la production : le login renvoie 400 au lieu de 401/403 (`A-02`, `A-03`), login et refresh ne sont pas limités en débit (`A-18`), l'idempotence HTTP reste absente (`API-10`, `API-11`), le N+1 sur l'historique n'est pas mesuré (`P1-08`) et aucun seuil de couverture n'est appliqué.
+
+Si une deuxième entreprise devait être admise, la condition préalable est la correction de `P0-01`, puis le retour en `PASS`/`FAIL` bloquant de tous les critères aujourd'hui `N/A` (voir section 3 et scénario S-01). Le plan de correction est dans le rapport 14, les anomalies et priorités dans le rapport 12.
