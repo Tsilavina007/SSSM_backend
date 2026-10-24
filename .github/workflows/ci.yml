@@ -76,6 +76,15 @@ jobs:
           JWT_SECRET: "ci-only-jwt-secret-with-at-least-32-characters"
         run: ./mvnw -B -q test
 
+      - name: Fail on skipped tests
+        run: |
+          # Critère de sortie du Lot 8 : aucun test ne doit être ignoré silencieusement.
+          if grep -R "Skipped: [1-9]" target/surefire-reports/*.txt; then
+            echo "::error::Des tests ont été ignorés ; la suite doit être entièrement exécutée."
+            exit 1
+          fi
+          echo "Aucun test ignoré."
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4

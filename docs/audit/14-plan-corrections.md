@@ -1,6 +1,6 @@
 ﻿# 14 — Plan de correction
 
-**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Les Lots 1 à 7 et le Lot 9 ont été exécutés entre le 21 et le 23 octobre 2026 ; le Lot 8 reste à planifier. Le détail du Lot 1 est consigné dans la section 4.6, celui du Lot 3 dans la section 6.5, celui du Lot 4 dans la section 7.6 et celui du Lot 9 dans la section 12.
+**Objectif :** proposer un ordre de correction réaliste, avec dépendances, lots de travail, migrations et critères de sortie. Les Lots 1 à 9 ont été exécutés entre le 21 et le 24 octobre 2026 ; le Lot 8, dernier du plan, a été traité le 24 octobre 2026. Le détail du Lot 1 est consigné dans la section 4.6, celui du Lot 3 dans la section 6.5, celui du Lot 4 dans la section 7.6 et celui du Lot 9 dans la section 12.
 
 **Principe directeur :** ne pas ajouter d'écran sur un contrat faux. La stabilité de la tenancy, des transactions et du stock précède le frontend.
 
@@ -38,7 +38,7 @@ Certaines corrections ne sont pas des tâches techniques : elles engagent le pro
 | L5 | QR, scan, étiquettes | P1 | L1, L3, L4 | L |
 | L6 | Compléments de comptage et journalisation des ajustements | P1 | L3 | L |
 | L7 | Contrat HTTP, erreurs, pagination | P1 | L1, L3 | M |
-| L8 | Tests, CI, performance | P1 | L1-L7 | M |
+| L8 | Tests, CI, performance — **exécuté le 24 octobre 2026** | P1 | L1-L7 | M |
 | L9 | Préparation frontend — **exécuté le 23 octobre 2026** (documentation, verdict No-Go production) | P2 | L7, L8 | M |
 
 Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plusieurs semaines, XL = chantier transversal. Elles ne remplacent pas une estimation d'équipe.
@@ -206,6 +206,8 @@ Les tailles sont relatives : S = quelques jours, M = quelques semaines, L = plus
 - Utiliser `SELECT ... FOR UPDATE` sur les articles lors des transitions.
 - Traduire les conflits en 409.
 - Ajouter `Idempotency-Key` sur les créations sensibles.
+
+**État au 24 octobre 2026 (Lot 8) :** toujours **non exécuté**, mais désormais **couvert par des tests**. `ConcurrentInventoryApiTests` vérifie que deux requêtes simultanées sur la même affectation, le même mouvement ou le même retour produisent une seule écriture et un `409`, et que le solde reste cohérent ; il fige le comportement actuel, y compris l'absence d'idempotence.
 
 ### 5.4. Corrections de defaults
 
@@ -564,6 +566,60 @@ Aucune colonne, table ou ligne existante n'est modifiée ou supprimée ; aucun `
 - un test échoue si une transaction partielle est possible ;
 - un test échoue si un retour laisse l'article `ASSIGNED` ;
 - le pipeline est bloquant sur `main`.
+
+### Exécution (24 octobre 2026)
+
+**Décisions appliquées :** deux exigences du plan ne peuvent pas être vertes sans
+corriger une anomalie hors périmètre, et ont été traitées comme telles avec
+l'accord du demandeur :
+
+- **tenancy A/B non testée** : `P0-01` n'étant pas corrigé, `ItemDAOImpl` lit
+  toujours `security.item` sans filtre `company_id` ; un test « A ne voit pas B »
+  serait rouge par construction. Il est différé avec la correction de `P0-01`.
+- **idempotence non testée** : `P1-14` (`Idempotency-Key`, `If-Match`) n'étant
+  pas implémenté, les tests de concurrence figent le comportement actuel
+  (une écriture, un `409` pour la perdante) et non une garantie d'idempotence.
+
+Docker n'étant pas disponible sur la machine, Testcontainers n'a pas été
+introduit. L'isolation repose sur une **base PostgreSQL dédiée**
+(`sssm_lot8_it`) initialisée depuis `docs/database/sssm_schema2_v01.sql` et
+`docs/database/mock_data/sssm_mock_data.sql`, et sur des **fixtures autonomes**
+par test. La base de démonstration `sssm_db` n'a pas été modifiée.
+
+**Livrables :**
+
+- `src/test/java/sssm/dev/sssm_backend/support/InventoryTestFixtures.java` :
+  entreprise, utilisateur, catégorie, type, entrepôt, employé, site et poste
+  créés puis supprimés par test, avec jeton `ADMIN` porté par l'utilisateur des
+  fixtures ;
+- `ItemAssignmentLifecycleApiTests` (5 tests) : affectation, retour unique,
+  article indisponible, article inconnu, double affectation ;
+- `StockMovementConsistencyApiTests` (5 tests) : sortie, retour, stock
+  insuffisant avec rollback complet, retour sans affectation, destruction ;
+- `ConcurrentInventoryApiTests` (3 tests) : deux affectations, deux sorties et
+  deux retours simultanés ;
+- `AuthLoginFailureApiTests` (2 tests) : mot de passe incorrect et compte
+  inactif, sans émission de jeton ;
+- `ItemListPerformanceTests` (1 test) : médiane de dix appels sur 1 000 articles ;
+- `.github/workflows/ci.yml` : étape « Fail on skipped tests ».
+
+**Résultats :** **74 tests, 13 classes, 0 échec, 0 erreur, 0 ignoré** sur
+`sssm_lot8_it` ; suites concurrence + affectations + mouvements rejouées trois
+fois, trois succès. Latence mesurée sur 1 000 articles (page de 50) : **médiane
+149 à 222 ms selon l'exécution, max 318 ms** pour un budget de 2 000 ms. Après
+la suite, la base dédiée ne contient plus aucune ligne `LOT8-*`.
+
+**Aucune modification de code applicatif, de schéma SQL, de donnée ou de
+dépendance.** Aucune migration, aucun reset de base.
+
+| Critère de sortie | Résultat | Preuve |
+|---|---|---|
+| La suite tourne sur une base vide | **PARTIEL** | Les 16 tests du Lot 8 tournent sur une base initialisée depuis les scripts et ne dépendent que de leurs fixtures ; les suites QR, comptage, contrat HTTP et conformité de schéma supposent encore les données de démonstration. |
+| Aucun test ignoré silencieusement | **PASS** | Aucun `@Disabled` ni `Assumptions` dans `src/test` ; étape CI « Fail on skipped tests ». |
+| Un test échoue si la tenancy est cassée | **DIFFÉRÉ** | Impossible sans corriger `P0-01` ; documenté comme limite. |
+| Un test échoue si une transaction partielle est possible | **PASS** | `StockMovementConsistencyApiTests` : stock insuffisant, aucun mouvement, aucune affectation, solde inchangé et jamais négatif. |
+| Un test échoue si un retour laisse l'article `ASSIGNED` | **PASS** | Les deux classes d'affectation et de mouvement vérifient statut, entrepôt, solde et absence d'affectation active. |
+| Le pipeline est bloquant sur `main` | **PARTIEL** | Les tests et le lint sont bloquants dans le workflow ; la protection de branche n'est pas vérifiable depuis le dépôt. |
 
 ---
 

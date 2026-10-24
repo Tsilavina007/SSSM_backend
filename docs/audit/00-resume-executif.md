@@ -1,6 +1,6 @@
 # 00 — Résumé exécutif
 
-**Date :** 21 octobre 2026, mise à jour du 23 octobre 2026 (Lots 2 à 7 et 9)
+**Date :** 21 octobre 2026, mise à jour du 24 octobre 2026 (Lots 2 à 9)
 **Verdict global :** **NON PRÊT POUR LA PRODUCTION**  
 **Nuance :** **PARTIELLEMENT PRÊT** pour un prototype mono-entreprise, en lecture et CRUD encadré, avec un stock calculé pour les flux mouvement/opération/comptage un cycle de vie des affectations unifié et des comptages réconciliés, mais sans tenancy complète ni concurrence maîtrisée.
 
@@ -18,11 +18,13 @@
 
 **Mise à jour du 23 octobre 2026 (Lot 7) :** les 28 contrôleurs exposent `/api/v1` ; l'alias `/api` reste accepté et porte `Deprecation`/`Link`. Les erreurs sont des **Problem Details RFC 9457** (`application/problem+json`) avec `code`, `traceId` et `timestamp` ; les validations ajoutent `errors[]`. Les listes d'inventaire renvoient **`PageResponse`** avec `total` et `pageSize` plafonné à 500. Les créations renvoient **201 + `Location`**, toutes les suppressions **204**, les dates sont **ISO-8601 UTC**. L'historique article renvoie 404 s'il est inconnu, est paginé et filtré : **P1-12 est corrigé**. **P2-02 est corrigé pour l'inventaire** et **P2-03 est corrigé** (versionnement, dates ; libellés d'enums partiels). Suite complète : **58 tests, 0 échec, 0 erreur, 0 ignoré, 8 suites**. Aucune migration SQL. `API-10` (`Idempotency-Key`) et `API-11` (`If-Match`/ETag) restent différés ; `P1-08` (N+1), `API-02` hors inventaire et `API-15` (filtres) restent partiels.
 
+**Mise à jour du 24 octobre 2026 (Lot 8) :** la suite passe à **74 tests dans 13 classes**, tous verts, exécutés sur une base dédiée (`sssm_lot8_it`) initialisée depuis les scripts. Seize tests autonomes couvrent le cycle de vie des affectations, la cohérence mouvement/stock/affectation (rollback complet sur stock insuffisant), trois courses concurrentes, l'échec de login et la latence d'une page de 50 sur 1 000 articles (médiane **149 à 222 ms** selon l'exécution, max 318 ms). Les tests créent et suppriment leurs propres fixtures ; le CI échoue désormais si un test est ignoré. **`P1-13` passe à partiellement corrigé** (score 15) et **`P2-06` aussi**. La tenancy A/B n'est pas testée (`P0-01`), l'idempotence reste absente (`P1-14`) et aucun seuil de couverture n'est mesuré. Aucun changement de code applicatif, de schéma, de donnée ou de dépendance ; aucune migration.
+
 ---
 
 ## 1. Décision
 
-Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète comptait **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; elle a depuis été réduite puis reconstruite autour des contrats clés : **58 tests dans 8 suites au 23 octobre 2026** (schéma, QR, comptages, contrat HTTP). Les comportements métier non couverts restent vérifiés par lecture de code, mais ne sont plus tous prouvés automatiquement.
+Le backend possède un socle fonctionnel réel : les articles, catégories, types, entrepôts, QR Codes, mouvements, affectations, comptages et tableaux de bord ont des routes et des implémentations JDBC. Après le Lot 4, la suite complète comptait **150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites** ; elle a depuis été réduite puis reconstruite autour des contrats clés : **74 tests dans 13 classes au 24 octobre 2026** (schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence). Les comportements métier non couverts restent vérifiés par lecture de code, mais ne sont plus tous prouvés automatiquement.
 
 En revanche, quatre garanties fondamentales restent incomplètes :
 
@@ -51,7 +53,7 @@ Le backend peut donc alimenter une démonstration ou un pilote mono-entreprise, 
 | Comptages d'inventaire | **CORRIGÉ — LOT 3** | Élevé | Quantité attendue figée, écart calculé serveur, clôture réconciliée avec `last_inventory_at`. Ajustements journalisés en mouvements `ADJUSTMENT` depuis le Lot 6. |
 | Contrat API | **CORRIGÉ — LOT 7** | Élevé | `/api/v1` et alias déprécié, Problem Details, `PageResponse` sur l'inventaire, `Location`, 204, dates UTC, historique 404/paginé. Restent l'idempotence/ETag et la pagination hors inventaire. |
 | Performance | **PARTIEL** | Élevé | Pool HikariCP utilisé par les DAO ; plafond `pageSize` et pagination en place sur l'inventaire ; chaîne N+1 sur chaque article toujours ouverte. |
-| Tests | **PARTIEL — RECONSTRUIT** | Élevé | 58 tests dans 8 suites au 23 octobre 2026 (schéma, QR, comptages, contrat HTTP) ; les comportements métier non couverts restent vérifiés par lecture de code. |
+| Tests | **PARTIEL — RECONSTRUIT ET ÉTENDU** | Moyen | 74 tests dans 13 classes au 24 octobre 2026 (schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence) ; fixtures autonomes et base dédiée. La tenancy A/B et l'idempotence restent non testées. |
 | Documentation OpenAPI | **PARTIEL** | Moyen | 28 fichiers alignés sur `/api/v1`, dont la spec des soldes ajoutée au Lot 9 ; `Problem` RFC 9457 unique et `Page*` ; `ItemError` retiré des erreurs globales et `Location` documenté sur les 201. Validation 0 erreur de parsing / 0 `$ref` orphelin ; lint Redocly 0 erreur, 175 avertissements. Restent les exemples et les `license`. |
 
 ---
@@ -107,7 +109,7 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 
 ### 3.7. Quelles sont les cinq actions à mener avant toute nouvelle phase ?
 
-**État après Lot 9 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés). `P0-01` (tenancy générale) et `P1-14` (concurrence, ETag/idempotence) restent ouverts. Le Lot 9 ne corrige aucun de ces points : il documente le contrat et les critères d'acceptation. Le Lot 8 ne doit pas démarrer sans autorisation, et le Lot 9 ne débloque pas la production.
+**État après Lot 9 :** les actions 1 à 5 sont réalisées dans leur périmètre documenté ; l'action 1 reste partielle (mono-entreprise, filtres DAO d'inventaire non généralisés). `P0-01` (tenancy générale) et `P1-14` (concurrence, ETag/idempotence) restent ouverts. Le Lot 9 ne corrige aucun de ces points : il documente le contrat et les critères d'acceptation. Le Lot 8, exécuté le 24 octobre 2026, ajoute la couverture de test et le garde-fou CI mais ne corrige aucune de ces anomalies ; il ne débloque pas la production non plus.
 
 1. **Trancher le modèle de tenancy et le contrôle d'accès.**  
    Décider si l'entreprise est un tenant strict, comment elle est portée par le jeton, et quelles permissions sont réellement appliquées. Fermer ou encadrer l'inscription publique. Tant que ce point n'est pas décidé, tout développement frontend reposera sur un contrat faux.
@@ -139,7 +141,7 @@ Restent des limites : aucun contrôle d'employé actif, de cohérence d'entrepri
 - Authentification JWT, BCrypt, `whoami`, refresh rotatif, logout et révocation.
 - Inscription fermée aux administrateurs, scope entreprise sur les utilisateurs et rôles, RBAC sur l'inventaire et l'administration.
 - Enveloppe d'erreur homogène **Problem Details RFC 9457** (`application/problem+json`) avec `code` et `traceId`, et pagination `PageResponse` sur l'inventaire.
-- **58 tests** exécutés : 58 succès, 0 échec, 0 erreur, 0 ignoré, 8 suites (conformité schéma, QR, comptages, contrat HTTP, démarrage).
+- **74 tests** exécutés : 74 succès, 0 échec, 0 erreur, 0 ignoré, 13 classes (conformité schéma, QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login, latence, démarrage).
 
 Ces acquis sont réels, mais ils ne compensent pas les garanties encore incomplètes : tenancy d'inventaire, RBAC métier hors inventaire et concurrence.
 
@@ -167,7 +169,7 @@ Ces acquis sont réels, mais ils ne compensent pas les garanties encore incompl�
 | Fichiers OpenAPI | 27 |
 | Fichiers OpenAPI inventaire | 13 |
 | Scripts SQL | 23 fichiers (00→22), dont `18_lot1_security.sql`, `19_lot3_stock.sql`, `20_lot4_assignments.sql`, `21_lot5_qr.sql` et `22_lot6_inventory_counts.sql` ; aucun script ajouté au Lot 7 |
-| Tests | 58 après le Lot 7 (8 suites : 20 de conformité schéma, 17 QR, 10 comptages, 9 contrat HTTP, 1 démarrage, 1 ping) |
+| Tests | 74 après le Lot 8 (13 classes : 20 de conformité schéma, 17 QR, 10 comptages, 9 contrat HTTP, 10 affectations et mouvements, 3 concurrence, 2 login, 1 latence, 1 démarrage, 1 ping) |
 | Échecs de tests | 0 |
 | Pool de connexions | HikariCP via le `DataSource` Spring |
 | Entreprises en base de démonstration | 1 |
@@ -211,4 +213,4 @@ Trois orientations ont été tranchées pour le Lot 1 :
 2. **Accès :** RBAC par permission, inscription fermée, admin entreprise séparé de l'admin plateforme.
 3. **Stock :** journal de mouvements avec solde calculé (`D-01`), implémenté au Lot 3. Les affectations sont raccordées au solde depuis le Lot 4 et les ajustements de comptage sont journalisés depuis le Lot 6.
 
-Le Lot 2 est exécuté pour le `DataSource`, les transactions, le mapping SQL, les défauts de création et les réponses de création. Le Lot 3 est exécuté pour le stock, les opérations et les comptages. Les filtres `company_id` des DAO d'inventaire relèvent de `P0-01` et n'ont pas été inclus. Les Lots 4 à 7 sont exécutés dans leur périmètre documenté. Le Lot 8 et les décisions de concurrence (`version`/`If-Match`, `Idempotency-Key`) ne doivent pas démarrer sans validation explicite.
+Le Lot 2 est exécuté pour le `DataSource`, les transactions, le mapping SQL, les défauts de création et les réponses de création. Le Lot 3 est exécuté pour le stock, les opérations et les comptages. Les filtres `company_id` des DAO d'inventaire relèvent de `P0-01` et n'ont pas été inclus. Les Lots 4 à 8 sont exécutés dans leur périmètre documenté. Le Lot 8 n'a modifié ni le code applicatif ni le schéma : il ajoute 16 tests autonomes et un garde-fou CI. Les décisions de concurrence (`version`/`If-Match`, `Idempotency-Key`) restent à prendre avant toute implémentation.

@@ -222,8 +222,8 @@ Le détail est dans le rapport 09.
 | Scripts SQL | 20 (`00` à `19`) | Présents, non migrés automatiquement ; `19_lot3_stock.sql` est additive |
 | Fichiers OpenAPI | 26 | Présents, structure valide ; lint Redocly 2.65.1 rejoué au Lot 4 : **179 avertissements, 0 erreur** (183 à l'audit initial) |
 | Fichiers OpenAPI inventaire | 12 | Présents, cohérents avec les routes principales |
-| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests ; après Lot 2 : 27 suites, 132 tests ; après Lot 3 : 28 suites, 140 tests | Suite courante exécutée : 140 succès, 0 échec, 0 erreur, 0 ignoré. |
-| Rapport Surefire | `target/surefire-reports` | Rapport complet courant : 28 suites, 140 tests. |
+| Tests | Audit initial : 21 classes, 105 tests ; HEAD `7e3f196` : 22 classes, 112 tests ; après Lot 1 : 23 classes, 120 tests ; après Lot 2 : 27 suites, 132 tests ; après Lot 3 : 28 suites, 140 tests ; après Lot 8 : 13 classes, 74 tests | Suite courante exécutée : 74 succès, 0 échec, 0 erreur, 0 ignoré (24 octobre 2026, `/inventory/items`, `/inventory/movements`, `/item-assignments`, `/inventory/counts`, `/inventory/stock-balances`). |
+| Rapport Surefire | `target/surefire-reports` | Rapport courant : 13 classes, 74 tests (24 octobre 2026). |
 
 Les scripts SQL ne sont pas exécutés par un outil de migration (Flyway/Liquibase). Le schéma est créé manuellement ou par un script externe. Il n'existe pas de table de version de schéma applicative.
 

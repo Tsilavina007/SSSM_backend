@@ -1,9 +1,9 @@
 # Audit technique et fonctionnel — Backend SSSM
 
-**Date de l'audit :** 21 octobre 2026, mise à jour du 23 octobre 2026 (Lots 2 à 7 et 9)
+**Date de l'audit :** 21 octobre 2026, mise à jour du 24 octobre 2026 (Lots 2 à 9)
 **Périmètre :** backend Spring Boot, API HTTP, PostgreSQL, modules inventaire / stock / QR Code / affectations / authentification  
 **Nature :** audit statique initial, puis exécution des Lots 1 à 7 et du Lot 9 (identité et RBAC, DataSource et transactions, modèle de stock, cycle de vie des affectations et archivage, QR, comptages, contrat HTTP, préparation frontend)
-**Statut de la mission :** audit initial et revue de cohérence terminés ; **Lots 1 à 7 et 9 exécutés** (21 au 23 octobre 2026) ; **Lot 8 non démarré** ; aucun code frontend démarré, seuls les documents de préparation du Lot 9 existent. Le correctif QR `7e3f196` est postérieur à l'audit initial.
+**Statut de la mission :** audit initial et revue de cohérence terminés ; **Lots 1 à 9 exécutés** (21 au 24 octobre 2026) ; aucun code frontend démarré, seuls les documents de préparation du Lot 9 existent. Le correctif QR `7e3f196` est postérieur à l'audit initial.
 **Revue de cohérence :** 21 octobre 2026, mise à jour du 23 octobre 2026 — voir [`16-revue-coherence.md`](16-revue-coherence.md)
 
 ---
@@ -36,7 +36,7 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | QR Code | génération, image PNG, résolution, scan |
 | Affectations | un contrat canonique (`item_assignment`) et une façade dépréciée (`assignment`) |
 | Authentification | inscription, connexion, JWT, refresh, rôles, permissions, CORS |
-| Tests | 8 suites / 58 tests après le Lot 7 : conformité schéma ↔ application, contrat QR, comptages et contrat HTTP |
+| Tests | 13 classes / 74 tests après le Lot 8 : conformité schéma ↔ application, contrat QR, comptages, contrat HTTP, affectations, mouvements, concurrence, login et latence |
 | OpenAPI | 28 fichiers YAML, dont 14 pour l'inventaire (spec des soldes ajoutée au Lot 9) |
 
 ## 3. Périmètre exclu
@@ -61,7 +61,7 @@ Le verdict global et les actions prioritaires sont dans [`00-resume-executif.md`
 | QR Code | ZXing `3.5.3` |
 | Build | Maven, plugin de formatage `fmt-maven-plugin` `2.9.1` |
 | Base contrôlée | `sssm_db`, schéma `security` ; lecture seule pour l'audit, migrations additives des Lots 1, 3, 4, 5 et 6 appliquées ensuite, tests des Lots 2 à 7 avec nettoyage des marqueurs |
-| Rapports de tests | Exécution du 23 octobre 2026 après le Lot 7 : 58 tests, 58 succès, 0 échec, 8 suites. La suite historique de 150 tests a été remplacée par des tests de conformité, du contrat QR, du contrat de comptage et du contrat HTTP. |
+| Rapports de tests | Exécution du 24 octobre 2026 après le Lot 8 : 74 tests, 74 succès, 0 échec, 0 ignoré, 13 classes, sur une base dédiée (`sssm_lot8_it`). La suite historique de 150 tests a été remplacée par des tests de conformité, de contrat et de fiabilité. |
 | Documentation API | `docs/api/**/*.yaml` — 28 fichiers |
 | Scripts SQL | `docs/database/schema/00_init.sql` à `22_lot6_inventory_counts.sql` — 23 fichiers |
 
@@ -137,7 +137,7 @@ Les priorités utilisées dans le registre sont :
 
 ## 8. Limites de l'audit
 
-- **La suite complète a été exécutée après le Lot 4** : 150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites ; elle a ensuite été remplacée par des tests ciblés : **20 tests de conformité schéma** (4 suites), puis **38** après le Lot 5, **49** après le Lot 6 et **58 dans 8 suites** après le Lot 7. L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus ; l'historique est désormais couvert (404, pagination, filtres, `P1-12`). Les résultats historiques (105 tests, puis 120 après le Lot 1, 132 après le Lot 2, 140 après le Lot 3) proviennent d'exécutions antérieures.
+- **La suite complète a été exécutée après le Lot 4** : 150 tests, 150 succès, 0 échec, 0 erreur, 0 ignoré, 28 suites ; elle a ensuite été remplacée par des tests ciblés : **20 tests de conformité schéma** (4 suites), puis **38** après le Lot 5, **49** après le Lot 6 et **58 dans 8 suites** après le Lot 7, puis **74 dans 13 classes** après le Lot 8 (affectations, mouvements, concurrence, login, latence ; fixtures autonomes). L'ancien échec `ItemApiTests.historyUnknownReturnsNotFound` n'existe plus ; l'historique est désormais couvert (404, pagination, filtres, `P1-12`). Les résultats historiques (105 tests, puis 120 après le Lot 1, 132 après le Lot 2, 140 après le Lot 3) proviennent d'exécutions antérieures.
 - **L'isolation multi-entreprise n'a pas pu être testée en exécution** : la base de démonstration ne contient qu'une entreprise. Le Lot 1 applique l'hypothèse mono-entreprise et ajoute le scope entreprise sur les utilisateurs et rôles, mais les DAO d'inventaire ne filtrent pas encore par `company_id`.
 - **Aucun test de concurrence réel** n'a été exécuté. Les conclusions sur les transactions et les verrous sont déduites du code et du mode de connexion JDBC.
 - **Aucun scan SAST/DAST, test de pénétration ou audit d'infrastructure** n'a été réalisé.
@@ -256,4 +256,13 @@ Le **Lot 9**, exécuté le 23 octobre 2026, a modifié :
 
 Aucun fichier Java, test, script SQL, configuration ou donnée n'a été modifié. Aucune dépendance n'a été ajoutée. Aucune migration n'a été appliquée et aucune base n'a été réinitialisée. Le jeu de démonstration reste mono-entreprise.
 
-Le Lot 8 et tout démarrage de code frontend doivent faire l'objet d'un accord explicite distinct.
+Le **Lot 8**, exécuté le 24 octobre 2026, a modifié :
+
+- `src/test/java/sssm/dev/sssm_backend/support/InventoryTestFixtures.java` (fixtures autonomes) ;
+- cinq classes de tests : `ItemAssignmentLifecycleApiTests`, `StockMovementConsistencyApiTests`, `ConcurrentInventoryApiTests`, `AuthLoginFailureApiTests`, `ItemListPerformanceTests` ;
+- `.github/workflows/ci.yml` (garde-fou « Fail on skipped tests ») ;
+- les rapports `docs/audit/` concernés.
+
+Aucun code applicatif, script SQL, donnée ou dépendance n'a été modifié. Aucune migration n'a été appliquée, aucune base réinitialisée : les tests ont tourné sur une base dédiée créée pour l'occasion, `sssm_db` restant intacte.
+
+Le Lot 8 est le dernier lot du plan ; tout démarrage de code frontend doit faire l'objet d'un accord explicite distinct.

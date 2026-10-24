@@ -17,7 +17,7 @@
 | **FAIL** | Comportement absent, faux, ou contraire au critère |
 | **NON VÉRIFIÉ** | Nécessite une exécution, un environnement ou une donnée non disponible pendant l'audit |
 
-**Important :** la suite complète exécutée après le Lot 4 comptait **150 tests dans 28 suites**. Elle a été réduite le 22 octobre 2026 à **20 tests dans 4 suites**, puis complétée par les contrats QR (Lot 5), comptage (Lot 6) et HTTP (Lot 7). Au 23 octobre 2026, elle compte **58 tests dans 8 suites** : conformité du schéma SQL à l'application, contrat QR, contrat des comptages et contrat HTTP (versionnement, erreurs, pagination, `Location`, dates). Un `PASS` signifie « cohérent avec le code, vérifié par la suite courante ou par lecture statique » ; les critères de tenancy générale A/B et de concurrence restent non vérifiés. Le détail historique reste disponible dans les rapports 11 et 16.
+**Important :** la suite complète exécutée après le Lot 4 comptait **150 tests dans 28 suites**. Elle a été réduite le 22 octobre 2026 à **20 tests dans 4 suites**, puis complétée par les contrats QR (Lot 5), comptage (Lot 6) et HTTP (Lot 7). Au 23 octobre 2026, elle comptait **58 tests dans 8 suites** : conformité du schéma SQL à l'application, contrat QR, contrat des comptages et contrat HTTP (versionnement, erreurs, pagination, `Location`, dates). **Après le Lot 8 (24 octobre 2026), elle compte 74 tests dans 13 classes** : s'y ajoutent le cycle de vie des affectations, la cohérence mouvement/stock/affectation, la concurrence, l'échec de login et une mesure de latence sur 1 000 articles. Les fixtures des 16 nouveaux tests sont autonomes (entreprise, utilisateur, entrepôt, type, employé et poste créés puis supprimés par chaque test). Un `PASS` signifie « cohérent avec le code, vérifié par la suite courante ou par lecture statique » ; la tenancy A/B reste non vérifiée (une seule entreprise par fixture) et l'idempotence HTTP reste absente. Le détail historique reste disponible dans les rapports 11 et 16.
 
 ### 1.2. Règle de décision
 
@@ -210,7 +210,7 @@ Et un second OUT de 4 renvoie 409 sans modifier le stock
 | ASG-13 | Une annulation est auditée et remet l'article disponible | **PASS** | `void` motivé, `voided_at`/`voided_by`/`void_reason`, article et stock restaurés. |
 | ASG-14 | `ASSIGNED` implique exactement une affectation active | **PASS** | Tous les chemins passent par le service ; index unique actif et tests. |
 | ASG-15 | `AVAILABLE` implique aucune affectation active | **PARTIEL** | Le code corrigé garantit la règle ; une affectation active préexistante de la base de démonstration pointe encore vers un article `AVAILABLE`. |
-| ASG-16 | Deux affectations concurrentes produisent un 409 | **PARTIEL** | Index unique + `23505` → 409 ; pas de test de course dédié. |
+| ASG-16 | Deux affectations concurrentes produisent un 409 | **PASS** | Index unique + contrôle d'état transactionnel ; `ConcurrentInventoryApiTests` lance deux créations simultanées et n'observe qu'un `201` et un `409`. |
 | ASG-17 | Les affectations en retard sont identifiables | **FAIL** | `expected_return_at` est modifiable mais aucune route ni requête de retard n'existe. |
 | ASG-18 | L'historique des acteurs est conservé | **PASS** | `assigned_by`, `returned_by` et `voided_by` alimentés depuis le JWT ; les lignes historiques restent nulles. |
 
@@ -331,7 +331,7 @@ Et un article hors de l'instantané est refusé en 409
 |---|---|---|---|
 | NFR-01 | Les DAO utilisent un `DataSource` et un pool | **PASS** | `DatabaseConnection` + HikariCP ; test de pool. |
 | NFR-02 | Les DAO utilisent le `DataSource` et la configuration de production (pool, timeouts) | **PASS** | `spring.datasource.hikari.*` surchargé par l'environnement. |
-| NFR-03 | Une liste de 1 000 articles reste sous un seuil défini | **NON VÉRIFIÉ** | Aucun test de charge |
+| NFR-03 | Une liste de 1 000 articles reste sous un seuil défini | **PASS** | `ItemListPerformanceTests` : budget de 2 000 ms sur la médiane de dix appels ; mesures locales 149 à 222 ms de médiane (max 318 ms) pour 1 000 articles. Seuil volontairement large, adapté à la CI et non à la production. |
 | NFR-04 | Le N+1 est éliminé ou borné | **FAIL** | Mapper relationnel |
 | NFR-05 | Les listes sont plafonnées | **PARTIEL** | `pageSize` plafonné à 500 et pagination appliquée à l'inventaire ; les listes hors inventaire restent non plafonnées. |
 | NFR-06 | Les images QR sont mises en cache | **PASS** | `Cache-Control: public, max-age=300`, `ETag` et 304 (Lot 5, QR-11). |
@@ -350,19 +350,19 @@ Et un article hors de l'instantané est refusé en 409
 | ID | Critère testable | Statut | Preuve / référence |
 |---|---|---|---|
 | TST-01 | La suite tourne sur une base isolée et reproductible | **PARTIEL** | CI PostgreSQL 16 éphémère ; base locale réelle et pas d'isolation par test |
-| TST-02 | Aucun test n'est ignoré silencieusement sur base vide | **FAIL** | `Assumptions` |
-| TST-03 | Le login et l'inscription sont testés | **PASS** | `AuthHardeningApiTests` et `RefreshTokenApiTests` couvrent inscription, login, refresh et logout. |
+| TST-02 | Aucun test n'est ignoré silencieusement sur base vide | **PASS** | Aucun `Assumptions` ni `@Disabled` dans `src/test` ; le CI échoue désormais si un rapport Surefire contient `Skipped: [1-9]` (étape « Fail on skipped tests »). |
+| TST-03 | Le login et l'inscription sont testés | **PASS** | Inscription, refresh et logout sont vérifiés par le code (les classes historiques correspondantes ne font plus partie de la suite) ; depuis le Lot 8, `AuthLoginFailureApiTests` couvre le mot de passe incorrect et le compte inactif (aucun jeton émis). |
 | TST-04 | Le RBAC est testé pour `USER`, `INVENTORY`, `ADMIN`, sans rôle | **PARTIEL** | Tests sans permission, admin d'entreprise et inventaire ; matrice complète des rôles non couverte. |
 | TST-05 | La tenancy A/B est testée en lecture et en écriture | **FAIL** | Aucun test à deux entreprises. |
 | TST-06 | Le rollback transactionnel est testé | **PASS** | `DatabaseTransactionRollbackTests`, `StockMovementTransactionTests`. |
-| TST-07 | La concurrence est testée | **FAIL** | Aucun test |
+| TST-07 | La concurrence est testée | **PASS** | `ConcurrentInventoryApiTests` : deux affectations, deux sorties et deux retours simultanés ; une seule écriture aboutit, le solde n'est jamais négatif. Limite : ni la mise à jour d'article (`If-Match`) ni l'idempotence ne sont couvertes. |
 | TST-08 | Le stock et la réconciliation sont testés | **PASS** | `InventoryCountApiTests` vérifie le solde, les ajustements, `last_inventory_at` et l'idempotence de la clôture. |
 | TST-09 | Les contrats d'erreur et de pagination sont testés | **PASS** | `HttpContractApiTests` couvre Problem Details, `errors[]`, `PageResponse`, `page=0`, `Location`, dates UTC, alias `/api` et 204. |
 | TST-10 | Le code et les tests sont synchronisés | **PASS** | L'historique 404, la pagination et les filtres sont testés ; le test obsolète a été remplacé. |
-| TST-11 | Un pipeline CI bloque les régressions | **PARTIEL** | Workflow GitHub Actions présent ; tests RBAC et transaction locaux, pas de tenancy A/B ni de concurrence |
-| TST-12 | Les performances critiques sont mesurées | **FAIL** | Aucun test |
-| TST-13 | La suite actuelle est verte sur l'état courant | **PASS** | 58 tests exécutés sur base isolée ; 0 échec, 0 erreur, 0 ignoré, 8 suites (23 octobre 2026). |
-| TST-14 | Les tests n'écrivent pas dans la base de démonstration partagée | **PARTIEL** | La suite est exécutée sur `sssm_ci_lot6` avec nettoyage SQL ; aucun garde-fou automatique n'empêche de pointer la base de démonstration. |
+| TST-11 | Un pipeline CI bloque les régressions | **PARTIEL** | Workflow GitHub Actions présent : schéma et données initialisés, `mvnw test` bloquant, garde-fou sur les tests ignorés, lint OpenAPI et packaging. Restent la tenancy A/B, les seuils de couverture et la protection de branche. |
+| TST-12 | Les performances critiques sont mesurées | **PASS** | `ItemListPerformanceTests` mesure la médiane de dix appels sur 1 000 articles (page de 50) et échoue au-delà de 2 000 ms ; mesures locales : **médiane 149 à 222 ms, max 318 ms**. Limite : mesure de non-régression, pas une preuve de performance de production. |
+| TST-13 | La suite actuelle est verte sur l'état courant | **PASS** | 74 tests exécutés ; 0 échec, 0 erreur, 0 ignoré, 13 suites (24 octobre 2026, base dédiée `sssm_lot8_it` initialisée depuis les scripts) ; 3 passes consécutives des suites de concurrence et d'affectation. |
+| TST-14 | Les tests n'écrivent pas dans la base de démonstration partagée | **PARTIEL** | Les 16 tests du Lot 8 créent leurs propres fixtures et les suppriment ; la suite a été rejouée sur une base dédiée (`sssm_lot8_it`) et n'y laisse aucune ligne `LOT8-*`. Les suites antérieures restent dépendantes des données de démonstration, et aucun garde-fou automatique n'empêche de pointer la base de démonstration. |
 
 ---
 
@@ -396,18 +396,18 @@ Et un article hors de l'instantané est refusé en 409
 | Authentification | 15 | 3 | 4 | 0 |
 | Catalogue | 10 | 3 | 5 | 0 |
 | Stock | 14 | 3 | 1 | 0 |
-| Affectations | 10 | 4 | 4 | 0 |
+| Affectations | 11 | 3 | 4 | 0 |
 | QR | 12 | 2 | 1 | 0 |
 | Comptages / opérations | 16 | 1 | 2 | 0 |
 | Contrat HTTP | 12 | 2 | 4 | 0 |
-| Performance / sécurité | 4 | 3 | 4 | 2 |
-| Tests / CI | 6 | 4 | 4 | 0 |
+| Performance / sécurité | 5 | 3 | 4 | 1 |
+| Tests / CI | 9 | 4 | 1 | 0 |
 | Frontend | 6 | 5 | 3 | 0 |
-| **Total** | **113** | **32** | **45** | **2** |
+| **Total** | **118** | **31** | **42** | **1** |
 
-**Total : 192 critères** (113 `PASS`, 32 `PARTIEL`, 45 `FAIL`, 2 `NON VÉRIFIÉ`) après le Lot 9. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
+**Total : 192 critères** (118 `PASS`, 31 `PARTIEL`, 42 `FAIL`, 1 `NON VÉRIFIÉ`) après le Lot 8. La ligne « Comptages / opérations » contient 19 critères : `CNT-01` à `CNT-12` (12) et `OPS-01` à `OPS-07` (7).
 
-**Lecture :** le Lot 7 fait passer le contrat HTTP de 4 à 12 `PASS` : versionnement `/api/v1`, Problem Details, `traceId`, dates UTC, `Location`, 204, UUID invalide, CORS restreint. Les `PASS` supplémentaires portent aussi sur l'historique article (404, pagination, filtres), la pagination des listes d'inventaire et la mise en cache QR. Le Lot 9 ajoute deux `PASS` QR (planche, unicité inter-entreprise) et deux `PASS` frontend (affectation auditée, scan enrichi) ; l'étiquette en lot passe de `FAIL` à `PARTIEL` (HTML sans PDF serveur). Restent bloquants : la tenancy complète (`G0-1`, `G0-2`), la concurrence sans ETag/idempotence (`API-10`, `API-11`), les filtres d'écran (`API-15`), le dashboard global (`FE-11`) et le RBAC des modules hors inventaire.
+**Lecture :** le Lot 7 fait passer le contrat HTTP de 4 à 12 `PASS` : versionnement `/api/v1`, Problem Details, `traceId`, dates UTC, `Location`, 204, UUID invalide, CORS restreint. Les `PASS` supplémentaires portent aussi sur l'historique article (404, pagination, filtres), la pagination des listes d'inventaire et la mise en cache QR. Le Lot 9 ajoute deux `PASS` QR (planche, unicité inter-entreprise) et deux `PASS` frontend (affectation auditée, scan enrichi) ; l'étiquette en lot passe de `FAIL` à `PARTIEL` (HTML sans PDF serveur). Le Lot 8 ajoute trois `PASS` « Tests / CI » (aucun test ignoré, concurrence testée, performances mesurées), un `PASS` de concurrence sur les affectations (`ASG-16`) et un `PASS` de latence (`NFR-03`) ; la tenancy A/B (`TST-05`) reste `FAIL`. Restent bloquants : la tenancy complète (`G0-1`, `G0-2`), la concurrence sans ETag/idempotence (`API-10`, `API-11`), les filtres d'écran (`API-15`), le dashboard global (`FE-11`) et le RBAC des modules hors inventaire.
 
 ---
 

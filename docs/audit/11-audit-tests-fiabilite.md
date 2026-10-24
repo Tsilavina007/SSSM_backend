@@ -10,6 +10,8 @@ La suite exécutée le 22 octobre 2026 après le Lot 4 comptait **150 tests dans
 
 **Mise à jour du 23 octobre 2026 (Lots 5 à 7) :** la suite compte désormais **8 classes et 58 tests**. Trois contrats métier s'y ajoutent : le scan QR (13 tests et 4 tests de limiteur, Lot 5), les comptages (10 tests, Lot 6) et le contrat HTTP (9 tests, Lot 7 : versionnement, Problem Details, pagination, `Location`, dates UTC, historique 404). Les tests de conformité de schéma restent à 20 tests. Le reste des constats (tenancy générale, concurrence, matrice RBAC, base isolée par test) reste ouvert.
 
+**Mise à jour du 24 octobre 2026 (Lot 8) :** la suite compte désormais **13 classes et 74 tests**, exécutés sur une base dédiée initialisée depuis les scripts. Seize tests couvrent les affectations, la cohérence mouvement/stock, la concurrence, l'échec de login et la latence d'une liste de 1 000 articles ; ils créent leurs propres fixtures et ne dépendent plus des données de démonstration. La tenancy A/B et l'idempotence restent non testées, faute de correctif (`P0-01`, `P1-14`). Détail en [1.7](#17-état-après-le-lot-8-24-octobre-2026).
+
 ---
 
 ## 1. Chiffres disponibles
@@ -151,6 +153,56 @@ Le Lot 4 avait ajouté la couverture du cycle de vie des affectations (création
 
 La suite de conformité s'exécute sur la base de démonstration et n'y écrit que ce qu'elle annule (transaction annulée après chaque tentative d'insertion invalide).
 
+### 1.7. État après le Lot 8 (24 octobre 2026)
+
+| Indicateur | Valeur |
+|---|---|
+| Classes de tests | 13 |
+| Tests exécutés | 74 |
+| Succès | 74 |
+| Échecs | 0 |
+| Erreurs | 0 |
+| Ignorés | 0 |
+| Commande | `DB_URL=jdbc:postgresql://127.0.0.1:5432/sssm_lot8_it mvnw -B test` |
+| Base | `sssm_lot8_it`, créée pour l'occasion et initialisée depuis `docs/database/sssm_schema2_v01.sql` et `docs/database/mock_data/sssm_mock_data.sql` ; `sssm_db` n'est pas modifiée |
+| Stabilité | suites concurrence + affectations + mouvements rejouées 3 fois : 3 succès |
+| Performance | 1 000 articles, page de 50 : médiane **149 à 222 ms** selon l'exécution, max **318 ms** (budget 2 000 ms) |
+
+| Classe | Tests | Objet |
+|---|---|---|
+| `DatabaseSchemaConformanceTests` | 15 | Conformité du schéma SQL à l'application (inchangé) |
+| `SchemaScriptsConformanceTests` | 5 | Scripts, ordre et absence d'opération destructive (inchangé) |
+| `QrScanApiTests` | 13 | Contrat du scan QR (inchangé) |
+| `QrScanRateLimiterTests` | 4 | Limiteur de débit (inchangé) |
+| `InventoryCountApiTests` | 10 | Comptages et réconciliation (inchangé) |
+| `HttpContractApiTests` | 9 | Contrat HTTP (inchangé) |
+| `ItemAssignmentLifecycleApiTests` | 5 | Affectation, retour unique, article indisponible, article inconnu, double affectation |
+| `StockMovementConsistencyApiTests` | 5 | Sortie, retour, stock insuffisant (rollback complet), retour sans affectation, destruction |
+| `ConcurrentInventoryApiTests` | 3 | Deux affectations, deux sorties et deux retours simultanés |
+| `AuthLoginFailureApiTests` | 2 | Mot de passe incorrect et compte inactif : aucun jeton |
+| `ItemListPerformanceTests` | 1 | Latence d'une page de 50 sur 1 000 articles |
+| `SssmBackendApplicationTests` | 1 | Démarrage du contexte Spring (inchangé) |
+| `PingControllerTest` | 1 | Endpoint technique `/ping` (inchangé) |
+
+**Fixtures (`support/InventoryTestFixtures`).** Chaque test crée son entreprise, son utilisateur, sa catégorie, son type, son entrepôt, son employé, son site et son poste, tous marqués par un identifiant unique, puis les supprime dans l'ordre des clés étrangères. Le nettoyage a été vérifié : après la suite, la base dédiée ne contient aucune ligne `LOT8-*` et retrouve ses 13 articles et 7 utilisateurs de démonstration. Les tests peuvent donc tourner sur une base initialisée depuis les scripts, sans état préalable propre au Lot 8.
+
+**Ce que ces tests prouvent :**
+
+- une affectation retire l'article du stock disponible et le passe `ASSIGNED` ; un retour le restaure une seule fois dans son entrepôt d'origine et un second retour renvoie `409 ASSIGNMENT_ALREADY_RETURNED` ;
+- un stock insuffisant annule le mouvement, l'affectation et l'écriture de solde dans la même transaction, et le solde ne devient jamais négatif ;
+- un article `LOST` ou déjà affecté ne peut pas être affecté (`409 ITEM_NOT_AVAILABLE`) ;
+- deux requêtes simultanées sur le même article produisent une seule écriture, l'autre étant refusée en `409` ;
+- un mot de passe incorrect ou un compte inactif ne délivre aucun jeton et n'écrit aucun `refresh_token` ;
+- une page de 50 articles sur 1 000 reste très en dessous du budget de 2 secondes.
+
+**Ce que ces tests ne prouvent toujours pas :**
+
+- la tenancy A/B : chaque fixture ne contient qu'une entreprise, et `ItemDAOImpl.getAllItems` lit toujours `security.item` sans filtre `company_id` (`P0-01`) ; un test A/B serait rouge par construction ;
+- l'idempotence HTTP : `Idempotency-Key` et `If-Match`/`ETag` restent absents (`P1-14`) ; les tests figent le comportement actuel (refus en `409`), pas une garantie d'idempotence ;
+- le RBAC : les nouveaux tests utilisent un jeton `ADMIN` synthétique, comme les suites antérieures ;
+- la mise à jour concurrente d'un article, qui reste non versionnée ;
+- la charge réelle : la mesure de latence est une non-régression, pas un test de charge.
+
 ---
 
 ## 2. Nature des tests
@@ -291,6 +343,8 @@ Aucune exception 404 n'est levée.
 
 Deux exécutions parallèles ou un test interrompu peuvent laisser des données.
 
+**État au 24 octobre 2026 (Lot 8) :** les 16 nouveaux tests ne dépendent plus de l'état préalable (fixtures propres, nettoyage ordonné) et la suite a été validée sur une base dédiée. Il reste une base unique pour l'ensemble de la suite, sans Testcontainers ni rollback automatique ; les suites antérieures restent dépendantes des données de démonstration.
+
 ### 7.2. Dépendance aux données de démonstration
 
 Les tests supposent :
@@ -302,6 +356,8 @@ Les tests supposent :
 - un article.
 
 Ils ne créent pas leurs propres fixtures complètes. Un environnement neuf les ignore.
+
+**État au 24 octobre 2026 (Lot 8) :** les tests d'affectation, de mouvement, de concurrence, de login et de latence créent enterprise, utilisateur, entrepôt, type, employé et poste, puis les suppriment. Les suites QR, comptage, contrat HTTP et conformité de schéma restent dépendantes des données de démonstration.
 
 ### 7.3. Jeton synthétique
 
@@ -331,6 +387,8 @@ Aucun test ne lance deux requêtes simultanées sur :
 
 Les problèmes de transaction et d'index uniques ne sont donc pas détectés.
 
+**État au 24 octobre 2026 (Lot 8) :** `ConcurrentInventoryApiTests` lance deux requêtes simultanées sur la même affectation, le même mouvement et le même retour ; une seule aboutit, l'autre est refusée en `409`. La mise à jour concurrente d'un article et l'idempotence ne sont toujours pas testées.
+
 ### 7.5. Pas de test de performance
 
 Aucun test ne mesure :
@@ -340,6 +398,8 @@ Aucun test ne mesure :
 - le comportement avec 1 000 articles ;
 - le N+1 ;
 - l'absence de pool.
+
+**État au 24 octobre 2026 (Lot 8) :** `ItemListPerformanceTests` mesure la médiane de dix appels sur 1 000 articles (page de 50) avec un budget de 2 000 ms ; mesures locales : 149 à 222 ms de médiane, 318 ms au maximum. Le nombre de requêtes SQL et le N+1 ne sont pas mesurés.
 
 ### 7.6. Couverture de sécurité partielle
 
@@ -416,11 +476,10 @@ Un workflow GitHub Actions existe : `.github/workflows/ci.yml`. Il démarre un s
 Ses limites sont cependant structurantes :
 
 - une seule base pour toute la suite, sans rollback ni Testcontainers ;
-- dépendance aux données de démonstration ;
+- dépendance aux données de démonstration pour les suites antérieures au Lot 8 ;
 - tests RBAC et scope entreprise présents, mais pas de scénario à deux entreprises réelles ;
-- aucun test de transaction, concurrence ou réconciliation ;
 - aucun seuil de couverture ;
-- la suite est verte, mais elle ne couvre que le schéma, le QR, les comptages et le contrat HTTP : la tenancy générale, la concurrence, la matrice RBAC et l'archivage restent non testés (`P1-13`) ; l'historique article est désormais couvert (`P1-12` corrigé).
+- depuis le Lot 8 : 16 tests autonomes couvrent affectations, cohérence du stock, concurrence, échec de login et latence, et le CI échoue sur un test ignoré ; la tenancy générale, la matrice RBAC et l'idempotence restent non testées (`P0-01`, `P1-13`, `P1-14`) ; l'historique article est couvert (`P1-12` corrigé).
 
 Une suite verte localement ou en CI ne signifie donc pas :
 
@@ -434,6 +493,8 @@ Une suite verte localement ou en CI ne signifie donc pas :
 ## 10. Recommandations de test
 
 Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté les tests RBAC, scope entreprise et révocation ; le reste doit être planifié. Le workflow CI existant est un bon point de départ ; il doit être conservé et étendu, pas remplacé.
+
+**État au 24 octobre 2026 (Lot 8) :** les points 2, 6 et 11 sont traités (fixtures explicites, concurrence, latence) et le point 5 est complété par un test de rollback de mouvement ; le point 12 est partiellement traité (login en échec, compte inactif). Les points 1 (Testcontainers), 3 (tenancy A/B), 4 (matrice RBAC complète) et un seuil de couverture restent ouverts.
 
 1. **Testcontainers PostgreSQL** pour une base isolée et reproductible.
 2. **Fixtures explicites** : créer l'entreprise A et B, les utilisateurs, les rôles, les articles.
@@ -455,6 +516,8 @@ Ces recommandations restent majoritairement des propositions. Le Lot 1 a ajouté
 La suite qui précédait la réduction était **nombreuse pour un prototype** et **utile pour les parcours nominaux** : elle couvrait l'identité et le RBAC (Lot 1), le pool, le rollback transactionnel et le mapping SQL (Lot 2), les soldes calculés, le journal immuable et les comptages (Lot 3), le cycle de vie des affectations et l'archivage (Lot 4). Elle totalisait **150 tests dans 28 suites**.
 
 **La suite actuelle (58 tests, 8 suites) ne couvre que des périmètres ciblés.** Elle contrôle la conformité du schéma à l'application, les contrats QR, comptage et HTTP ; elle ne couvre ni la tenancy générale, ni la concurrence, ni la matrice RBAC, ni l'archivage. C'est un filet de sécurité sur les migrations et trois contrats, pas une preuve de bon fonctionnement : le rapport 15 doit être relu en conséquence, et `P1-13` reste ouvert avec un niveau de gravité plus élevé qu'avant.
+
+**Après le Lot 8 (24 octobre 2026), la suite compte 74 tests dans 13 classes**, tous verts sur une base dédiée initialisée depuis les scripts. Elle couvre en plus le cycle de vie des affectations, la cohérence mouvement/stock/affectation, trois courses concurrentes, l'échec de login et la latence d'une liste de 1 000 articles ; ces 16 tests créent et suppriment leurs propres fixtures, sans dépendre des données de démonstration. Le CI échoue désormais si un test est ignoré. La suite reste **insuffisante comme preuve de production** : la tenancy A/B n'est pas testée (`P0-01` non corrigé), l'idempotence HTTP reste absente (`P1-14`), le RBAC des nouveaux tests repose sur un jeton `ADMIN` synthétique et aucun seuil de couverture n'est mesuré. `P1-13` passe de « non probante » à **partiellement corrigée**, avec un score de risque ramené de 25 à 15.
 
 Ils ne sont pas encore **fiables comme garde-fou de production** :
 

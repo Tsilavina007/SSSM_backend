@@ -17,15 +17,19 @@ vérifie chaque push et chaque pull request ciblant `dev` ou `main`. Il peut aus
   contient bien `DESTRUCTION` (utilisé par les mouvements et l'openapi).
 - Exécution de `./mvnw -B -q test` avec `DB_URL`, `DB_USER`, `DB_PASSWORD` et
   `JWT_SECRET` fournis par l'environnement du job.
+- Échec du job si un rapport Surefire contient `Skipped: [1-9]` : aucun test ne
+doit être ignoré silencieusement.
 - Publication des rapports Surefire en artefact, même en cas d'échec.
 
-La suite est volontairement réduite : **8 classes, 58 tests**. Elle ne
+La suite est volontairement réduite : **13 classes, 74 tests**. Elle ne
 vérifie pas tous les comportements métier, mais la conformité entre le
 schéma SQL appliqué et ce que l'application attend, le contrat du scan QR
 (tenant-scoped, enrichi, journalisé, limité en débit), le contrat des
 comptages (instantané figé, périmètre, clôture idempotente, ajustements,
-annulation, pagination) et le contrat HTTP (versionnement, erreurs,
-pagination, `Location`, dates UTC).
+annulation, pagination), le contrat HTTP (versionnement, erreurs,
+pagination, `Location`, dates UTC), le cycle de vie des affectations, la
+cohérence mouvement/stock, la concurrence, l'échec de login et la latence
+d'une liste de 1 000 articles.
 
 | Classe | Tests | Objet |
 |---|---:|---|
@@ -36,6 +40,11 @@ pagination, `Location`, dates UTC).
 | `QrScanApiTests` | 13 | Résolution enrichie, 404 inconnu, 404 code d'une autre entreprise, journal, code immuable, cache et 304, étiquette et planche |
 | `QrScanRateLimiterTests` | 4 | Limitation de débit des résolutions de QR code |
 | `InventoryCountApiTests` | 10 | Instantané figé, article hors périmètre, cloisonnement, comptage vide, clôture idempotente, ajustements et solde, annulation, pagination, comptage inconnu |
+| `ItemAssignmentLifecycleApiTests` | 5 | Affectation, retour unique, article indisponible, article inconnu, double affectation |
+| `StockMovementConsistencyApiTests` | 5 | Sortie, retour, stock insuffisant avec rollback complet, retour sans affectation, destruction |
+| `ConcurrentInventoryApiTests` | 3 | Deux affectations, deux sorties et deux retours simultanés |
+| `AuthLoginFailureApiTests` | 2 | Mot de passe incorrect et compte inactif : aucun jeton émis |
+| `ItemListPerformanceTests` | 1 | Médiane de dix appels sur 1 000 articles (budget 2 000 ms) |
 | `PingControllerTest` | 1 | Endpoint technique `/ping` |
 
 Les tests de conformité de schéma n'utilisent pas Spring : ils ouvrent une
@@ -43,7 +52,12 @@ connexion JDBC avec la même configuration que l'application (`DB_URL`,
 `DB_USER`, `DB_PASSWORD`), ce qui les rend rapides et indépendants du contexte
 applicatif. Les tests d'API (`HttpContractApiTests`, `QrScanApiTests`,
 `InventoryCountApiTests`) utilisent `@SpringBootTest` et MockMvc sur la même
-base.
+base. Les tests du Lot 8 (`ItemAssignmentLifecycleApiTests`,
+`StockMovementConsistencyApiTests`, `ConcurrentInventoryApiTests`,
+`AuthLoginFailureApiTests`, `ItemListPerformanceTests`) suivent le même
+principe, mais créent leur propre entreprise, leur utilisateur, leur entrepôt,
+leur type, leur employé et leur poste via `InventoryTestFixtures`, puis les
+suppriment : ils ne dépendent pas des données de démonstration.
 
 ### `lint` — Contrôles statiques Java et OpenAPI
 
@@ -90,6 +104,12 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 JWT_SECRET=ci-only-jwt-secret-with-at-least-32-characters
 ```
+
+Les tests du Lot 8 ne dépendent que de leurs propres fixtures ; pour les isoler
+complètement de la base de démonstration, pointer `DB_URL` vers une base dédiée
+initialisée depuis `docs/database/sssm_schema2_v01.sql` et
+`docs/database/mock_data/sssm_mock_data.sql` (c'est la configuration utilisée
+lors de leur validation : `sssm_lot8_it`).
 
 ## Formatage Java
 

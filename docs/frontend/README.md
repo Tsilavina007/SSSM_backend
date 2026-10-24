@@ -3,7 +3,7 @@
 **Date :** 23 octobre 2026
 **Objet :** fournir au frontend web et mobile un contrat stable à consommer, sans
 commencer les écrans.
-**État backend :** 58 tests verts (8 suites) ; `GET /api/v1/inventory/stock-balances`
+**État backend :** 74 tests verts (13 classes) ; `GET /api/v1/inventory/stock-balances`
 est désormais documenté dans OpenAPI ; `P0-01` (isolation multi-entreprise) et
 `P1-14` (concurrence/idempotence) restent ouverts.
 
