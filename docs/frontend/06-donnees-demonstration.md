@@ -129,6 +129,13 @@ Ses fixtures portent le préfixe `DEMO-POSTMAN` et des UUID réservés. Le scrip
 `scripts/demo/reset-postman-demo.ps1`) les recrée à l'identique sans modifier le
 jeu de démonstration décrit dans ce document.
 
+Deux collections sont fournies :
+
+- `SSSM-Demo` : le scénario de démonstration ci-dessus (21 requêtes) ;
+- `SSSM-API` : toutes les routes HTTP de l'API (152 requêtes), organisées par
+  module et par ressource. Ses écritures d'inventaire visent un entrepôt
+  dédié, distinct de celui du scénario de démonstration.
+
 ## 8. Prérequis si une deuxième entreprise était admise (hors périmètre)
 
 Le mono-entreprise est une décision produit ; ce chapitre est conservé comme

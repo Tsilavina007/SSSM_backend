@@ -118,3 +118,18 @@ chmod +x scripts/demo/reset-postman-demo.sh
 
 Le guide complet (import de la collection, parcours et dépannage) est dans
 [`docs/postman/README.md`](../docs/postman/README.md).
+
+## Génération de la collection Postman de l'API
+
+`postman/generate-postman-collection.py` dérive la collection « API complète »
+(les 152 routes HTTP) des spécifications OpenAPI du dépôt. Après une évolution
+des contrôleurs, régénérer les fichiers :
+
+```bash
+python scripts/postman/generate-postman-collection.py
+```
+
+Le script écrit `docs/postman/SSSM-API.postman_collection.json` et les deux
+environnements associés. L'arborescence des dossiers, les variables de
+collection, les charges utiles et les cibles des requêtes mutantes sont
+définis en tête du script.

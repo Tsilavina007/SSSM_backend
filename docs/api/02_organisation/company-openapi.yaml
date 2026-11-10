@@ -213,7 +213,7 @@ components:
       description: >-
         Société sérialisée en CompanyResponse. id et les horodatages sont
         générés par la base et ne sont pas modifiables par le client.
-      required: [ name ]
+      required: [ name, currency_code ]
       properties:
         id: { type: string, format: uuid, readOnly: true }
         name: { type: string, maxLength: 180 }
@@ -226,6 +226,11 @@ components:
         city: { type: string, maxLength: 100, nullable: true }
         country: { type: string, maxLength: 100, nullable: true, default: Madagascar }
         logo_url: { type: string, nullable: true }
-        currency_code: { type: string, minLength: 3, maxLength: 3, default: MGA }
+        currency_code:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: MGA
+          description: Obligatoire à la création (validation Jakarta).
         created_at: { type: string, format: date, readOnly: true }
         updated_at: { type: string, format: date, readOnly: true }
