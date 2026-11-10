@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentReturnRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
@@ -77,7 +78,8 @@ public class AssignmentController {
 
   @PostMapping("/assignments/{id}/return")
   public ResponseEntity<ItemAssignmentRest> ret(
-      @PathVariable String id, @RequestBody(required = false) ItemAssignmentUpdateRequest request) {
+      @PathVariable String id,
+      @Valid @RequestBody(required = false) ItemAssignmentReturnRequest request) {
     return deprecated(HttpStatus.OK, itemAssignmentService.returnItemAssignment(id, request));
   }
 

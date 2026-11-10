@@ -8,6 +8,8 @@
 
 **Mise à jour du 22 octobre 2026 (Lot 4) :** les affectations dispose d'un **contrat canonique unique** (`/api/item-assignments`), d'une **machine à états** (création active, retour, void motivé, archivage, restauration), d'une **synchronisation avec le stock** et d'un **rattachement aux mouvements** `OUT`/`RETURN`. `/api/inventory/assignments` est devenu une **façade dépréciée** qui délègue au même service. La migration additive `20_lot4_assignments.sql` ajoute `source_warehouse_id`, `voided_at`, `voided_by` et `void_reason`. Suite complète à cette date : **150 tests, 0 échec, 0 erreur, 0 ignoré, 28 suites** (suite depuis réduite à 20 tests de conformité schéma, voir le rapport 11).
 
+**Mise à jour du 10 novembre 2026 :** le retour utilise le DTO dédié `ItemAssignmentReturnRequest` (`condition_on_return` uniquement). Le corps reste facultatif : un corps absent, vide ou `{}` est accepté. La date, l'acteur, l'entrepôt et le solde sont toujours pilotés par le serveur.
+
 Le § 9 conserve, à titre de trace, les constats de l'audit initial et leur statut courant. Les sections 1 à 8 décrivent **l'état du code après le Lot 4**.
 
 ---
@@ -53,7 +55,7 @@ La façade expose les mêmes opérations sous `/api/inventory/assignments`, plus
 | Erreur « article non disponible » | `409 ITEM_NOT_AVAILABLE` |
 | Doublon d'affectation active | `409 ASSIGNMENT_ALREADY_ACTIVE` (index unique) |
 | Création avec `returned_at` | Ligne **historique** : `assigned_at` obligatoire, état de l'article inchangé |
-| Retour | `POST /{id}/return` ; date et acteur posés par le serveur |
+| Retour | `POST /{id}/return` avec DTO facultatif `ItemAssignmentReturnRequest` ; seul `condition_on_return` est lu ; date et acteur posés par le serveur |
 | Retour déjà effectué | `409 ASSIGNMENT_ALREADY_RETURNED` |
 | `PATCH` avec `returned_at` | Délègue au retour (compatibilité) |
 | `PATCH` avec `condition_on_return` seul | `400 RETURN_ENDPOINT_REQUIRED` |
@@ -131,7 +133,7 @@ L'ensemble est couvert par une seule transaction Spring : affectation, état de 
 5. remet l'article `AVAILABLE` et restaure `source_warehouse_id`, ou l'entrepôt courant à défaut ;
 6. synchronise le solde.
 
-Le corps est facultatif ; seul `condition_on_return` est lu.
+Le corps est facultatif (`ItemAssignmentReturnRequest`) ; un corps absent, vide ou `{}` est accepté et seul `condition_on_return` est lu. Le `PATCH` avec `returned_at` réutilise ce même flux en ne transmettant que `condition_on_return`. Le test `ItemAssignmentLifecycleApiTests` couvre le retour avec condition, le retour sans corps et le second retour en `409`.
 
 ### 4.3. Void
 

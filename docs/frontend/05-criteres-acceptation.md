@@ -84,16 +84,21 @@ Recette minimale :
 | ASG-17 | Retards identifiables | **FAIL** : aucune route dédiée |
 | FE-07 | Créer, retourner et auditer | **PASS** (réserve donnée de démo) |
 
+Le retour accepte un corps facultatif (`ItemAssignmentReturn`) ; seul
+`condition_on_return` est lu. Un retour sans corps est valide et renvoie `200`.
+
 Recette minimale :
 
 1. affecter un article `AVAILABLE` à un employé et un poste → `201` ;
 2. vérifier `assigned_by`, `assigned_at`, entrepôt vidé, solde décrémenté ;
-3. retourner via `POST /item-assignments/{id}/return` → article `AVAILABLE`,
-   entrepôt restauré, `returned_at` et `returned_by` renseignés ;
-4. second retour → `409 ASSIGNMENT_ALREADY_RETURNED` ;
-5. annuler une affectation avec motif → void audité ;
-6. supprimer une affectation active → `409 ACTIVE_ASSIGNMENT` ;
-7. utiliser uniquement `/api/v1/item-assignments`, pas la façade.
+3. retourner via `POST /item-assignments/{id}/return` avec un corps facultatif
+   `{ "condition_on_return": "Bon état" }` → article `AVAILABLE`, entrepôt
+   restauré, `returned_at`, `returned_by` et `condition_on_return` renseignés ;
+4. rejouer le retour sans corps sur une autre affectation active → `200` ;
+5. second retour de la même affectation → `409 ASSIGNMENT_ALREADY_RETURNED` ;
+6. annuler une affectation avec motif → void audité ;
+7. supprimer une affectation active → `409 ACTIVE_ASSIGNMENT` ;
+8. utiliser uniquement `/api/v1/item-assignments`, pas la façade.
 
 ### Comptages et opérations
 

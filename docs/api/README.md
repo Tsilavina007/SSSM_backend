@@ -109,6 +109,26 @@ Aucune spécification n'est fournie pour `a00_infrastructure`, `a01_common` et
   schéma `ItemError` ne subsiste que pour les erreurs par ligne des créations
   d'articles en lot.
 
+### Retour d'affectation
+
+`POST /api/v1/item-assignments/{id}/return` clôt l'affectation active et renvoie
+`200` avec l'affectation mise à jour. Le corps est facultatif et correspond au
+schéma dédié `ItemAssignmentReturn` : seul `condition_on_return` est lu. Un corps
+absent, vide ou `{}` est accepté.
+
+Le serveur pose `returned_at` et `returned_by`, remet l'article `AVAILABLE`,
+restaure `source_warehouse_id` (ou l'entrepôt courant à défaut) et resynchronise
+le solde. Un identifiant inconnu renvoie `404 NOT_FOUND` ; un second retour
+renvoie `409 ASSIGNMENT_ALREADY_RETURNED`.
+
+```http
+POST /api/v1/item-assignments/3f1c6a5e-7b2d-4f9a-9a5e-2f4b8c1d0e77/return
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+{ "condition_on_return": "Bon état" }
+```
+
 ### Format des erreurs
 
 Toutes les erreurs — exceptions métier, validation, JSON illisible, UUID

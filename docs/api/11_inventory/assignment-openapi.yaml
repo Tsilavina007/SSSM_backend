@@ -147,12 +147,22 @@ paths:
       summary: Enregistrer un retour
       deprecated: true
       description: >-
-        Corps facultatif ; seul `condition_on_return` est lu. Date et acteur du
-        retour sont posés par le serveur.
+        Corps facultatif, même DTO dédié `ItemAssignmentReturn` que le contrat
+        canonique ; seul `condition_on_return` est lu. Un corps absent, vide ou
+        `{}` est accepté. Date et acteur du retour sont posés par le serveur.
       requestBody:
         required: false
         content:
-          application/json: { schema: { $ref: '#/components/schemas/ItemAssignmentReturn' } }
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemAssignmentReturn' }
+            examples:
+              withCondition:
+                summary: Retour avec état constaté
+                value:
+                  condition_on_return: Bon état
+              empty:
+                summary: Retour sans corps utile
+                value: {}
       responses:
         '200':
           $ref: '#/components/responses/Assignment'
@@ -471,5 +481,12 @@ components:
         expected_return_at: { type: string, format: date-time, nullable: true }
     ItemAssignmentReturn:
       type: object
+      description: >-
+        Corps facultatif du retour. Seul `condition_on_return` est lu ; les
+        autres champs sont ignorés. `returned_at` et `returned_by` sont posés par
+        le serveur.
       properties:
-        condition_on_return: { type: string, nullable: true }
+        condition_on_return:
+          type: string
+          nullable: true
+          example: Bon état

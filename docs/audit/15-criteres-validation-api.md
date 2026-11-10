@@ -207,7 +207,7 @@ Et un second OUT de 4 renvoie 409 sans modifier le stock
 | ASG-04 | Affecter à un employé d'une autre entreprise renvoie 404/422 | **N/A** | Aucun contrôle de cohérence entreprise ; sans objet en mono-entreprise. |
 | ASG-05 | Affecter à un poste d'une autre entreprise renvoie 404/422 | **N/A** | Aucun contrôle de cohérence entreprise ; sans objet en mono-entreprise. |
 | ASG-06 | L'affectation et le passage à `ASSIGNED` sont atomiques | **PASS** | Service `@Transactional`, DAO sur connexion Spring, solde synchronisé ; tests de création et rollback. |
-| ASG-07 | Un retour exige une date de retour | **PASS** | `POST /{id}/return` pose `returned_at` côté serveur ; date bornée à `assigned_at` si nécessaire. |
+| ASG-07 | Un retour exige une date de retour | **PASS** | `POST /{id}/return` pose `returned_at` côté serveur ; date bornée à `assigned_at` si nécessaire. Le DTO `ItemAssignmentReturnRequest` est facultatif et seul `condition_on_return` est lu ; un corps absent est accepté. |
 | ASG-08 | Un retour restaure l'entrepôt | **PASS** | `source_warehouse_id` ajouté et restauré ; test dédié. |
 | ASG-09 | Un retour renseigne `returned_by` | **PASS** | Acteur JWT UUID ; test `returned_by`. Un acteur non-UUID reste nul. |
 | ASG-10 | Un retour est idempotent | **PARTIEL** | Un second retour renvoie 409 `ASSIGNMENT_ALREADY_RETURNED` de façon déterministe, mais aucune clé d'idempotence (`P1-14`). |
@@ -225,8 +225,10 @@ Et un second OUT de 4 renvoie 409 sans modifier le stock
 ```text
 Étant donné un article ASSIGNED avec une affectation active
 Quand un opérateur appelle POST /api/v1/item-assignments/{id}/return
+Et que le corps est absent ou contient seulement condition_on_return
 Alors returned_at et returned_by sont renseignés
 Et l'affectation est clôturée
+Et condition_on_return est conservé s'il a été fourni
 Et l'article redevient AVAILABLE dans son entrepôt de retour
 Et un second appel renvoie 409 ou la même réponse idempotente
 Et il n'existe plus aucune affectation active pour cet article

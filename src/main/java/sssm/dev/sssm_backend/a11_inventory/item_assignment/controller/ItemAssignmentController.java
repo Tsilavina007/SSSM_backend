@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import sssm.dev.sssm_backend.a01_common.pagination.PageResponse;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentReturnRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.service.ItemAssignmentService;
@@ -79,7 +80,7 @@ public class ItemAssignmentController {
   @PostMapping("/{itemAssignmentId}/return")
   public ItemAssignmentRest returnItemAssignment(
       @PathVariable String itemAssignmentId,
-      @RequestBody(required = false) ItemAssignmentUpdateRequest value) {
+      @Valid @RequestBody(required = false) ItemAssignmentReturnRequest value) {
     return itemAssignmentService.returnItemAssignment(itemAssignmentId, value);
   }
 

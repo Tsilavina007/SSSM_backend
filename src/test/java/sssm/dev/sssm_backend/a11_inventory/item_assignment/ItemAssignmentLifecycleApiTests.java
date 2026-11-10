@@ -108,7 +108,8 @@ class ItemAssignmentLifecycleApiTests {
                 .content("{\"condition_on_return\":\"Bon état\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.returned_at").isNotEmpty())
-        .andExpect(jsonPath("$.returned_by").value(fixtures.userId()));
+        .andExpect(jsonPath("$.returned_by").value(fixtures.userId()))
+        .andExpect(jsonPath("$.condition_on_return").value("Bon état"));
 
     assertEquals("AVAILABLE", fixtures.itemStatus(itemId));
     assertEquals(fixtures.warehouseId(), fixtures.itemWarehouse(itemId));
@@ -127,6 +128,29 @@ class ItemAssignmentLifecycleApiTests {
 
     assertDecimal("1", fixtures.stock());
     assertEquals(0, fixtures.activeAssignments(itemId));
+  }
+
+  @Test
+  @DisplayName("Un retour sans corps est accepté et restaure l'article")
+  void returnAcceptsAnEmptyBody() throws Exception {
+    String itemId = fixtures.insertAvailableItem("RETURN-NOBODY");
+    fixtures.setStock("1");
+    createAssignment(itemId);
+    String assignmentId = fixtures.activeAssignmentId(itemId);
+    assertNotNull(assignmentId);
+
+    mockMvc
+        .perform(
+            post("/api/v1/item-assignments/" + assignmentId + "/return")
+                .header("Authorization", "Bearer " + token))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.returned_at").isNotEmpty())
+        .andExpect(jsonPath("$.condition_on_return").value(nullValue()));
+
+    assertEquals("AVAILABLE", fixtures.itemStatus(itemId));
+    assertEquals(fixtures.warehouseId(), fixtures.itemWarehouse(itemId));
+    assertEquals(0, fixtures.activeAssignments(itemId));
+    assertDecimal("1", fixtures.stock());
   }
 
   @Test

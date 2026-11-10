@@ -185,18 +185,52 @@ paths:
         Clôt l'affectation active, pose `returned_at` et `returned_by` depuis le
         serveur, restaure `source_warehouse_id` (ou l'entrepôt courant) et
         remet l'article `AVAILABLE` avec mise à jour du solde. Le corps est
-        facultatif et seul `condition_on_return` est lu. Un second appel renvoie
-        409 `ASSIGNMENT_ALREADY_RETURNED`.
+        facultatif et correspond au DTO dédié `ItemAssignmentReturn` : seul
+        `condition_on_return` est lu, les autres champs sont ignorés. Un corps
+        absent, vide ou `{}` est accepté. Un second appel renvoie 409
+        `ASSIGNMENT_ALREADY_RETURNED`.
       requestBody:
         required: false
         content:
-          application/json: { schema: { $ref: '#/components/schemas/ItemAssignmentReturn' } }
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemAssignmentReturn' }
+            examples:
+              withCondition:
+                summary: Retour avec état constaté
+                value:
+                  condition_on_return: Bon état
+              empty:
+                summary: Retour sans corps utile
+                value: {}
       responses:
         '200':
           description: Affectation clôturée
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ItemAssignment' }
+              examples:
+                returned:
+                  summary: Affectation retournée
+                  value:
+                    id: 3f1c6a5e-7b2d-4f9a-9a5e-2f4b8c1d0e77
+                    company_id: 0f5a7a9e-2f6d-4d9a-8f2b-6a1c3e5d7b90
+                    item_id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                    employee_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    post_id: 6fa459ea-ee8a-4ca4-894e-db77e160355e
+                    assigned_at: '2026-11-10T08:00:00Z'
+                    returned_at: '2026-11-10T17:30:00Z'
+                    condition_on_assignment: Bon état
+                    condition_on_return: Bon état
+                    notes: Retour de fin de poste
+                    created_at: '2026-11-10T08:00:00Z'
+                    updated_at: '2026-11-10T17:30:00Z'
+                    assigned_by: 1d2c3b4a-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+                    returned_by: 1d2c3b4a-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+                    expected_return_at: '2026-11-10T18:00:00Z'
+                    source_warehouse_id: 8f14e45f-ceea-4a2f-9b3d-2c5e7a1f0d6b
+                    voided_at: null
+                    voided_by: null
+                    void_reason: null
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -514,6 +548,12 @@ components:
         expected_return_at: { type: string, format: date-time, nullable: true }
     ItemAssignmentReturn:
       type: object
-      description: Corps facultatif du retour ; seul `condition_on_return` est lu.
+      description: >-
+        Corps facultatif du retour. Seul `condition_on_return` est lu ; les
+        autres champs sont ignorés. `returned_at` et `returned_by` sont toujours
+        posés par le serveur.
       properties:
-        condition_on_return: { type: string, nullable: true }
+        condition_on_return:
+          type: string
+          nullable: true
+          example: Bon état

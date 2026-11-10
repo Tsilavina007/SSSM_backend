@@ -20,6 +20,7 @@ import sssm.dev.sssm_backend.a11_inventory.item.dto.ItemResponse;
 import sssm.dev.sssm_backend.a11_inventory.item.repository.ItemDAO;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentCreateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentResponse;
+import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentReturnRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.ItemAssignmentUpdateRequest;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.mapper.ItemAssignmentRestMapper;
 import sssm.dev.sssm_backend.a11_inventory.item_assignment.dto.rest.ItemAssignmentRest;
@@ -180,7 +181,7 @@ public class ItemAssignmentService {
 
   @Transactional
   public ItemAssignmentRest returnItemAssignment(
-      String itemAssignmentId, ItemAssignmentUpdateRequest value) {
+      String itemAssignmentId, ItemAssignmentReturnRequest value) {
     ItemAssignmentResponse assignment = requireAssignment(itemAssignmentId);
     requireNotVoided(assignment);
     if (assignment.getReturned_at() != null) {
@@ -251,7 +252,9 @@ public class ItemAssignmentService {
     }
 
     if (value.getReturned_at() != null) {
-      return returnItemAssignment(itemAssignmentId, value);
+      ItemAssignmentReturnRequest returnRequest = new ItemAssignmentReturnRequest();
+      returnRequest.setCondition_on_return(value.getCondition_on_return());
+      return returnItemAssignment(itemAssignmentId, returnRequest);
     }
 
     if (value.getCondition_on_return() != null) {
