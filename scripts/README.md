@@ -92,3 +92,29 @@ Le nettoyage ne modifie pas automatiquement les imports wildcard (`.*`) ni
 les espaces à l'intérieur du code ou des chaînes de caractères, car une
 modification générale pourrait changer le comportement du programme. Ces
 éléments restent listés par le checker pour être corrigés manuellement.
+
+## Démonstration Postman
+
+Les scripts `demo/reset-postman-demo.ps1` et `demo/reset-postman-demo.sh`
+recréent les fixtures dédiées à la démonstration Postman. Ils exécutent
+`docs/database/mock_data/demo_postman.sql` et acceptent les variables
+d'environnement `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` et `DB_PASSWORD`.
+
+Depuis la racine du projet :
+
+```powershell
+.\scripts\demo\reset-postman-demo.ps1
+```
+
+```bash
+./scripts/demo/reset-postman-demo.sh
+```
+
+Sur Linux ou macOS, rendre le script exécutable si nécessaire :
+
+```bash
+chmod +x scripts/demo/reset-postman-demo.sh
+```
+
+Le guide complet (import de la collection, parcours et dépannage) est dans
+[`docs/postman/README.md`](../docs/postman/README.md).

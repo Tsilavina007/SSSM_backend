@@ -9,6 +9,12 @@ dans Swagger Editor, Postman, Insomnia ou Redoc.
 `Deprecation: true` et `Link` vers `/api/v1`, mais il n'est plus documenté.
 Les erreurs utilisent `application/problem+json` (RFC 9457).
 
+Une collection Postman prête à l'emploi pour démontrer l'authentification, les
+affectations et les mouvements de stock est documentée dans
+[`docs/postman/README.md`](../postman/README.md). Les spécifications ci-dessous
+restent la référence contractuelle ; la collection fournit les scénarios
+d'exécution et les assertions.
+
 ## Organisation
 
 | Module | Dossier | Spécifications | Opérations |

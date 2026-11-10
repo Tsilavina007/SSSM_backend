@@ -68,7 +68,7 @@ paths:
         Authentifie par username ou email (insensible à la casse pour l'email).
         Le compte doit être ACTIVE et le mot de passe correspondre au hash
         BCrypt. Met à jour last_login_at et renvoie un JWT signé (1 heure par
-        défaut).
+        défaut) accompagné d'un refresh token opaque à usage unique.
       security: []
       requestBody:
         required: true
@@ -134,12 +134,14 @@ paths:
   /api/v1/auth/refresh:
     post:
       tags: [Auth]
-      summary: Renouveler un jeton JWT
+      summary: Renouveler les jetons
       description: >-
-        Valide le jeton fourni (même expiré) et en émet un nouveau pour le même
-        utilisateur et les mêmes rôles. Le compte doit être actif. Le jeton est
-        transmis dans le corps : aucun en-tête Authorization n'est requis, ce qui
-        permet de renouveler un jeton expiré.
+        Consomme un refresh token opaque à usage unique et émet un nouvel access
+        token JWT ainsi qu'un nouveau refresh token : c'est la rotation. Le
+        refresh token est transmis dans le corps ; aucun en-tête Authorization
+        n'est requis, ce qui permet de renouveler un access token expiré. Un
+        refresh token inconnu, expiré ou déjà consommé renvoie 401, et le compte
+        doit être actif.
       security: []
       requestBody:
         required: true
@@ -147,12 +149,14 @@ paths:
           application/json:
             schema:
               type: object
-              required: [token]
+              required: [refreshToken]
               properties:
-                token: { type: string, description: Jeton JWT à renouveler. }
+                refreshToken:
+                  type: string
+                  description: Refresh token opaque renvoyé par login ou par le refresh précédent.
       responses:
         '200':
-          description: Nouveau jeton émis
+          description: Nouveaux jetons émis
           content:
             application/json:
               schema: {$ref: '#/components/schemas/AuthResponse'}
@@ -162,7 +166,9 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
         '401':
-          description: JWT absent, invalide ou expiré (Problem Details RFC 9457).
+          description: >-
+            Refresh token absent, inconnu, expiré ou déjà consommé, ou compte
+            inactif (Problem Details RFC 9457).
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
@@ -248,7 +254,13 @@ components:
         token:
           type: string
           nullable: true
-          description: JWT signé. null à l'inscription, renseigné à la connexion.
+          description: Access token JWT. null à l'inscription, renseigné à la connexion et au refresh.
+        refreshToken:
+          type: string
+          nullable: true
+          description: >-
+            Refresh token opaque à usage unique. null à l'inscription ; renseigné
+            à la connexion et remplacé à chaque refresh.
         tokenType: {type: string, example: Bearer}
         user: {$ref: '#/components/schemas/AuthUser'}
     AuthUser:
@@ -262,6 +274,7 @@ components:
         roles:
           type: array
           items: {type: string}
+        companyId: {type: string, format: uuid, nullable: true}
   securitySchemes:
     bearerAuth:
       type: http

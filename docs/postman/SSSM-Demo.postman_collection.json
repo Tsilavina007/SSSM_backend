@@ -1,0 +1,983 @@
+{
+  "info": {
+    "_postman_id": "d0e00000-0000-4000-8000-0000000000c1",
+    "name": "SSSM — Démo technique (Auth, Affectation, Stock)",
+    "description": "Collection de démonstration Postman pour le backend SSSM.\n\nTrois parcours :\n1. Authentification : login, whoami, refresh avec rotation des jetons.\n2. Affectation puis retour d'un article.\n3. Sortie de stock OUT avec décrément du solde.\n\nPrérequis :\n- exécuter docs/database/mock_data/demo_postman.sql (ou scripts/demo/reset-postman-demo.ps1) ;\n- lancer le backend sur http://localhost:8080 ;\n- importer et sélectionner l'environnement SSSM — Démo Postman.\n\nLes jetons, identifiants d'affectation et de mouvement sont capturés automatiquement dans les variables de collection. Les valeurs d'entrée (URL, compte, UUID des fixtures) sont dans l'environnement.\n\nAprès le parcours 03, l'article DEMO-POSTMAN-OUT reste ASSIGNED et le solde reste à 2. Rejouer le script de reset avant une nouvelle démonstration complète.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "01 — Authentification",
+      "description": "Génération des jetons, vérification de l'access token, puis renouvellement avec rotation du refresh token.",
+      "item": [
+        {
+          "name": "01.1 Login — génération des jetons",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 — connexion acceptée', () => pm.response.to.have.status(200));",
+                  "pm.test('Access token généré', () => {",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Refresh token généré', () => {",
+                  "  pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Utilisateur attendu', () => {",
+                  "  pm.expect(body.user.username).to.eql(pm.variables.get('login'));",
+                  "});",
+                  "pm.test('Rôle ADMIN présent', () => {",
+                  "  pm.expect(body.user.roles).to.include('ADMIN');",
+                  "});",
+                  "pm.test('Entreprise rattachée', () => {",
+                  "  pm.expect(body.user.companyId).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('accessToken', body.token);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "pm.collectionVariables.set('userId', body.user.id);",
+                  "pm.collectionVariables.set('companyId', body.user.companyId);",
+                  "pm.collectionVariables.set('assignmentId', '');",
+                  "pm.collectionVariables.set('outAssignmentId', '');",
+                  "pm.collectionVariables.set('movementId', '');",
+                  "pm.collectionVariables.set('balanceBefore', '');",
+                  "pm.collectionVariables.set('balanceAfterAssignment', '');",
+                  "pm.collectionVariables.set('balanceAfterReturn', '');",
+                  "pm.collectionVariables.set('balanceAfterOut', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"{{login}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Authentifie demo.admin et renvoie un access token JWT + un refresh token opaque. Les deux sont capturés dans les variables de collection.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "01.2 Whoami — vérifier l'access token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 — jeton accepté', () => pm.response.to.have.status(200));",
+                  "pm.test('Utilisateur du jeton', () => {",
+                  "  pm.expect(body.username).to.eql(pm.variables.get('login'));",
+                  "});",
+                  "pm.test('Identifiant utilisateur stable', () => {",
+                  "  pm.expect(body.id).to.eql(pm.collectionVariables.get('userId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/auth/whoami",
+            "description": "Preuve que l'access token obtenu au login est accepté par une route protégée. La requête hérite du Bearer {{accessToken}} de la collection."
+          },
+          "response": []
+        },
+        {
+          "name": "01.3 Refresh — rotation des jetons",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('previousAccessToken', pm.collectionVariables.get('accessToken') || '');",
+                  "pm.collectionVariables.set('previousRefreshToken', pm.collectionVariables.get('refreshToken') || '');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const previousAccessToken = pm.collectionVariables.get('previousAccessToken');",
+                  "const previousRefreshToken = pm.collectionVariables.get('previousRefreshToken');",
+                  "",
+                  "pm.test('200 — refresh accepté', () => pm.response.to.have.status(200));",
+                  "pm.test('Nouvel access token', () => {",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.token).to.not.eql(previousAccessToken);",
+                  "});",
+                  "pm.test('Nouveau refresh token (rotation)', () => {",
+                  "  pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.refreshToken).to.not.eql(previousRefreshToken);",
+                  "});",
+                  "pm.test('Même utilisateur', () => {",
+                  "  pm.expect(body.user.username).to.eql(pm.variables.get('login'));",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('accessToken', body.token);",
+                  "pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "description": "Consomme le refresh token courant et en émet un nouveau : c'est la rotation. L'ancien refresh token devient inutilisable. Les deux nouveaux jetons remplacent les précédents dans les variables de collection.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "01.4 Whoami — vérifier le nouveau token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 — nouveau jeton accepté', () => pm.response.to.have.status(200));",
+                  "pm.test('Toujours le même utilisateur', () => {",
+                  "  pm.expect(body.username).to.eql(pm.variables.get('login'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/auth/whoami",
+            "description": "Preuve que l'access token renouvelé fonctionne. Le Bearer de la collection a été mis à jour par le test du refresh."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 — Affectation et retour",
+      "description": "Affecte l'article DEMO-POSTMAN-ASSIGN à l'employé et au poste de démo, vérifie l'état ASSIGNED et le solde, puis enregistre le retour avec le DTO ItemAssignmentReturn.",
+      "item": [
+        {
+          "name": "02.1 Vérifier l'article avant affectation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "",
+                  "pm.test('200 — article lisible', () => pm.response.to.have.status(200));",
+                  "pm.test('Article disponible', () => {",
+                  "  pm.expect(body.status).to.eql('AVAILABLE');",
+                  "});",
+                  "pm.test('Article dans l’entrepôt démo', () => {",
+                  "  pm.expect(body.current_warehouse).to.be.an('object');",
+                  "  pm.expect(body.current_warehouse.id).to.eql(warehouseId);",
+                  "});",
+                  "pm.test('QR code attendu', () => {",
+                  "  pm.expect(body.qr_code).to.eql('DEMO-POSTMAN-ASSIGN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/items/{{itemAssignId}}",
+            "description": "État initial attendu : article AVAILABLE, rattaché à l'entrepôt démo. Si ce test échoue, exécuter le script de reset."
+          },
+          "response": []
+        },
+        {
+          "name": "02.2 Créer l'affectation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "",
+                  "pm.test('201 — affectation créée', () => pm.response.to.have.status(201));",
+                  "pm.test('Affectation active (non retournée)', () => {",
+                  "  pm.expect(body.returned_at).to.eql(null);",
+                  "});",
+                  "pm.test('Entrepôt d’origine mémorisé', () => {",
+                  "  pm.expect(body.source_warehouse_id).to.eql(warehouseId);",
+                  "});",
+                  "pm.test('Acteur d’affectation renseigné', () => {",
+                  "  pm.expect(body.assigned_by).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Article attendu', () => {",
+                  "  pm.expect(body.item_id).to.eql(pm.variables.get('itemAssignId'));",
+                  "});",
+                  "pm.test('Employé et poste attendus', () => {",
+                  "  pm.expect(body.employee_id).to.eql(pm.variables.get('employeeId'));",
+                  "  pm.expect(body.post_id).to.eql(pm.variables.get('postId'));",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('assignmentId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"item_id\": \"{{itemAssignId}}\",\n  \"employee_id\": \"{{employeeId}}\",\n  \"post_id\": \"{{postId}}\",\n  \"condition_on_assignment\": \"Bon état\",\n  \"notes\": \"Démonstration Postman — affectation puis retour\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/item-assignments",
+            "description": "Crée l'affectation active. Le serveur pose assigned_at et assigned_by, mémorise source_warehouse_id, passe l'article ASSIGNED, vide son entrepôt et décrémente le solde. L'identifiant créé est capturé dans {{assignmentId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "02.3 Vérifier l'article affecté",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 — article lisible', () => pm.response.to.have.status(200));",
+                  "pm.test('Article passé ASSIGNED', () => {",
+                  "  pm.expect(body.status).to.eql('ASSIGNED');",
+                  "});",
+                  "pm.test('Entrepôt vidé', () => {",
+                  "  pm.expect(body.current_warehouse).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/items/{{itemAssignId}}",
+            "description": "Contrôle visuel de l'effet de l'affectation : l'article n'est plus localisé dans l'entrepôt."
+          },
+          "response": []
+        },
+        {
+          "name": "02.4 Vérifier le solde après affectation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "const itemTypeId = pm.variables.get('itemTypeId');",
+                  "const row = (body.items || []).find(",
+                  "  (item) => item.warehouse_id === warehouseId && item.item_type_id === itemTypeId",
+                  ");",
+                  "",
+                  "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Ligne de solde démo présente', () => pm.expect(row).to.be.an('object'));",
+                  "if (row) {",
+                  "  pm.test('Solde après affectation = 2', () => {",
+                  "    pm.expect(Number(row.quantity)).to.eql(2);",
+                  "  });",
+                  "  pm.test('Seuil minimum respecté', () => {",
+                  "    pm.expect(row.below_minimum).to.eql(false);",
+                  "  });",
+                  "  pm.collectionVariables.set('balanceAfterAssignment', Number(row.quantity));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
+            "description": "Le solde du type DEMO-RADIO dans l'entrepôt démo passe de 3 à 2 : l'article affecté ne contribue plus au stock disponible."
+          },
+          "response": []
+        },
+        {
+          "name": "02.5 Retourner l'affectation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 — retour enregistré', () => pm.response.to.have.status(200));",
+                  "pm.test('Date de retour posée par le serveur', () => {",
+                  "  pm.expect(body.returned_at).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Acteur du retour posé par le serveur', () => {",
+                  "  pm.expect(body.returned_by).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('État au retour conservé', () => {",
+                  "  pm.expect(body.condition_on_return).to.eql('Bon état');",
+                  "});",
+                  "pm.test('Affectation non voidée', () => {",
+                  "  pm.expect(body.voided_at).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"condition_on_return\": \"Bon état\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/item-assignments/{{assignmentId}}/return",
+            "description": "Clôt l'affectation. Le corps est facultatif et suit le DTO ItemAssignmentReturn : seul condition_on_return est lu. Le serveur pose returned_at et returned_by, restaure l'entrepôt d'origine et resynchronise le solde."
+          },
+          "response": []
+        },
+        {
+          "name": "02.6 Vérifier l'article retourné",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "",
+                  "pm.test('200 — article lisible', () => pm.response.to.have.status(200));",
+                  "pm.test('Article redevenu AVAILABLE', () => {",
+                  "  pm.expect(body.status).to.eql('AVAILABLE');",
+                  "});",
+                  "pm.test('Entrepôt d’origine restauré', () => {",
+                  "  pm.expect(body.current_warehouse).to.be.an('object');",
+                  "  pm.expect(body.current_warehouse.id).to.eql(warehouseId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/items/{{itemAssignId}}",
+            "description": "Contrôle visuel du retour : l'article est de nouveau disponible dans son entrepôt d'origine."
+          },
+          "response": []
+        },
+        {
+          "name": "02.7 Vérifier le solde après retour",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "const itemTypeId = pm.variables.get('itemTypeId');",
+                  "const row = (body.items || []).find(",
+                  "  (item) => item.warehouse_id === warehouseId && item.item_type_id === itemTypeId",
+                  ");",
+                  "",
+                  "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Ligne de solde démo présente', () => pm.expect(row).to.be.an('object'));",
+                  "if (row) {",
+                  "  pm.test('Solde après retour = 3', () => {",
+                  "    pm.expect(Number(row.quantity)).to.eql(3);",
+                  "  });",
+                  "  pm.test('Seuil minimum respecté', () => {",
+                  "    pm.expect(row.below_minimum).to.eql(false);",
+                  "  });",
+                  "  pm.collectionVariables.set('balanceAfterReturn', Number(row.quantity));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
+            "description": "Le solde remonte à 3 : l'article retourné contribue de nouveau au stock disponible."
+          },
+          "response": []
+        },
+        {
+          "name": "02.8 Rejouer le retour — 409 attendu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('409 — retour déjà effectué', () => pm.response.to.have.status(409));",
+                  "pm.test('Code métier stable', () => {",
+                  "  pm.expect(body.code).to.eql('ASSIGNMENT_ALREADY_RETURNED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/item-assignments/{{assignmentId}}/return",
+            "description": "Test négatif volontaire : un second retour renvoie 409 ASSIGNMENT_ALREADY_RETURNED. Le corps vide {} est accepté : le DTO de retour est facultatif."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 — Sortie de stock et solde",
+      "description": "Crée un mouvement OUT sur l'article DEMO-POSTMAN-OUT, vérifie l'affectation automatique, l'état ASSIGNED de l'article et la décrémentation du solde de 3 à 2.",
+      "item": [
+        {
+          "name": "03.1 Vérifier le solde avant sortie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "const itemTypeId = pm.variables.get('itemTypeId');",
+                  "const row = (body.items || []).find(",
+                  "  (item) => item.warehouse_id === warehouseId && item.item_type_id === itemTypeId",
+                  ");",
+                  "",
+                  "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Ligne de solde démo présente', () => pm.expect(row).to.be.an('object'));",
+                  "if (row) {",
+                  "  pm.test('Solde initial = 3', () => {",
+                  "    pm.expect(Number(row.quantity)).to.eql(3);",
+                  "  });",
+                  "  pm.collectionVariables.set('balanceBefore', Number(row.quantity));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
+            "description": "Solde de référence avant la sortie. Il doit valoir 3 après le retour du parcours 02. Sinon, exécuter le reset."
+          },
+          "response": []
+        },
+        {
+          "name": "03.2 Créer le mouvement OUT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "",
+                  "pm.test('201 — mouvement créé', () => pm.response.to.have.status(201));",
+                  "pm.test('Type OUT', () => {",
+                  "  pm.expect(body.movement_type).to.eql('OUT');",
+                  "});",
+                  "pm.test('Article sorti', () => {",
+                  "  pm.expect(body.item_id).to.eql(pm.variables.get('itemOutId'));",
+                  "});",
+                  "pm.test('Entrepôt source', () => {",
+                  "  pm.expect(body.source_warehouse_id).to.eql(warehouseId);",
+                  "});",
+                  "pm.test('Quantité 1', () => {",
+                  "  pm.expect(Number(body.quantity)).to.eql(1);",
+                  "});",
+                  "pm.test('Acteur du mouvement', () => {",
+                  "  pm.expect(body.performed_by).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('Référence de démonstration', () => {",
+                  "  pm.expect(body.reference).to.eql('DEMO-POSTMAN-OUT');",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set('movementId', body.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouse_id\": \"{{warehouseId}}\",\n  \"item_id\": \"{{itemOutId}}\",\n  \"employee_id\": \"{{employeeId}}\",\n  \"post_id\": \"{{postId}}\",\n  \"movement_type\": \"OUT\",\n  \"quantity\": 1,\n  \"reference\": \"DEMO-POSTMAN-OUT\",\n  \"notes\": \"Sortie de stock — démonstration Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/inventory/movements",
+            "description": "Un mouvement OUT exige warehouse_id, item_id, employee_id et post_id. Le serveur crée l'affectation active, passe l'article ASSIGNED, vide son entrepôt et décrémente le solde. L'identifiant du mouvement est capturé dans {{movementId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "03.3 Vérifier l'article sorti",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('200 — article lisible', () => pm.response.to.have.status(200));",
+                  "pm.test('Article passé ASSIGNED', () => {",
+                  "  pm.expect(body.status).to.eql('ASSIGNED');",
+                  "});",
+                  "pm.test('Entrepôt vidé', () => {",
+                  "  pm.expect(body.current_warehouse).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/items/{{itemOutId}}",
+            "description": "La sortie de stock a bien retiré l'article de l'entrepôt."
+          },
+          "response": []
+        },
+        {
+          "name": "03.4 Vérifier le solde après sortie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "const itemTypeId = pm.variables.get('itemTypeId');",
+                  "const row = (body.items || []).find(",
+                  "  (item) => item.warehouse_id === warehouseId && item.item_type_id === itemTypeId",
+                  ");",
+                  "",
+                  "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Ligne de solde démo présente', () => pm.expect(row).to.be.an('object'));",
+                  "if (row) {",
+                  "  pm.test('Solde après sortie = 2', () => {",
+                  "    pm.expect(Number(row.quantity)).to.eql(2);",
+                  "  });",
+                  "  pm.test('Solde = solde avant - 1', () => {",
+                  "    pm.expect(Number(row.quantity)).to.eql(Number(pm.collectionVariables.get('balanceBefore')) - 1);",
+                  "  });",
+                  "  pm.test('Seuil minimum respecté', () => {",
+                  "    pm.expect(row.below_minimum).to.eql(false);",
+                  "  });",
+                  "  pm.collectionVariables.set('balanceAfterOut', Number(row.quantity));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
+            "description": "Le solde passe de 3 à 2 : la sortie OUT a bien mis à jour le stock disponible dans la même transaction."
+          },
+          "response": []
+        },
+        {
+          "name": "03.5 Vérifier l'affectation automatique",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "const itemOutId = pm.variables.get('itemOutId');",
+                  "const assignments = body.items || [];",
+                  "const active = assignments.find(",
+                  "  (item) => item.item_id === itemOutId && item.returned_at === null",
+                  ");",
+                  "",
+                  "pm.test('200 — affectations de l’article lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Affectation active créée par le OUT', () => pm.expect(active).to.be.an('object'));",
+                  "if (active) {",
+                  "  pm.test('Entrepôt d’origine de l’affectation', () => {",
+                  "    pm.expect(active.source_warehouse_id).to.eql(warehouseId);",
+                  "  });",
+                  "  pm.test('Acteur d’affectation renseigné', () => {",
+                  "    pm.expect(active.assigned_by).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  pm.collectionVariables.set('outAssignmentId', active.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/item-assignments/item/{{itemOutId}}?pageSize=20",
+            "description": "Preuve que le mouvement OUT a créé une affectation active pour l'article, sans appel séparé à POST /item-assignments."
+          },
+          "response": []
+        },
+        {
+          "name": "03.6 Retrouver le mouvement dans l'historique",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const movementId = pm.collectionVariables.get('movementId');",
+                  "const found = (body.items || []).some((item) => item.id === movementId);",
+                  "",
+                  "pm.test('200 — historique lisible', () => pm.response.to.have.status(200));",
+                  "pm.test('Mouvement créé retrouvé', () => pm.expect(found).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/movements?search=DEMO-POSTMAN-OUT&pageSize=20",
+            "description": "Le journal des mouvements est append-only : le mouvement OUT reste consultable après la démonstration."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 — Lecture d'ensemble",
+      "description": "Requêtes de lecture pour montrer l'état final des données de démonstration.",
+      "item": [
+        {
+          "name": "04.1 Lister les articles de démo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const qrCodes = (body.items || []).map((item) => item.qr_code);",
+                  "",
+                  "pm.test('200 — articles lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Les 3 articles de démo sont présents', () => {",
+                  "  pm.expect(qrCodes).to.include('DEMO-POSTMAN-ASSIGN');",
+                  "  pm.expect(qrCodes).to.include('DEMO-POSTMAN-OUT');",
+                  "  pm.expect(qrCodes).to.include('DEMO-POSTMAN-SPARE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/items?search=DEMO-POSTMAN&pageSize=20",
+            "description": "Vue d'ensemble des trois articles dédiés. DEMO-POSTMAN-OUT est ASSIGNED après le parcours 03."
+          },
+          "response": []
+        },
+        {
+          "name": "04.2 Lister les affectations actives",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const outAssignmentId = pm.collectionVariables.get('outAssignmentId');",
+                  "const found = (body.items || []).some((item) => item.id === outAssignmentId);",
+                  "",
+                  "pm.test('200 — affectations lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Affectation active du OUT visible', () => {",
+                  "  pm.expect(found).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/item-assignments?active=true&pageSize=50",
+            "description": "Liste les affectations encore ouvertes. L'affectation créée automatiquement par le mouvement OUT doit y figurer."
+          },
+          "response": []
+        },
+        {
+          "name": "04.3 Lister les soldes de démo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "const itemTypeId = pm.variables.get('itemTypeId');",
+                  "const row = (body.items || []).find(",
+                  "  (item) => item.warehouse_id === warehouseId && item.item_type_id === itemTypeId",
+                  ");",
+                  "",
+                  "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Ligne de solde démo présente', () => pm.expect(row).to.be.an('object'));",
+                  "if (row) {",
+                  "  pm.test('Solde final = 2', () => {",
+                  "    pm.expect(Number(row.quantity)).to.eql(2);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
+            "description": "État final attendu : 3 articles au départ, 2 après la sortie OUT. Relancer le reset pour revenir à 3."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "login",
+      "value": "demo.admin",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "Demo@2024",
+      "type": "string"
+    },
+    {
+      "key": "warehouseId",
+      "value": "d0e00000-0000-4000-8000-000000000003",
+      "type": "string"
+    },
+    {
+      "key": "itemTypeId",
+      "value": "d0e00000-0000-4000-8000-000000000002",
+      "type": "string"
+    },
+    {
+      "key": "employeeId",
+      "value": "d0e00000-0000-4000-8000-000000000006",
+      "type": "string"
+    },
+    {
+      "key": "postId",
+      "value": "d0e00000-0000-4000-8000-000000000005",
+      "type": "string"
+    },
+    {
+      "key": "itemAssignId",
+      "value": "d0e00000-0000-4000-8000-000000000007",
+      "type": "string"
+    },
+    {
+      "key": "itemOutId",
+      "value": "d0e00000-0000-4000-8000-000000000008",
+      "type": "string"
+    },
+    {
+      "key": "itemSpareId",
+      "value": "d0e00000-0000-4000-8000-000000000009",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previousAccessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previousRefreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "companyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assignmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "outAssignmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "movementId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "balanceBefore",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "balanceAfterAssignment",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "balanceAfterReturn",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "balanceAfterOut",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -117,7 +117,19 @@ psql -d sssm_front_demo -f docs/database/mock_data/sssm_mock_data.sql
 
 Aucun reset n'est exécuté par le Lot 9.
 
-## 7. Prérequis si une deuxième entreprise était admise (hors périmètre)
+## 7. Démonstration technique Postman
+
+Une démonstration Postman isolée est livrée dans
+[`docs/postman/README.md`](../postman/README.md). Elle couvre l'authentification
+avec rotation des jetons, l'affectation puis le retour d'un article, et une
+sortie de stock `OUT` avec mise à jour du solde.
+
+Ses fixtures portent le préfixe `DEMO-POSTMAN` et des UUID réservés. Le script
+`docs/database/mock_data/demo_postman.sql` (ou
+`scripts/demo/reset-postman-demo.ps1`) les recrée à l'identique sans modifier le
+jeu de démonstration décrit dans ce document.
+
+## 8. Prérequis si une deuxième entreprise était admise (hors périmètre)
 
 Le mono-entreprise est une décision produit ; ce chapitre est conservé comme
 spécification de reprise. Avant d'ajouter une entreprise B, il faudrait :
