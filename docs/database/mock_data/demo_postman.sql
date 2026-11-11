@@ -78,9 +78,12 @@ END $$;
 \set demo_post_id       'd0e00000-0000-4000-8000-000000000005'
 \set demo_employee_id   'd0e00000-0000-4000-8000-000000000006'
 \set demo_item_assign_id 'd0e00000-0000-4000-8000-000000000007'
-\set demo_item_out_id    'd0e00000-0000-4000-8000-000000000008'
+\set demo_item_move_id   'd0e00000-0000-4000-8000-000000000008'
 \set demo_item_spare_id  'd0e00000-0000-4000-8000-000000000009'
 \set demo_balance_id     'd0e00000-0000-4000-8000-00000000000a'
+-- Entrepôt de destination du transfert de démonstration : il accueille
+-- DEMO-POSTMAN-MOVE et porte le solde DEMO-RADIO transferred (1).
+\set demo_transfer_warehouse_id 'd0e00000-0000-4000-8000-000000000013'
 -- Second entrepôt, réservé à la collection « API complète » : les écritures
 -- de la collection API y restent isolées du solde de démonstration (3).
 \set demo_api_item_type_id 'd0e00000-0000-4000-8000-00000000000b'
@@ -106,7 +109,7 @@ SELECT id
  WHERE qr_code LIKE 'DEMO-POSTMAN-%'
     OR qr_code LIKE 'QR-DEMO-%'
     OR item_type_id IN (:'demo_item_type_id'::uuid, :'demo_api_item_type_id'::uuid)
-    OR current_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid);
+    OR current_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid);
 
 DELETE FROM security.item_assignment
  WHERE item_id IN (SELECT id FROM _demo_postman_items)
@@ -118,8 +121,8 @@ DELETE FROM security.inventory_operation_item
     OR operation_id IN (
         SELECT id
           FROM security.inventory_operation
-         WHERE source_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
-            OR destination_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
+         WHERE source_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
+            OR destination_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
             OR employee_id = :'demo_employee_id'::uuid
             OR post_id = :'demo_post_id'::uuid
     );
@@ -129,19 +132,19 @@ DELETE FROM security.inventory_count_scan
     OR inventory_count_id IN (
         SELECT id
           FROM security.inventory_count
-         WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
+         WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
     );
 
 DELETE FROM security.stock_movement
  WHERE item_id IN (SELECT id FROM _demo_postman_items)
-    OR warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
-    OR source_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
-    OR destination_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
+    OR warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
+    OR source_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
+    OR destination_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
     OR employee_id = :'demo_employee_id'::uuid;
 
 DELETE FROM security.inventory_operation
- WHERE source_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
-    OR destination_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
+ WHERE source_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
+    OR destination_warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
     OR employee_id = :'demo_employee_id'::uuid
     OR post_id = :'demo_post_id'::uuid;
 
@@ -149,24 +152,24 @@ DELETE FROM security.inventory_count_expected
  WHERE inventory_count_id IN (
         SELECT id
           FROM security.inventory_count
-         WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
+         WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
     );
 
 DELETE FROM security.inventory_count
- WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid);
+ WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid);
 
 DELETE FROM security.stock_balance
- WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
+ WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
     OR item_type_id IN (:'demo_item_type_id'::uuid, :'demo_api_item_type_id'::uuid);
 
 DELETE FROM security.warehouse_stock_config
- WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid)
+ WHERE warehouse_id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid)
     OR item_type_id IN (:'demo_item_type_id'::uuid, :'demo_api_item_type_id'::uuid);
 
 DELETE FROM security.item
  WHERE id IN (SELECT id FROM _demo_postman_items)
     OR id IN (:'demo_item_assign_id'::uuid,
-              :'demo_item_out_id'::uuid,
+              :'demo_item_move_id'::uuid,
               :'demo_item_spare_id'::uuid,
               :'demo_api_item_assign_id'::uuid,
               :'demo_api_item_alias_id'::uuid,
@@ -194,8 +197,10 @@ DELETE FROM security.site
     OR id = :'demo_site_id'::uuid;
 
 DELETE FROM security.warehouse
- WHERE name IN ('Entrepôt démo Postman', 'Entrepôt démo Postman (API)')
-    OR id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid);
+ WHERE name IN ('Entrepôt démo Postman',
+               'Entrepôt démo Postman (API)',
+               'Entrepôt démo Postman (transfert)')
+    OR id IN (:'demo_warehouse_id'::uuid, :'demo_api_warehouse_id'::uuid, :'demo_transfer_warehouse_id'::uuid);
 
 -- ---------------------------------------------------------------------
 -- 3. Fixtures : catégorie, type, entrepôt, site, poste, employé
@@ -252,6 +257,13 @@ VALUES
         'Entrepôt démo Postman (API)',
         'Entrepôt isolé pour la collection API complète',
         TRUE
+    ),
+    (
+        :'demo_transfer_warehouse_id'::uuid,
+        :'demo_company_id'::uuid,
+        'Entrepôt démo Postman (transfert)',
+        'Entrepôt de destination du transfert de démonstration',
+        TRUE
     );
 
 INSERT INTO security.site (
@@ -298,7 +310,7 @@ INSERT INTO security.employee (
 -- ---------------------------------------------------------------------
 -- 4. Fixtures : trois articles disponibles dans l'entrepôt démo
 --    - ASSIGN : affectation puis retour ;
---    - OUT    : sortie de stock ;
+--    - MOVE   : transfert vers l'entrepôt de destination ;
 --    - SPARE  : témoin, jamais modifié par la démo.
 --    Le solde initial du type DEMO-RADIO dans l'entrepôt est donc 3.
 -- ---------------------------------------------------------------------
@@ -317,12 +329,12 @@ INSERT INTO security.item (
         :'demo_warehouse_id'::uuid
     ),
     (
-        :'demo_item_out_id'::uuid,
+        :'demo_item_move_id'::uuid,
         :'demo_company_id'::uuid,
         :'demo_category_id'::uuid,
         :'demo_item_type_id'::uuid,
-        'DEMO-POSTMAN-OUT',
-        'Article pour la sortie de stock',
+        'DEMO-POSTMAN-MOVE',
+        'Article pour le transfert entre entrepôts',
         'AVAILABLE',
         :'demo_warehouse_id'::uuid
     ),
@@ -435,7 +447,7 @@ SELECT element, id, detail
   UNION ALL SELECT 3, 'Entrepôt',        :'demo_warehouse_id'::text,   'Entrepôt démo Postman'
   UNION ALL SELECT 4, 'Type d''article', :'demo_item_type_id'::text,   'DEMO-RADIO'
   UNION ALL SELECT 5, 'Article affectation', :'demo_item_assign_id'::text, 'DEMO-POSTMAN-ASSIGN'
-  UNION ALL SELECT 6, 'Article sortie',  :'demo_item_out_id'::text,    'DEMO-POSTMAN-OUT'
+  UNION ALL SELECT 6, 'Article transfert', :'demo_item_move_id'::text,   'DEMO-POSTMAN-MOVE'
   UNION ALL SELECT 7, 'Article témoin',  :'demo_item_spare_id'::text,  'DEMO-POSTMAN-SPARE'
   UNION ALL SELECT 8, 'Employé',         :'demo_employee_id'::text,    'DEMO-POSTMAN-EMP'
   UNION ALL SELECT 9, 'Poste',           :'demo_post_id'::text,        'DEMO-POSTMAN-POST'
@@ -443,5 +455,6 @@ SELECT element, id, detail
   UNION ALL SELECT 11, 'Entrepôt API',   :'demo_api_warehouse_id'::text, 'Entrepôt démo Postman (API)'
   UNION ALL SELECT 12, 'Type API',       :'demo_api_item_type_id'::text, 'DEMO-TOOL'
   UNION ALL SELECT 13, 'Solde API',      '4',                           'DEMO-TOOL dans l''entrepôt API'
+  UNION ALL SELECT 14, 'Entrepôt transfert', :'demo_transfer_warehouse_id'::text, 'Entrepôt démo Postman (transfert)'
        ) t
  ORDER BY ord;

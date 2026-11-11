@@ -5,7 +5,7 @@ local :
 
 | Livrable | Contenu |
 |---|---|
-| `SSSM-Demo.postman_collection.json` | **Démonographie technique** : 21 requêtes, 77 assertions, scénario contrôlé (authentification, affectation/retour, sortie de stock). |
+| `SSSM-Demo.postman_collection.json` | **Démonographie technique** : 23 requêtes, 84 assertions, scénario contrôlé (authentification, affectation/retour, transfert entre entrepôts). |
 | `SSSM-Demo.postman_environment.json` | Environnement de la démonstration (URL, compte). |
 | `SSSM-API.postman_collection.json` | **Collection complète** : les 152 routes HTTP du backend, organisées par module puis par ressource, avec assertions. |
 | `SSSM-API.postman_environment.json` | Environnement local de l'API (URL, compte). |
@@ -68,6 +68,11 @@ Solde initial | 3 | DEMO-RADIO dans l'entrepôt démo
 Solde API     | 4 | DEMO-TOOL dans l'entrepôt API
 ```
 
+Trois entrepôts sont préparés : l'entrepôt de la démonstration, l'entrepôt de
+la collection API et l'entrepôt de destination du transfert de démonstration
+(`Entrepôt démo Postman (transfert)`), qui ne porte aucun solde tant que le
+transfert n'a pas été joué.
+
 > Le reset supprime les affectations, mouvements, opérations et inventaires
 > des fixtures. Ne pas l'exécuter pendant qu'une démonstration est en cours.
 
@@ -88,18 +93,21 @@ Exécuter les dossiers **dans l'ordre** :
 2. `02 — Affectation et retour` : l'article passe `AVAILABLE` → `ASSIGNED` →
    `AVAILABLE`, le solde suit 3 → 2 → 3, et un second retour renvoie
    `409 ASSIGNMENT_ALREADY_RETURNED`.
-3. `03 — Sortie de stock et solde` : mouvement `OUT` avec affectation
-   automatique, article `ASSIGNED`, solde 3 → 2.
+3. `03 — Transfert entre entrepôts et solde` : mouvement `TRANSFER` de
+   l'article `DEMO-POSTMAN-MOVE` vers l'entrepôt de destination, solde source
+   3 → 2, solde destination 0 → 1, statut de l'article inchangé et **aucune
+   affectation créée**.
 4. `04 — Lecture d'ensemble` : état final des données.
 
-| Étape | Article `ASSIGN` | Article `OUT` | Article `SPARE` | Solde `DEMO-RADIO` |
-|---|---|---|---|---|
-| Après reset | `AVAILABLE` | `AVAILABLE` | `AVAILABLE` | `3` |
-| Après affectation (02.2) | `ASSIGNED` | `AVAILABLE` | `AVAILABLE` | `2` |
-| Après retour (02.5) | `AVAILABLE` | `AVAILABLE` | `AVAILABLE` | `3` |
-| Après sortie (03.2) | `AVAILABLE` | `ASSIGNED` | `AVAILABLE` | `2` |
+| Étape | Article `ASSIGN` | Article `MOVE` | Article `SPARE` | Solde source | Solde destination |
+|---|---|---|---|---|---|
+| Après reset | `AVAILABLE` | `AVAILABLE` | `AVAILABLE` | `3` | `0` |
+| Après affectation (02.2) | `ASSIGNED` | `AVAILABLE` | `AVAILABLE` | `2` | `0` |
+| Après retour (02.5) | `AVAILABLE` | `AVAILABLE` | `AVAILABLE` | `3` | `0` |
+| Après transfert (03.3) | `AVAILABLE` | `AVAILABLE` (destination) | `AVAILABLE` | `2` | `1` |
 
-À la fin, l'article `DEMO-POSTMAN-OUT` reste affecté et le solde reste à `2` :
+À la fin, l'article `DEMO-POSTMAN-MOVE` se trouve dans l'entrepôt de
+destination, le solde source reste à `2` et le solde destination vaut `1` :
 relancer le reset avant une nouvelle démonstration.
 
 Le détail des requêtes, des résultats attendus et du dépannage figure dans
@@ -204,12 +212,13 @@ Résultats attendus après un reset :
 | Collection | Requêtes | Assertions | Échecs |
 |---|---:|---:|---:|
 | `SSSM-API` | 152 | 196 | 0 |
-| `SSSM-Demo` | 21 | 77 | 0 |
+| `SSSM-Demo` | 23 | 84 | 0 |
 
 Un dossier peut être rejoué isolément avec `--folder "<nom>"`.
 
 > Relancer le reset entre deux exécutions complètes : la collection API crée
-> un mouvement `OUT` qui affecte définitivement son article.
+> un mouvement `OUT` qui affecte définitivement son article, et la démo
+> transfère définitivement `DEMO-POSTMAN-MOVE` vers l'entrepôt de destination.
 
 ## 6. Scénario de démonstration
 
@@ -230,13 +239,15 @@ spécifique :
 | `02.6 Article retourné` | `AVAILABLE`, entrepôt d'origine restauré. |
 | `02.7 Solde après retour` | Solde `3`. |
 | `02.8 Rejouer le retour` | `409`, code `ASSIGNMENT_ALREADY_RETURNED`. |
-| `03.1 Solde avant sortie` | Solde `3`. |
-| `03.2 Mouvement `OUT`` | `201`, type `OUT`, quantité `1`, `source_warehouse_id` renseigné. |
-| `03.3 Article sorti` | `ASSIGNED`, `current_warehouse` nul. |
-| `03.4 Solde après sortie` | Solde `2`. |
-| `03.5 Affectation automatique` | Une affectation active existe pour l'article sorti. |
-| `03.6 Historique` | Le mouvement créé est retrouvé. |
-| `04.1 à 04.3` | Les trois articles sont présents, l'affectation active est visible, solde final `2`. |
+| `03.1 Solde source avant transfert` | Solde `3`. |
+| `03.2 Article avant transfert` | `AVAILABLE`, encore dans l'entrepôt source. |
+| `03.3 Mouvement `TRANSFER`` | `201`, type `TRANSFER`, quantité `1`, `source_warehouse_id` et `destination_warehouse_id` renseignés, `warehouse_id` aligné sur la destination. |
+| `03.4 Article après transfert` | Statut inchangé (`AVAILABLE`), `current_warehouse` = entrepôt de destination. |
+| `03.5 Solde source après transfert` | Solde `2` (`solde avant − 1`). |
+| `03.6 Solde destination après transfert` | Solde `1`, ligne de solde créée par le transfert. |
+| `03.7 Aucune affectation créée` | Aucune affectation pour l'article transféré. |
+| `03.8 Historique` | Le mouvement créé est retrouvé. |
+| `04.1 à 04.3` | Les trois articles sont présents, aucune affectation active ne subsiste, soldes finaux `2` (source) et `1` (destination). |
 
 Points techniques à commenter pendant la démonstration :
 
@@ -249,8 +260,12 @@ Points techniques à commenter pendant la démonstration :
   l'affectation ;
 - un mouvement `OUT` crée l'affectation, passe l'article `ASSIGNED`, vide son
   entrepôt et décrémente le solde ;
+- un mouvement `TRANSFER` fait **exactement l'inverse** : il déplace l'article
+  d'un entrepôt à l'autre, laisse son statut inchangé et ne crée **aucune**
+  affectation ; le solde source perd une unité, le solde destination en
+  gagne une ;
 - le journal des mouvements est **append-only** : `PATCH` et `DELETE` renvoient
-  `409 IMMUTABLE_RESOURCE`.
+  `409 IMMUTABLE_RESOURCE`, et un transfert se revient par un transfert inverse.
 
 ## 7. Dépannage
 

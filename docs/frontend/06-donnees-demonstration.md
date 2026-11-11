@@ -121,8 +121,8 @@ Aucun reset n'est exécuté par le Lot 9.
 
 Une démonstration Postman isolée est livrée dans
 [`docs/postman/README.md`](../postman/README.md). Elle couvre l'authentification
-avec rotation des jetons, l'affectation puis le retour d'un article, et une
-sortie de stock `OUT` avec mise à jour du solde.
+avec rotation des jetons, l'affectation puis le retour d'un article, et un
+transfert `TRANSFER` entre deux entrepôts avec mise à jour des soldes.
 
 Ses fixtures portent le préfixe `DEMO-POSTMAN` et des UUID réservés. Le script
 `docs/database/mock_data/demo_postman.sql` (ou
@@ -131,7 +131,7 @@ jeu de démonstration décrit dans ce document.
 
 Deux collections sont fournies :
 
-- `SSSM-Demo` : le scénario de démonstration ci-dessus (21 requêtes) ;
+- `SSSM-Demo` : le scénario de démonstration ci-dessus (23 requêtes) ;
 - `SSSM-API` : toutes les routes HTTP de l'API (152 requêtes), organisées par
   module et par ressource. Ses écritures d'inventaire visent un entrepôt
   dédié, distinct de celui du scénario de démonstration.

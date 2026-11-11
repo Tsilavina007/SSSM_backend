@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "d0e00000-0000-4000-8000-0000000000c1",
     "name": "SSSM — Démo technique (Auth, Affectation, Stock)",
-    "description": "Collection de démonstration Postman pour le backend SSSM.\n\nTrois parcours :\n1. Authentification : login, whoami, refresh avec rotation des jetons.\n2. Affectation puis retour d'un article.\n3. Sortie de stock OUT avec décrément du solde.\n\nPrérequis :\n- exécuter docs/database/mock_data/demo_postman.sql (ou scripts/demo/reset-postman-demo.ps1) ;\n- lancer le backend sur http://localhost:8080 ;\n- importer et sélectionner l'environnement SSSM — Démo Postman.\n\nLes jetons, identifiants d'affectation et de mouvement sont capturés automatiquement dans les variables de collection. Les valeurs d'entrée (URL, compte, UUID des fixtures) sont dans l'environnement.\n\nAprès le parcours 03, l'article DEMO-POSTMAN-OUT reste ASSIGNED et le solde reste à 2. Rejouer le script de reset avant une nouvelle démonstration complète.",
+    "description": "Collection de démonstration Postman pour le backend SSSM.\n\nTrois parcours :\n1. Authentification : login, whoami, refresh avec rotation des jetons.\n2. Affectation puis retour d'un article.\n3. Transfert d'un article entre deux entrepôts, avec mise à jour des soldes.\n\nPrérequis :\n- exécuter docs/database/mock_data/demo_postman.sql (ou scripts/demo/reset-postman-demo.ps1) ;\n- lancer le backend sur http://localhost:8080 ;\n- importer et sélectionner l'environnement SSSM — Démo Postman.\n\nLes jetons, identifiants d'affectation et de mouvement sont capturés automatiquement dans les variables de collection. Les valeurs d'entrée (URL, compte, UUID des fixtures) sont dans l'environnement.\n\nAprès le parcours 03, l'article DEMO-POSTMAN-MOVE se trouve dans l'entrepôt de destination, le solde de l'entrepôt démo reste à 2 et le solde de destination vaut 1. Rejouer le script de reset avant une nouvelle démonstration complète.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -52,12 +52,12 @@
                   "pm.collectionVariables.set('userId', body.user.id);",
                   "pm.collectionVariables.set('companyId', body.user.companyId);",
                   "pm.collectionVariables.set('assignmentId', '');",
-                  "pm.collectionVariables.set('outAssignmentId', '');",
                   "pm.collectionVariables.set('movementId', '');",
                   "pm.collectionVariables.set('balanceBefore', '');",
                   "pm.collectionVariables.set('balanceAfterAssignment', '');",
                   "pm.collectionVariables.set('balanceAfterReturn', '');",
-                  "pm.collectionVariables.set('balanceAfterOut', '');"
+                  "pm.collectionVariables.set('balanceAfterTransfer', '');",
+                  "pm.collectionVariables.set('balanceDestination', '');"
                 ]
               }
             }
@@ -532,11 +532,11 @@
       ]
     },
     {
-      "name": "03 — Sortie de stock et solde",
-      "description": "Crée un mouvement OUT sur l'article DEMO-POSTMAN-OUT, vérifie l'affectation automatique, l'état ASSIGNED de l'article et la décrémentation du solde de 3 à 2.",
+      "name": "03 — Transfert entre entrepôts et solde",
+      "description": "Déplace l'article DEMO-POSTMAN-MOVE de l'entrepôt démo vers l'entrepôt de destination avec un mouvement TRANSFER : le solde source passe de 3 à 2, le solde destination de 0 à 1, l'article change d'entrepôt sans changer de statut et sans créer d'affectation.",
       "item": [
         {
-          "name": "03.1 Vérifier le solde avant sortie",
+          "name": "03.1 Vérifier le solde source avant transfert",
           "event": [
             {
               "listen": "test",
@@ -566,12 +566,12 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
-            "description": "Solde de référence avant la sortie. Il doit valoir 3 après le retour du parcours 02. Sinon, exécuter le reset."
+            "description": "Solde de référence avant le transfert. Il doit valoir 3 après le retour du parcours 02. Sinon, exécuter le reset."
           },
           "response": []
         },
         {
-          "name": "03.2 Créer le mouvement OUT",
+          "name": "03.2 Vérifier l'article avant transfert",
           "event": [
             {
               "listen": "test",
@@ -581,15 +581,52 @@
                   "const body = pm.response.json();",
                   "const warehouseId = pm.variables.get('warehouseId');",
                   "",
-                  "pm.test('201 — mouvement créé', () => pm.response.to.have.status(201));",
-                  "pm.test('Type OUT', () => {",
-                  "  pm.expect(body.movement_type).to.eql('OUT');",
+                  "pm.test('200 — article lisible', () => pm.response.to.have.status(200));",
+                  "pm.test('Article disponible', () => {",
+                  "  pm.expect(body.status).to.eql('AVAILABLE');",
                   "});",
-                  "pm.test('Article sorti', () => {",
-                  "  pm.expect(body.item_id).to.eql(pm.variables.get('itemOutId'));",
+                  "pm.test('Article dans l\\'entrepôt source', () => {",
+                  "  pm.expect(body.current_warehouse.id).to.eql(warehouseId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/inventory/items/{{itemMoveId}}",
+            "description": "L'article à transférer est disponible et se trouve dans l'entrepôt source. Un transfert refuse un article qui possède une affectation active."
+          },
+          "response": []
+        },
+        {
+          "name": "03.3 Créer le mouvement TRANSFER",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const warehouseId = pm.variables.get('warehouseId');",
+                  "const transferWarehouseId = pm.variables.get('transferWarehouseId');",
+                  "",
+                  "pm.test('201 — mouvement créé', () => pm.response.to.have.status(201));",
+                  "pm.test('Type TRANSFER', () => {",
+                  "  pm.expect(body.movement_type).to.eql('TRANSFER');",
+                  "});",
+                  "pm.test('Article transféré', () => {",
+                  "  pm.expect(body.item_id).to.eql(pm.variables.get('itemMoveId'));",
                   "});",
                   "pm.test('Entrepôt source', () => {",
                   "  pm.expect(body.source_warehouse_id).to.eql(warehouseId);",
+                  "});",
+                  "pm.test('Entrepôt de destination', () => {",
+                  "  pm.expect(body.destination_warehouse_id).to.eql(transferWarehouseId);",
+                  "});",
+                  "pm.test('Entrepôt principal aligné sur la destination', () => {",
+                  "  pm.expect(body.warehouse_id).to.eql(transferWarehouseId);",
                   "});",
                   "pm.test('Quantité 1', () => {",
                   "  pm.expect(Number(body.quantity)).to.eql(1);",
@@ -598,7 +635,7 @@
                   "  pm.expect(body.performed_by).to.be.a('string').and.not.empty;",
                   "});",
                   "pm.test('Référence de démonstration', () => {",
-                  "  pm.expect(body.reference).to.eql('DEMO-POSTMAN-OUT');",
+                  "  pm.expect(body.reference).to.eql('DEMO-POSTMAN-TRANSFER');",
                   "});",
                   "",
                   "pm.collectionVariables.set('movementId', body.id);"
@@ -616,7 +653,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"warehouse_id\": \"{{warehouseId}}\",\n  \"item_id\": \"{{itemOutId}}\",\n  \"employee_id\": \"{{employeeId}}\",\n  \"post_id\": \"{{postId}}\",\n  \"movement_type\": \"OUT\",\n  \"quantity\": 1,\n  \"reference\": \"DEMO-POSTMAN-OUT\",\n  \"notes\": \"Sortie de stock — démonstration Postman\"\n}",
+              "raw": "{\n  \"warehouse_id\": \"{{transferWarehouseId}}\",\n  \"item_id\": \"{{itemMoveId}}\",\n  \"movement_type\": \"TRANSFER\",\n  \"quantity\": 1,\n  \"source_warehouse_id\": \"{{warehouseId}}\",\n  \"destination_warehouse_id\": \"{{transferWarehouseId}}\",\n  \"reference\": \"DEMO-POSTMAN-TRANSFER\",\n  \"notes\": \"Transfert entre entrepôts — démonstration Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -624,12 +661,12 @@
               }
             },
             "url": "{{baseUrl}}/api/v1/inventory/movements",
-            "description": "Un mouvement OUT exige warehouse_id, item_id, employee_id et post_id. Le serveur crée l'affectation active, passe l'article ASSIGNED, vide son entrepôt et décrémente le solde. L'identifiant du mouvement est capturé dans {{movementId}}."
+            "description": "Un mouvement TRANSFER exige un entrepôt source et un entrepôt de destination différents. Le serveur décrémente le solde source, incrémente le solde destination, change l'emplacement de l'article et laisse son statut inchangé. Aucune affectation n'est créée. L'identifiant du mouvement est capturé dans {{movementId}}."
           },
           "response": []
         },
         {
-          "name": "03.3 Vérifier l'article sorti",
+          "name": "03.4 Vérifier l'article après transfert",
           "event": [
             {
               "listen": "test",
@@ -637,13 +674,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "const body = pm.response.json();",
+                  "const transferWarehouseId = pm.variables.get('transferWarehouseId');",
                   "",
                   "pm.test('200 — article lisible', () => pm.response.to.have.status(200));",
-                  "pm.test('Article passé ASSIGNED', () => {",
-                  "  pm.expect(body.status).to.eql('ASSIGNED');",
+                  "pm.test('Statut inchangé (AVAILABLE)', () => {",
+                  "  pm.expect(body.status).to.eql('AVAILABLE');",
                   "});",
-                  "pm.test('Entrepôt vidé', () => {",
-                  "  pm.expect(body.current_warehouse).to.eql(null);",
+                  "pm.test('Article arrivé dans l\\'entrepôt de destination', () => {",
+                  "  pm.expect(body.current_warehouse.id).to.eql(transferWarehouseId);",
                   "});"
                 ]
               }
@@ -652,13 +690,13 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/inventory/items/{{itemOutId}}",
-            "description": "La sortie de stock a bien retiré l'article de l'entrepôt."
+            "url": "{{baseUrl}}/api/v1/inventory/items/{{itemMoveId}}",
+            "description": "Contrairement à une sortie OUT, un transfert ne change pas le statut de l'article : il reste disponible, simplement dans un autre entrepôt."
           },
           "response": []
         },
         {
-          "name": "03.4 Vérifier le solde après sortie",
+          "name": "03.5 Vérifier le solde source après transfert",
           "event": [
             {
               "listen": "test",
@@ -675,7 +713,7 @@
                   "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
                   "pm.test('Ligne de solde démo présente', () => pm.expect(row).to.be.an('object'));",
                   "if (row) {",
-                  "  pm.test('Solde après sortie = 2', () => {",
+                  "  pm.test('Solde après transfert = 2', () => {",
                   "    pm.expect(Number(row.quantity)).to.eql(2);",
                   "  });",
                   "  pm.test('Solde = solde avant - 1', () => {",
@@ -684,7 +722,7 @@
                   "  pm.test('Seuil minimum respecté', () => {",
                   "    pm.expect(row.below_minimum).to.eql(false);",
                   "  });",
-                  "  pm.collectionVariables.set('balanceAfterOut', Number(row.quantity));",
+                  "  pm.collectionVariables.set('balanceAfterTransfer', Number(row.quantity));",
                   "}"
                 ]
               }
@@ -694,12 +732,12 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
-            "description": "Le solde passe de 3 à 2 : la sortie OUT a bien mis à jour le stock disponible dans la même transaction."
+            "description": "Le solde passe de 3 à 2 : le transfert a bien retiré l'unité de l'entrepôt source dans la même transaction que le mouvement."
           },
           "response": []
         },
         {
-          "name": "03.5 Vérifier l'affectation automatique",
+          "name": "03.6 Vérifier le solde destination après transfert",
           "event": [
             {
               "listen": "test",
@@ -707,23 +745,22 @@
                 "type": "text/javascript",
                 "exec": [
                   "const body = pm.response.json();",
-                  "const warehouseId = pm.variables.get('warehouseId');",
-                  "const itemOutId = pm.variables.get('itemOutId');",
-                  "const assignments = body.items || [];",
-                  "const active = assignments.find(",
-                  "  (item) => item.item_id === itemOutId && item.returned_at === null",
+                  "const transferWarehouseId = pm.variables.get('transferWarehouseId');",
+                  "const itemTypeId = pm.variables.get('itemTypeId');",
+                  "const row = (body.items || []).find(",
+                  "  (item) => item.warehouse_id === transferWarehouseId && item.item_type_id === itemTypeId",
                   ");",
                   "",
-                  "pm.test('200 — affectations de l’article lisibles', () => pm.response.to.have.status(200));",
-                  "pm.test('Affectation active créée par le OUT', () => pm.expect(active).to.be.an('object'));",
-                  "if (active) {",
-                  "  pm.test('Entrepôt d’origine de l’affectation', () => {",
-                  "    pm.expect(active.source_warehouse_id).to.eql(warehouseId);",
+                  "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Ligne de solde destination créée', () => pm.expect(row).to.be.an('object'));",
+                  "if (row) {",
+                  "  pm.test('Solde destination = 1', () => {",
+                  "    pm.expect(Number(row.quantity)).to.eql(1);",
                   "  });",
-                  "  pm.test('Acteur d’affectation renseigné', () => {",
-                  "    pm.expect(active.assigned_by).to.be.a('string').and.not.empty;",
+                  "  pm.test('Seuil minimum respecté', () => {",
+                  "    pm.expect(row.below_minimum).to.eql(false);",
                   "  });",
-                  "  pm.collectionVariables.set('outAssignmentId', active.id);",
+                  "  pm.collectionVariables.set('balanceDestination', Number(row.quantity));",
                   "}"
                 ]
               }
@@ -732,13 +769,40 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/item-assignments/item/{{itemOutId}}?pageSize=20",
-            "description": "Preuve que le mouvement OUT a créé une affectation active pour l'article, sans appel séparé à POST /item-assignments."
+            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{transferWarehouseId}}&itemTypeId={{itemTypeId}}",
+            "description": "La ligne de solde du type DEMO-RADIO n'existait pas dans l'entrepôt de destination : le transfert l'a créée avec une unité."
           },
           "response": []
         },
         {
-          "name": "03.6 Retrouver le mouvement dans l'historique",
+          "name": "03.7 Vérifier qu'aucune affectation n'est créée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const assignments = body.items || [];",
+                  "",
+                  "pm.test('200 — affectations de l\\'article lisibles', () => pm.response.to.have.status(200));",
+                  "pm.test('Aucune affectation pour l\\'article transféré', () => {",
+                  "  pm.expect(assignments).to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/item-assignments/item/{{itemMoveId}}?pageSize=20",
+            "description": "Un transfert déplace un article sans le confier à un agent : contrairement à une sortie OUT, il ne crée aucune affectation."
+          },
+          "response": []
+        },
+        {
+          "name": "03.8 Retrouver le mouvement dans l'historique",
           "event": [
             {
               "listen": "test",
@@ -758,8 +822,8 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/inventory/movements?search=DEMO-POSTMAN-OUT&pageSize=20",
-            "description": "Le journal des mouvements est append-only : le mouvement OUT reste consultable après la démonstration."
+            "url": "{{baseUrl}}/api/v1/inventory/movements?search=DEMO-POSTMAN-TRANSFER&pageSize=20",
+            "description": "Le journal des mouvements est append-only : le transfert reste consultable après la démonstration. Pour revenir en arrière, il faut créer un transfert inverse."
           },
           "response": []
         }
@@ -783,7 +847,7 @@
                   "pm.test('200 — articles lisibles', () => pm.response.to.have.status(200));",
                   "pm.test('Les 3 articles de démo sont présents', () => {",
                   "  pm.expect(qrCodes).to.include('DEMO-POSTMAN-ASSIGN');",
-                  "  pm.expect(qrCodes).to.include('DEMO-POSTMAN-OUT');",
+                  "  pm.expect(qrCodes).to.include('DEMO-POSTMAN-MOVE');",
                   "  pm.expect(qrCodes).to.include('DEMO-POSTMAN-SPARE');",
                   "});"
                 ]
@@ -794,12 +858,12 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/inventory/items?search=DEMO-POSTMAN&pageSize=20",
-            "description": "Vue d'ensemble des trois articles dédiés. DEMO-POSTMAN-OUT est ASSIGNED après le parcours 03."
+            "description": "Vue d'ensemble des trois articles dédiés. DEMO-POSTMAN-MOVE est dans l'entrepôt de destination après le parcours 03."
           },
           "response": []
         },
         {
-          "name": "04.2 Lister les affectations actives",
+          "name": "04.2 Vérifier qu'aucune affectation ne reste active",
           "event": [
             {
               "listen": "test",
@@ -807,12 +871,14 @@
                 "type": "text/javascript",
                 "exec": [
                   "const body = pm.response.json();",
-                  "const outAssignmentId = pm.collectionVariables.get('outAssignmentId');",
-                  "const found = (body.items || []).some((item) => item.id === outAssignmentId);",
+                  "const itemMoveId = pm.variables.get('itemMoveId');",
+                  "const active = (body.items || []).filter(",
+                  "  (item) => item.item_id === itemMoveId && item.returned_at === null",
+                  ");",
                   "",
                   "pm.test('200 — affectations lisibles', () => pm.response.to.have.status(200));",
-                  "pm.test('Affectation active du OUT visible', () => {",
-                  "  pm.expect(found).to.eql(true);",
+                  "pm.test('Aucune affectation active pour l\\'article transféré', () => {",
+                  "  pm.expect(active).to.eql([]);",
                   "});"
                 ]
               }
@@ -822,7 +888,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/item-assignments?active=true&pageSize=50",
-            "description": "Liste les affectations encore ouvertes. L'affectation créée automatiquement par le mouvement OUT doit y figurer."
+            "description": "L'affectation du parcours 02 a été retournée et le transfert n'en a créé aucune : plus aucune affectation active ne porte sur les articles de démo."
           },
           "response": []
         },
@@ -836,18 +902,19 @@
                 "exec": [
                   "const body = pm.response.json();",
                   "const warehouseId = pm.variables.get('warehouseId');",
+                  "const transferWarehouseId = pm.variables.get('transferWarehouseId');",
                   "const itemTypeId = pm.variables.get('itemTypeId');",
-                  "const row = (body.items || []).find(",
-                  "  (item) => item.warehouse_id === warehouseId && item.item_type_id === itemTypeId",
-                  ");",
+                  "const rows = (body.items || []).filter((item) => item.item_type_id === itemTypeId);",
+                  "const source = rows.find((item) => item.warehouse_id === warehouseId);",
+                  "const destination = rows.find((item) => item.warehouse_id === transferWarehouseId);",
                   "",
                   "pm.test('200 — soldes lisibles', () => pm.response.to.have.status(200));",
-                  "pm.test('Ligne de solde démo présente', () => pm.expect(row).to.be.an('object'));",
-                  "if (row) {",
-                  "  pm.test('Solde final = 2', () => {",
-                  "    pm.expect(Number(row.quantity)).to.eql(2);",
-                  "  });",
-                  "}"
+                  "pm.test('Solde source final = 2', () => {",
+                  "  pm.expect(Number(source.quantity)).to.eql(2);",
+                  "});",
+                  "pm.test('Solde destination final = 1', () => {",
+                  "  pm.expect(Number(destination.quantity)).to.eql(1);",
+                  "});"
                 ]
               }
             }
@@ -855,8 +922,8 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?warehouseId={{warehouseId}}&itemTypeId={{itemTypeId}}",
-            "description": "État final attendu : 3 articles au départ, 2 après la sortie OUT. Relancer le reset pour revenir à 3."
+            "url": "{{baseUrl}}/api/v1/inventory/stock-balances?itemTypeId={{itemTypeId}}&pageSize=50",
+            "description": "État final attendu : 3 articles au départ, 2 dans l'entrepôt source et 1 dans l'entrepôt de destination. Relancer le reset pour revenir à 3."
           },
           "response": []
         }
@@ -885,6 +952,11 @@
       "type": "string"
     },
     {
+      "key": "transferWarehouseId",
+      "value": "d0e00000-0000-4000-8000-000000000013",
+      "type": "string"
+    },
+    {
       "key": "itemTypeId",
       "value": "d0e00000-0000-4000-8000-000000000002",
       "type": "string"
@@ -905,7 +977,7 @@
       "type": "string"
     },
     {
-      "key": "itemOutId",
+      "key": "itemMoveId",
       "value": "d0e00000-0000-4000-8000-000000000008",
       "type": "string"
     },
@@ -950,7 +1022,7 @@
       "type": "string"
     },
     {
-      "key": "outAssignmentId",
+      "key": "balanceDestination",
       "value": "",
       "type": "string"
     },
@@ -975,7 +1047,7 @@
       "type": "string"
     },
     {
-      "key": "balanceAfterOut",
+      "key": "balanceAfterTransfer",
       "value": "",
       "type": "string"
     }
